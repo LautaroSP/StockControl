@@ -1,0 +1,325 @@
+﻿
+namespace StockControl
+{ 
+
+    partial class frmProducto
+    {
+        /// <summary>
+        /// Required designer variable.
+        /// </summary>
+        private System.ComponentModel.IContainer components = null;
+
+        /// <summary>
+        /// Clean up any resources being used.
+        /// </summary>
+        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        #region Windows Form Designer generated code
+
+        /// <summary>
+        /// Required method for Designer support - do not modify
+        /// the contents of this method with the code editor.
+        /// </summary>
+        private void InitializeComponent()
+        {
+            brnGrabar = new Button();
+            brnCancelar = new Button();
+            label1 = new Label();
+            label2 = new Label();
+            label3 = new Label();
+            label4 = new Label();
+            label5 = new Label();
+            txtCodigo = new TextBox();
+            txtNombre = new TextBox();
+            txtCosto = new TextBox();
+            txtPrecio = new TextBox();
+            txtCantidad = new TextBox();
+            txtValorDolar = new TextBox();
+            chkDolar = new CheckBox();
+            lblDoalr = new Label();
+            chkGananciaProd = new CheckBox();
+            Ganancia = new Label();
+            txtGanancia = new TextBox();
+            chkSector = new CheckBox();
+            label6 = new Label();
+            txtIVA = new TextBox();
+            cbGrupoProducto = new ComboBox();
+            Grupo = new Label();
+            SuspendLayout();
+            // 
+            // brnGrabar
+            // 
+            brnGrabar.Location = new Point(12, 234);
+            brnGrabar.Name = "brnGrabar";
+            brnGrabar.Size = new Size(75, 23);
+            brnGrabar.TabIndex = 0;
+            brnGrabar.Text = "Grabar";
+            brnGrabar.UseVisualStyleBackColor = true;
+            brnGrabar.Click += brnGrabar_Click;
+            // 
+            // brnCancelar
+            // 
+            brnCancelar.Location = new Point(93, 234);
+            brnCancelar.Name = "brnCancelar";
+            brnCancelar.Size = new Size(75, 23);
+            brnCancelar.TabIndex = 1;
+            brnCancelar.Text = "Cancelar";
+            brnCancelar.UseVisualStyleBackColor = true;
+            brnCancelar.Click += brnCancelar_Click;
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new Point(25, 27);
+            label1.Name = "label1";
+            label1.Size = new Size(46, 15);
+            label1.TabIndex = 2;
+            label1.Text = "Codigo";
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new Point(25, 57);
+            label2.Name = "label2";
+            label2.Size = new Size(51, 15);
+            label2.TabIndex = 3;
+            label2.Text = "Nombre";
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Location = new Point(25, 86);
+            label3.Name = "label3";
+            label3.Size = new Size(38, 15);
+            label3.TabIndex = 4;
+            label3.Text = "Costo";
+            // 
+            // label4
+            // 
+            label4.AutoSize = true;
+            label4.Location = new Point(25, 115);
+            label4.Name = "label4";
+            label4.Size = new Size(40, 15);
+            label4.TabIndex = 5;
+            label4.Text = "Precio";
+            // 
+            // label5
+            // 
+            label5.AutoSize = true;
+            label5.Location = new Point(25, 144);
+            label5.Name = "label5";
+            label5.Size = new Size(55, 15);
+            label5.TabIndex = 6;
+            label5.Text = "Cantidad";
+            // 
+            // txtCodigo
+            // 
+            txtCodigo.Location = new Point(93, 27);
+            txtCodigo.Name = "txtCodigo";
+            txtCodigo.Size = new Size(346, 23);
+            txtCodigo.TabIndex = 7;
+            // 
+            // txtNombre
+            // 
+            txtNombre.Location = new Point(93, 57);
+            txtNombre.Name = "txtNombre";
+            txtNombre.Size = new Size(346, 23);
+            txtNombre.TabIndex = 8;
+            // 
+            // txtCosto
+            // 
+            txtCosto.Location = new Point(93, 86);
+            txtCosto.Name = "txtCosto";
+            txtCosto.Size = new Size(75, 23);
+            txtCosto.TabIndex = 9;
+            txtCosto.TextChanged += txtCosto_TextChanged;
+            // 
+            // txtPrecio
+            // 
+            txtPrecio.Location = new Point(93, 115);
+            txtPrecio.Name = "txtPrecio";
+            txtPrecio.Size = new Size(75, 23);
+            txtPrecio.TabIndex = 10;
+            txtPrecio.TextChanged += txtPrecio_TextChanged;
+            txtPrecio.KeyPress += txtPrecio_KeyPress;
+            // 
+            // txtCantidad
+            // 
+            txtCantidad.Location = new Point(93, 144);
+            txtCantidad.Name = "txtCantidad";
+            txtCantidad.Size = new Size(75, 23);
+            txtCantidad.TabIndex = 11;
+            // 
+            // txtValorDolar
+            // 
+            txtValorDolar.Location = new Point(326, 107);
+            txtValorDolar.Name = "txtValorDolar";
+            txtValorDolar.Size = new Size(100, 23);
+            txtValorDolar.TabIndex = 12;
+            txtValorDolar.Leave += txtValorDolar_Leave;
+            // 
+            // chkDolar
+            // 
+            chkDolar.AutoSize = true;
+            chkDolar.Location = new Point(256, 88);
+            chkDolar.Name = "chkDolar";
+            chkDolar.Size = new Size(124, 19);
+            chkDolar.TabIndex = 13;
+            chkDolar.Text = "Producto en Pesos";
+            chkDolar.UseVisualStyleBackColor = true;
+            chkDolar.CheckedChanged += chkDolar_CheckedChanged;
+            // 
+            // lblDoalr
+            // 
+            lblDoalr.AutoSize = true;
+            lblDoalr.Location = new Point(256, 110);
+            lblDoalr.Name = "lblDoalr";
+            lblDoalr.Size = new Size(64, 15);
+            lblDoalr.TabIndex = 14;
+            lblDoalr.Text = "Valor Dolar";
+            // 
+            // chkGananciaProd
+            // 
+            chkGananciaProd.AutoSize = true;
+            chkGananciaProd.Location = new Point(256, 136);
+            chkGananciaProd.Name = "chkGananciaProd";
+            chkGananciaProd.Size = new Size(148, 19);
+            chkGananciaProd.TabIndex = 15;
+            chkGananciaProd.Text = "Ganancia por producto";
+            chkGananciaProd.UseVisualStyleBackColor = true;
+            chkGananciaProd.CheckedChanged += chkGananciaProd_CheckedChanged;
+            // 
+            // Ganancia
+            // 
+            Ganancia.AutoSize = true;
+            Ganancia.Location = new Point(256, 158);
+            Ganancia.Name = "Ganancia";
+            Ganancia.Size = new Size(56, 15);
+            Ganancia.TabIndex = 16;
+            Ganancia.Text = "Ganancia";
+            // 
+            // txtGanancia
+            // 
+            txtGanancia.Location = new Point(326, 155);
+            txtGanancia.Name = "txtGanancia";
+            txtGanancia.PlaceholderText = "00,00";
+            txtGanancia.Size = new Size(100, 23);
+            txtGanancia.TabIndex = 17;
+            txtGanancia.TextChanged += txtGanancia_TextChanged;
+            // 
+            // chkSector
+            // 
+            chkSector.AutoSize = true;
+            chkSector.Location = new Point(256, 184);
+            chkSector.Name = "chkSector";
+            chkSector.Size = new Size(59, 19);
+            chkSector.TabIndex = 18;
+            chkSector.Text = "Sector";
+            chkSector.UseVisualStyleBackColor = true;
+            chkSector.CheckedChanged += chkSector_CheckedChanged;
+            // 
+            // label6
+            // 
+            label6.AutoSize = true;
+            label6.Location = new Point(446, 137);
+            label6.Name = "label6";
+            label6.Size = new Size(24, 15);
+            label6.TabIndex = 19;
+            label6.Text = "IVA";
+            // 
+            // txtIVA
+            // 
+            txtIVA.Location = new Point(446, 155);
+            txtIVA.Name = "txtIVA";
+            txtIVA.PlaceholderText = "00,00";
+            txtIVA.Size = new Size(38, 23);
+            txtIVA.TabIndex = 20;
+            txtIVA.TextChanged += txtIVA_TextChanged;
+            // 
+            // cbGrupoProducto
+            // 
+            cbGrupoProducto.FormattingEnabled = true;
+            cbGrupoProducto.Location = new Point(93, 173);
+            cbGrupoProducto.Name = "cbGrupoProducto";
+            cbGrupoProducto.Size = new Size(157, 23);
+            cbGrupoProducto.TabIndex = 21;
+            cbGrupoProducto.SelectedIndexChanged += cbGrupoProducto_SelectedIndexChanged;
+            // 
+            // Grupo
+            // 
+            Grupo.AutoSize = true;
+            Grupo.Location = new Point(25, 176);
+            Grupo.Name = "Grupo";
+            Grupo.Size = new Size(40, 15);
+            Grupo.TabIndex = 22;
+            Grupo.Text = "Grupo";
+            // 
+            // frmProducto
+            // 
+            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            ClientSize = new Size(524, 267);
+            Controls.Add(Grupo);
+            Controls.Add(cbGrupoProducto);
+            Controls.Add(txtIVA);
+            Controls.Add(label6);
+            Controls.Add(chkSector);
+            Controls.Add(txtGanancia);
+            Controls.Add(Ganancia);
+            Controls.Add(chkGananciaProd);
+            Controls.Add(lblDoalr);
+            Controls.Add(chkDolar);
+            Controls.Add(txtValorDolar);
+            Controls.Add(txtCantidad);
+            Controls.Add(txtPrecio);
+            Controls.Add(txtCosto);
+            Controls.Add(txtNombre);
+            Controls.Add(txtCodigo);
+            Controls.Add(label5);
+            Controls.Add(label4);
+            Controls.Add(label3);
+            Controls.Add(label2);
+            Controls.Add(label1);
+            Controls.Add(brnCancelar);
+            Controls.Add(brnGrabar);
+            Name = "frmProducto";
+            Text = "Producto";
+            ResumeLayout(false);
+            PerformLayout();
+        }
+
+        #endregion
+
+        private Button brnGrabar;
+        private Button brnCancelar;
+        private Label label1;
+        private Label label2;
+        private Label label3;
+        private Label label4;
+        private Label label5;
+        private TextBox txtCodigo;
+        private TextBox txtNombre;
+        private TextBox txtCosto;
+        private TextBox txtPrecio;
+        private TextBox txtCantidad;
+        private TextBox txtValorDolar;
+        private CheckBox chkDolar;
+        private Label lblDoalr;
+        private CheckBox chkGananciaProd;
+        private Label Ganancia;
+        private TextBox txtGanancia;
+        private CheckBox chkSector;
+        private Label label6;
+        private TextBox txtIVA;
+        private ComboBox cbGrupoProducto;
+        private Label Grupo;
+    }
+}

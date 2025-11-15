@@ -1,0 +1,460 @@
+﻿using StockControl.Domain;
+using StockControl.Repository;
+using System.Globalization;
+
+namespace StockControl
+{
+    public partial class frmProducto : Form
+    {
+        private Producto _prod;
+        private bool esEdicion = false;
+        private ProductoRepository _prodRepository;
+        private decimal _dolar = 1;
+        private GrupoRepository _grupoRepository = new GrupoRepository();
+        private bool _actualizando = false;
+
+        public frmProducto(Producto? prod, ProductoRepository prodRep, bool cobrarEnPesos)
+        {
+            InitializeComponent();
+            this.Icon = new Icon("Resources\\stockIcon.ico");
+            _prodRepository = prodRep;
+            txtValorDolar.Enabled = false;
+            txtValorDolar.Text = StockMain._valorDolar.ToString();
+            _dolar = StockMain._valorDolar;
+            CargarGrupos();
+            if (prod != null)
+            {
+                _prod = prod;
+                esEdicion = true;
+                txtCodigo.Enabled = false;
+                chkSector.Enabled = false;
+                CargarInformacionDelProducto();
+            }
+            else
+                _prod = new Producto();
+
+            if (cobrarEnPesos)
+            {
+                chkDolar.Visible = false;
+                txtValorDolar.Visible = false;
+                lblDoalr.Visible = false;
+            }
+            txtGanancia.Enabled = false;
+            txtIVA.Enabled = false;
+            txtIVA.Text = StockMain.IVA.ToString();
+        }
+
+        private void CargarInformacionDelProducto()
+        {
+            txtCodigo.Text = _prod.Codigo.ToString();
+            txtCosto.Text = _prod.Costo.ToString();
+            txtNombre.Text = _prod.Nombre.ToString();
+            txtPrecio.Text = _prod.Precio.ToString();
+            txtCantidad.Text = _prod.Cantidad.ToString();
+            chkSector.Checked = _prod.ProductoSector == 1;
+            chkGananciaProd.Checked = _prod.GananciaIndividual == 1;
+            if (_prod.GananciaIndividual == 1)
+                txtGanancia.Text = _prod.ValorGanancia.ToString();
+            if (_prod.IdGrupoProducto != 0)
+            {
+                var grupo = cbGrupoProducto.Items
+                            .OfType<GrupoProductos>()
+                            .FirstOrDefault(g => g.IdGrupoProducto == _prod.IdGrupoProducto);
+
+                if (grupo != null)
+                    cbGrupoProducto.SelectedItem = grupo;
+            }
+            else
+                cbGrupoProducto.SelectedIndex = 0;
+            if (chkSector.Checked)
+                cbGrupoProducto.Enabled = false;
+        }
+
+        private void brnCancelar_Click(object sender, EventArgs e)
+        {
+            var result = MessageBox.Show("¿Estás seguro que querés salir?",
+                                            "Salir",
+                                            MessageBoxButtons.YesNo,
+                                            MessageBoxIcon.Warning
+                                        );
+
+            if (result == DialogResult.Yes)
+            {
+                this.Close();
+            }
+        }
+        private void brnGrabar_Click(object sender, EventArgs e)
+        {
+            string mensaje = esEdicion ? "editar" : "crear";
+            bool productoEnPesos = false;
+            var result = MessageBox.Show($"Vas a {mensaje} este producto, ¿Desea Continuar?",
+                                            "Creacion o edicion de producto",
+                                            MessageBoxButtons.YesNo,
+                                            MessageBoxIcon.Information);
+
+            if (result == DialogResult.Yes)
+            {
+                if (chkDolar.Checked)
+                {
+                    var result2 = MessageBox.Show($"Esta marcado el producto en pesos, se va a dividir por el valor del dolar cargado. ¿Desea Continuar?",
+                "Confirmacion",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Information);
+
+                    if (result == DialogResult.Yes)
+                    {
+                        productoEnPesos = true;
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
+
+                if (esEdicion)
+                {
+                    if (AsignarValoresAProd(productoEnPesos))
+                    {
+                        _prodRepository.Actualizar(_prod);
+                        this.DialogResult = DialogResult.OK;
+                        Close();
+                    }
+                }
+                else
+                {
+                    var productoExistente = _prodRepository.BuscarPorCodigo(txtCodigo.Text);
+                    if (productoExistente == null)
+                    {
+                        if (AsignarValoresAProd(productoEnPesos))
+                        {
+                            _prodRepository.Insertar(_prod);
+                            this.DialogResult = DialogResult.OK;
+                            Close();
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Existe un Producto con ese codigo, cambie el codigo o elimine el existente", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+            }
+            if (this.DialogResult == DialogResult.OK)
+                Close();
+        }
+
+        private bool AsignarValoresAProd(bool productoEnPesos)
+        {
+            _prod.Codigo = txtCodigo.Text;
+
+            _prod.Nombre = txtNombre.Text;
+            decimal precio;
+            decimal cantidad;
+            decimal costo;
+            decimal ganancia;
+
+            if (TryParseDecimal(txtCosto.Text, out costo))
+            {
+                if (productoEnPesos)
+                    costo = costo / _dolar;
+
+                _prod.Costo = Math.Round(costo, 2);
+            }
+            else
+            {
+                MessageBox.Show("El costo debe ser un número decimal", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+
+            if (TryParseDecimal(txtPrecio.Text, out precio))
+            {
+                if (productoEnPesos)
+                    precio = precio / _dolar;
+
+                _prod.Precio = Math.Round(precio, 2);
+            }
+            else
+            {
+                MessageBox.Show("El precio debe ser un número decimal", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+
+            if (TryParseDecimal(txtCantidad.Text, out cantidad))
+                _prod.Cantidad = cantidad;
+            else
+            {
+                MessageBox.Show("La cantidad debe ser un número", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            if (chkGananciaProd.Checked)
+            {
+                if (TryParseDecimal(txtGanancia.Text, out ganancia))
+                {
+                    _prod.GananciaIndividual = 1;
+                    _prod.ValorGanancia = Math.Round(ganancia, 2);
+                }
+                else
+                {
+                    MessageBox.Show("La ganancia debe ser un número decimal", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return false;
+                }
+            }
+            else
+            {
+                _prod.GananciaIndividual = 0;
+                _prod.ValorGanancia = 0;
+            }
+
+            _prod.ProductoSector = chkSector.Checked ? 1 : 0;
+            return true;
+
+        }
+        private bool TryParseDecimal(string input, out decimal value)
+        {
+            input = input.Trim();
+
+            input = input.Replace(',', '.');
+
+            return decimal.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out value);
+        }
+
+        private void txtCosto_TextChanged(object sender, EventArgs e)
+        {
+            CalcularCosto();
+        }
+
+        private void chkDolar_CheckedChanged(object sender, EventArgs e)
+        {
+            txtValorDolar.Enabled = chkDolar.Checked;
+        }
+
+        private void txtValorDolar_Leave(object sender, EventArgs e)
+        {
+            if (txtValorDolar.Text != string.Empty)
+            {
+                if (TryParseDecimal(txtValorDolar.Text, out decimal result))
+                {
+                    _dolar = result;
+                }
+                else
+                    MessageBox.Show("El valor del dolar debe ser un numero decimal", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void chkGananciaProd_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkGananciaProd.Checked)
+            {
+                txtGanancia.Enabled = true;
+                txtIVA.Enabled = true;
+                CalcularCosto();
+            }
+            else
+            {
+                txtGanancia.Enabled = false;
+                txtIVA.Enabled = false;
+                CalcularCosto();
+            }
+        }
+
+        private void txtGanancia_TextChanged(object sender, EventArgs e)
+        {
+            if (_actualizando) return;
+            CalcularCosto();
+        }
+        private void CalcularCosto()
+        {
+            try 
+            {
+                if (txtCosto.Text != string.Empty)
+                {
+                    _actualizando = true;
+                    if (TryParseDecimal(txtCosto.Text, out decimal value))
+                    {
+                        if (chkGananciaProd.Checked && !string.IsNullOrEmpty(txtGanancia.Text))
+                        {
+                            if (TryParseDecimal(txtGanancia.Text, out decimal gananciaProd))
+                            {
+                                if (TryParseDecimal(txtIVA.Text, out decimal iva))
+                                    txtPrecio.Text = (value * (gananciaProd * iva)).ToString("0.##");
+                            }
+                        }
+                        else
+                            txtPrecio.Text = (value * (StockMain._factorGanancia * StockMain.IVA)).ToString("0.##");
+                    }
+                }
+            }
+            catch (Exception ex) 
+            {
+
+            }
+            finally 
+            {
+                _actualizando = false;
+            }
+            
+        }
+
+        private void chkSector_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkSector.Checked)
+            {
+                txtCantidad.Text = "1";
+                txtCantidad.Enabled = false;
+                txtPrecio.Text = "1";
+                txtPrecio.Enabled = false;
+                txtCosto.Text = "1";
+                txtCosto.Enabled = false;
+                txtValorDolar.Enabled = false;
+                txtGanancia.Enabled = false;
+                chkDolar.Enabled = false;
+                chkGananciaProd.Enabled = false;
+                cbGrupoProducto.Enabled = false;
+            }
+            else
+            {
+                txtCantidad.Text = "0";
+                txtCantidad.Enabled = true;
+                txtPrecio.Text = "0";
+                txtPrecio.Enabled = true;
+                txtCosto.Text = "0";
+                txtCosto.Enabled = true;
+                chkDolar.Enabled = true;
+                chkGananciaProd.Enabled = true;
+                if (chkDolar.Checked)
+                    txtValorDolar.Enabled = true;
+                else
+                    txtValorDolar.Enabled = false;
+
+                cbGrupoProducto.Enabled = true;
+            }
+        }
+
+        private void txtIVA_TextChanged(object sender, EventArgs e)
+        {
+            if (_actualizando) return;
+            CalcularCosto();
+        }
+
+        private void cbGrupoProducto_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cbGrupoProducto.SelectedIndex == 1)
+            {
+                using (var formNuevoGrupo = new frmCrearGrupo())
+                {
+                    if (formNuevoGrupo.ShowDialog() == DialogResult.OK)
+                    {
+                        // Supongamos que el form devuelve el nuevo grupo creado
+                        var nuevoGrupo = formNuevoGrupo.grupoNuevo;
+
+                        // Lo agregás al combo
+                        cbGrupoProducto.Items.Add(nuevoGrupo);
+                        cbGrupoProducto.DisplayMember = "NombreGrupo";
+                        cbGrupoProducto.ValueMember = "IdGrupoProducto";
+                    }
+                    else
+                    {
+                        // Si canceló, volver a la selección anterior
+                        cbGrupoProducto.SelectedIndex = 0;
+                    }
+                }
+            }
+            else if (cbGrupoProducto.SelectedIndex == 0)
+            {
+                _prod.IdGrupoProducto = 0;
+                txtPrecio.Text = string.Empty;
+                txtPrecio.Enabled = true;
+                txtCosto.Enabled = true;
+                chkSector.Enabled = true;
+                chkGananciaProd.Enabled = true;
+                CalcularCosto();
+                return;
+            }
+            else
+            {
+                var grupoSeleccionado = cbGrupoProducto.SelectedItem as GrupoProductos;
+                if (grupoSeleccionado != null)
+                {
+                    _prod.IdGrupoProducto = grupoSeleccionado.IdGrupoProducto;
+                    txtPrecio.Text = grupoSeleccionado.PrecioGrupo.ToString("#0.00");
+                    txtCosto.Text = grupoSeleccionado.Costo.ToString("#0.00");
+                    txtPrecio.Enabled = false;
+                    txtCosto.Enabled = false;
+                    chkSector.Enabled = false;
+                    chkGananciaProd.Enabled = false;
+                }
+            }
+        }
+        private void CargarGrupos()
+        {
+            cbGrupoProducto.SelectedIndexChanged -= cbGrupoProducto_SelectedIndexChanged; // Evita que se dispare mientras cargas
+
+            cbGrupoProducto.Items.Clear();
+            cbGrupoProducto.Items.Add("Seleccionar...");
+            cbGrupoProducto.Items.Add("Crear nuevo grupo..."); // opción especial
+
+            var grupos = _grupoRepository.Listar(); // tu método para traer los grupos
+
+            foreach (var grupo in grupos)
+            {
+                cbGrupoProducto.Items.Add(grupo);
+            }
+
+            cbGrupoProducto.DisplayMember = "NombreGrupo";
+            cbGrupoProducto.ValueMember = "IdGrupoProducto";
+
+            cbGrupoProducto.SelectedIndex = 0; // selecciona el primero "real"
+
+            cbGrupoProducto.SelectedIndexChanged += cbGrupoProducto_SelectedIndexChanged;
+        }
+
+        private void txtPrecio_TextChanged(object sender, EventArgs e)
+        {
+            if (_actualizando) return;
+            CalcularGanancia();
+        }
+        private void CalcularGanancia()
+        {
+            if (!TryParseDecimal(txtPrecio.Text, out decimal precio))
+                return;
+            if (!TryParseDecimal(txtCosto.Text, out decimal costo))
+                return;
+            if(!TryParseDecimal(txtIVA.Text, out decimal iva))
+                return;
+            if (costo == 0)
+                return;
+
+            decimal ganancia = precio / costo / iva; // o el cálculo que uses
+            _actualizando = true;
+            try
+            {
+                chkGananciaProd.Checked = true;
+                txtGanancia.Text = ganancia.ToString("0.##");
+            }
+            finally
+            {
+                _actualizando = false;
+            }
+        }
+
+        private void txtPrecio_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            var separator = System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator;
+            var textBox = (TextBox)sender;
+
+            // Permitir control de teclas
+            if (char.IsControl(e.KeyChar))
+                return;
+
+            // Permitir dígitos
+            if (char.IsDigit(e.KeyChar))
+                return;
+
+            // Permitir separador decimal solo si no existe ya
+            if (e.KeyChar.ToString() == separator && !textBox.Text.Contains(separator))
+                return;
+
+            // Bloquear todo lo demás
+            e.Handled = true;
+        }
+    }
+}

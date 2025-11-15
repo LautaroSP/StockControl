@@ -455,27 +455,41 @@ namespace StockControl
 
         private void txtBuscador_TextChanged(object sender, EventArgs e)
         {
-            if (txtBuscador.Text == string.Empty)
-                return;
-
             FiltrarProductos();
         }
 
         private void FiltrarProductos()
         {
-            if (cbMostrarSeleccionados.Checked)
+            var texto = txtBuscador.Text.Trim().ToLower();
+
+            // Si no hay texto, volver a mostrar correctamente la lista original
+            if (string.IsNullOrEmpty(texto))
             {
-                dgProductos.DataSource = _productosFiltrados.Where(x => x.CodigoProducto.Contains(txtBuscador.Text)
-                                                            || x.NombreProducto.Contains(txtBuscador.Text)).ToBindingList();
+                dgProductos.DataSource = cbMostrarSeleccionados.Checked
+                    ? _productosFiltrados
+                    : _productos;
+
+                OcultarColumnas();
+                return;
             }
-            else
-            {
-                dgProductos.DataSource = _productos.Where(x => x.CodigoProducto.Contains(txtBuscador.Text)
-                                            || x.NombreProducto.Contains(txtBuscador.Text)).ToBindingList();
-            }
+
+            // Filtrar sobre la fuente "real" según el estado del checkbox
+            IEnumerable<ProductoDTO> fuente = cbMostrarSeleccionados.Checked
+                ? _productosFiltrados
+                : _productos;
+
+            var filtrado = fuente
+                .Where(x =>
+                    (x.CodigoProducto?.ToLower().Contains(texto) ?? false) ||
+                    (x.NombreProducto?.ToLower().Contains(texto) ?? false)
+                )
+                .ToList();
+
+            dgProductos.DataSource = new BindingList<ProductoDTO>(filtrado);
 
             OcultarColumnas();
         }
+
 
         private void txtCosto_TextChanged(object sender, EventArgs e)
         {

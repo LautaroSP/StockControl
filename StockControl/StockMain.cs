@@ -278,8 +278,29 @@ namespace StockControl
                 dataGridView2.Refresh();
                 CalcularPrecioEnDolar();
                 CalcularTotal();
+                if(producto.ProductoSector == 1)
+                {
+                    SeleccionarPrecioProductoSector(producto);
+                }
             }
         }
+
+        private void SeleccionarPrecioProductoSector(Producto producto)
+        {
+            int lastRow = dataGridView2.Rows.Count - 1;
+            int colPrecio = 3;
+
+            dataGridView2.ClearSelection();
+            dataGridView2.CurrentCell = dataGridView2.Rows[lastRow].Cells[colPrecio];
+
+            dataGridView2.FirstDisplayedScrollingRowIndex = lastRow;
+
+            this.BeginInvoke(new Action(() =>
+            {
+                dataGridView2.BeginEdit(true);
+            }));
+        }
+
         private void dataGridViewCarrito_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0)
@@ -634,9 +655,14 @@ namespace StockControl
                     {
                         var itemExistente = _carrito.FirstOrDefault(c => c.Codigo == producto.Codigo);
 
-                        if (itemExistente != null)
+                        if (itemExistente != null && producto.ProductoSector != 1)
                         {
                             itemExistente.Cantidad++;
+                        }
+                        else if(producto.ProductoSector == 1 && itemExistente != null)
+                        {
+                            SeleccionarPrecioProductoSector(producto);
+                            return;
                         }
                         else
                         {
@@ -658,6 +684,10 @@ namespace StockControl
                         }
                         dataGridView2.DataSource = null;
                         dataGridView2.DataSource = _carrito;
+                        if (producto.ProductoSector == 1)
+                        {
+                            SeleccionarPrecioProductoSector(producto);
+                        }
                     }
                     CalcularTotal();
                 }

@@ -93,7 +93,7 @@
             txtIVA.Name = "txtIVA";
             txtIVA.PlaceholderText = "00,00";
             txtIVA.Size = new Size(38, 24);
-            txtIVA.TabIndex = 25;
+            txtIVA.TabIndex = 6;
             txtIVA.TextChanged += txtIVA_TextChanged;
             // 
             // label6
@@ -111,7 +111,7 @@
             txtGanancia.Name = "txtGanancia";
             txtGanancia.PlaceholderText = "00,00";
             txtGanancia.Size = new Size(100, 24);
-            txtGanancia.TabIndex = 23;
+            txtGanancia.TabIndex = 5;
             txtGanancia.TextChanged += txtGanancia_TextChanged;
             // 
             // Ganancia
@@ -129,7 +129,7 @@
             chkGananciaProd.Location = new Point(754, 60);
             chkGananciaProd.Name = "chkGananciaProd";
             chkGananciaProd.Size = new Size(151, 19);
-            chkGananciaProd.TabIndex = 21;
+            chkGananciaProd.TabIndex = 4;
             chkGananciaProd.Text = "Ganancia por producto";
             chkGananciaProd.UseVisualStyleBackColor = true;
             chkGananciaProd.CheckedChanged += chkGananciaProd_CheckedChanged;
@@ -140,7 +140,7 @@
             txtCosto.Name = "txtCosto";
             txtCosto.PlaceholderText = "0.00";
             txtCosto.Size = new Size(58, 24);
-            txtCosto.TabIndex = 12;
+            txtCosto.TabIndex = 2;
             txtCosto.TextChanged += txtCosto_TextChanged;
             // 
             // Costo
@@ -205,7 +205,7 @@
             btnNuevoGrupo.Location = new Point(486, 23);
             btnNuevoGrupo.Name = "btnNuevoGrupo";
             btnNuevoGrupo.Size = new Size(98, 43);
-            btnNuevoGrupo.TabIndex = 5;
+            btnNuevoGrupo.TabIndex = 7;
             btnNuevoGrupo.Text = "Nuevo Grupo";
             btnNuevoGrupo.UseVisualStyleBackColor = true;
             btnNuevoGrupo.Click += btnNuevoGrupo_Click;
@@ -217,7 +217,7 @@
             btnEliminar.Location = new Point(486, 74);
             btnEliminar.Name = "btnEliminar";
             btnEliminar.Size = new Size(98, 43);
-            btnEliminar.TabIndex = 4;
+            btnEliminar.TabIndex = 8;
             btnEliminar.Text = "Eliminar";
             btnEliminar.UseVisualStyleBackColor = true;
             btnEliminar.Click += btnEliminar_Click;
@@ -229,7 +229,7 @@
             btnGuardar.Location = new Point(486, 123);
             btnGuardar.Name = "btnGuardar";
             btnGuardar.Size = new Size(98, 43);
-            btnGuardar.TabIndex = 3;
+            btnGuardar.TabIndex = 9;
             btnGuardar.Text = "Guardar Cambios";
             btnGuardar.UseVisualStyleBackColor = true;
             btnGuardar.Click += btnGuardar_Click;
@@ -240,7 +240,7 @@
             txtPrecio.Name = "txtPrecio";
             txtPrecio.PlaceholderText = "00.00";
             txtPrecio.Size = new Size(58, 24);
-            txtPrecio.TabIndex = 2;
+            txtPrecio.TabIndex = 3;
             txtPrecio.TextChanged += txtPrecio_TextChanged;
             txtPrecio.KeyPress += txtPrecio_KeyPress;
             // 
@@ -284,7 +284,7 @@
             cbMostrarSeleccionados.Location = new Point(815, 314);
             cbMostrarSeleccionados.Name = "cbMostrarSeleccionados";
             cbMostrarSeleccionados.Size = new Size(176, 19);
-            cbMostrarSeleccionados.TabIndex = 4;
+            cbMostrarSeleccionados.TabIndex = 20;
             cbMostrarSeleccionados.Text = "MOSTRAR SELECCIONADOS";
             cbMostrarSeleccionados.UseVisualStyleBackColor = true;
             cbMostrarSeleccionados.CheckedChanged += cbMostrarSeleccionados_CheckedChanged;
@@ -297,7 +297,7 @@
             dgProductos.Name = "dgProductos";
             dgProductos.ReadOnly = true;
             dgProductos.Size = new Size(985, 289);
-            dgProductos.TabIndex = 3;
+            dgProductos.TabIndex = 10;
             // 
             // label1
             // 

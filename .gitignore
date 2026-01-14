@@ -1,0 +1,65 @@
+# =========================
+# .NET / Visual Studio
+# =========================
+
+## Build results
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+
+## Build folders
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+ARM/
+ARM64/
+
+## VS files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Rider / VS Code
+.idea/
+.vscode/
+
+## Logs
+*.log
+
+## NuGet
+*.nupkg
+packages/
+packages.lock.json
+
+## Test results
+TestResults/
+*.trx
+
+## Publish
+publish/
+*.Publish.xml
+
+## OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+## Backup / temp
+*.bak
+*.tmp
+*.temp
+*.swp
+
+## SQLite / local DB
+*.db
+*.db-shm
+*.db-wal
+
+## Configs locales
+appsettings.Development.json
+appsettings.Local.json

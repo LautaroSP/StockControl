@@ -28,6 +28,7 @@ namespace StockControl
         private List<MetodoDePago> metodosDePago = new List<MetodoDePago>();
         private List<MetodoDePago> multiplesMetodos = new List<MetodoDePago>();
         private GrupoRepository _grupoRepository = new GrupoRepository();
+        private bool imprimirTicket = true;
 
         public StockMain()
         {
@@ -278,7 +279,7 @@ namespace StockControl
                 dataGridView2.Refresh();
                 CalcularPrecioEnDolar();
                 CalcularTotal();
-                if(producto.ProductoSector == 1)
+                if (producto.ProductoSector == 1)
                 {
                     SeleccionarPrecioProductoSector(producto);
                 }
@@ -454,13 +455,9 @@ namespace StockControl
                     }
                     GenerarInformeDeVenta();
 
-                    var result = MessageBox.Show("¿Desea imprimir el ticket?",
-                                    "Imprimir",
-                                    MessageBoxButtons.YesNo,
-                                    MessageBoxIcon.Information
-                                );
+                    
 
-                    if (result == DialogResult.Yes)
+                    if (imprimirTicket)
                     {
                         ImprimirTicket();
                     }
@@ -659,7 +656,7 @@ namespace StockControl
                         {
                             itemExistente.Cantidad++;
                         }
-                        else if(producto.ProductoSector == 1 && itemExistente != null)
+                        else if (producto.ProductoSector == 1 && itemExistente != null)
                         {
                             SeleccionarPrecioProductoSector(producto);
                             return;
@@ -890,6 +887,11 @@ namespace StockControl
             Grupo frmGrupo = new Grupo(_cobrarEnPesos);
             frmGrupo.ShowDialog();
             CargarProductos();
+        }
+
+        private void chkImprimirTicket_CheckedChanged(object sender, EventArgs e)
+        {
+            imprimirTicket = chkImprimirTicket.Checked;
         }
     }
 }

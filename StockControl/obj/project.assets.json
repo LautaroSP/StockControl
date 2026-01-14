@@ -901,11 +901,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\lauta\\source\\repos\\StockControl\\StockControl\\StockControl.csproj",
+      "projectUniqueName": "C:\\Users\\lauta\\Documents\\Github\\StockControl\\StockControl\\StockControl.csproj",
       "projectName": "StockControl",
-      "projectPath": "C:\\Users\\lauta\\source\\repos\\StockControl\\StockControl\\StockControl.csproj",
+      "projectPath": "C:\\Users\\lauta\\Documents\\Github\\StockControl\\StockControl\\StockControl.csproj",
       "packagesPath": "C:\\Users\\lauta\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\lauta\\source\\repos\\StockControl\\StockControl\\obj\\",
+      "outputPath": "C:\\Users\\lauta\\Documents\\Github\\StockControl\\StockControl\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "E:\\Visual Studio\\CH\\NuGetPackages"
@@ -989,7 +989,7 @@
             "privateAssets": "none"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.100-rc.1.25451.107/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "F0J/2Zpjt9E=",
+  "dgSpecHash": "4qgP4rksr3c=",
   "success": true,
-  "projectFilePath": "C:\\Users\\lauta\\source\\repos\\StockControl\\StockControl\\StockControl.csproj",
+  "projectFilePath": "C:\\Users\\lauta\\Documents\\Github\\StockControl\\StockControl\\StockControl.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\lauta\\.nuget\\packages\\dapper\\2.1.66\\dapper.2.1.66.nupkg.sha512",
     "C:\\Users\\lauta\\.nuget\\packages\\microsoft.data.sqlite\\8.0.19\\microsoft.data.sqlite.8.0.19.nupkg.sha512",

@@ -49,17 +49,15 @@ namespace StockControl
 
             int anchoTotal = 32;
 
-            int anchoNombre = (int)Math.Round(anchoTotal * 0.30); 
-            int espacio = (int)Math.Round(anchoTotal * 0.1);     
-            int anchoNumeros = anchoTotal - anchoNombre - espacio;
+            int anchoNombre = 20;
+            int anchoCant = 3;
+            int anchoSubtotal = anchoTotal - anchoNombre - anchoCant;
 
-            int anchoCant = Math.Min(6, anchoNumeros);
-            int anchoSubtotal = anchoNumeros - anchoCant;
+            string header =
+                "Prod".PadRight(anchoNombre) +
+                "Cant".PadLeft(anchoCant) +
+                "Subt".PadLeft(anchoSubtotal);
 
-            string header = "Prod".PadRight(anchoNombre)
-                          + new string(' ', espacio)
-                          + "Cant".PadRight(anchoCant)
-                          + "Subt".PadRight(anchoSubtotal);
             sb.AppendLine(header);
             sb.AppendLine(new string('-', anchoTotal));
 
@@ -67,25 +65,39 @@ namespace StockControl
 
             foreach (var item in _carrito)
             {
+                item.Nombre = TextoHelper.LimpiarTexto(item.Nombre);
                 var lineasNombre = WrapText(item.Nombre, anchoNombre);
 
                 for (int i = 0; i < lineasNombre.Count; i++)
                 {
                     string nombre = lineasNombre[i].PadRight(anchoNombre);
 
-                    string cant = i == 0 ? item.Cantidad.ToString("0.##").PadRight(anchoCant) : "".PadRight(anchoCant);
-                    string sub = i == 0 ? item.Subtotal.ToString("0.##").PadRight(anchoSubtotal) : "".PadRight(anchoSubtotal);
+                    string cant = i == 0
+                        ? item.Cantidad.ToString("0").PadLeft(anchoCant)
+                        : "".PadLeft(anchoCant);
 
-                    sb.AppendLine(nombre + new string(' ', espacio) + cant + sub);
+                    string sub = i == 0
+                        ? item.Subtotal.ToString("0.##").PadLeft(anchoSubtotal)
+                        : "".PadLeft(anchoSubtotal);
+
+                    sb.AppendLine(nombre + cant + sub);
                 }
-
-                total += item.Subtotal;
             }
+
 
             sb.AppendLine(new string('-', anchoTotal));
 
 
-            sb.AppendLine("\x1B\x21\x08" + $"TOTAL: {total:0.##}");
+            sb.AppendLine(new string('-', anchoTotal));
+
+            string totalLabel = "TOTAL:";
+            string totalValue = total.ToString("0.##");
+
+            sb.AppendLine(
+                totalLabel.PadRight(anchoTotal - totalValue.Length) +
+                totalValue
+            );
+
 
 
             foreach (var linea in WrapText("Ticket no valido como factura", anchoTotal))

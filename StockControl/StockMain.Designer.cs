@@ -56,6 +56,7 @@ namespace StockControl
             btnGrupos = new Button();
             label4 = new Label();
             lblCantProd = new Label();
+            chkImprimirTicket = new CheckBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
@@ -75,6 +76,7 @@ namespace StockControl
             // groupBox1
             // 
             groupBox1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
+            groupBox1.Controls.Add(chkImprimirTicket);
             groupBox1.Controls.Add(chkMultiPago);
             groupBox1.Controls.Add(cbMetodosPago);
             groupBox1.Controls.Add(chkCobroEnPesos);
@@ -95,7 +97,7 @@ namespace StockControl
             chkMultiPago.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             chkMultiPago.AutoSize = true;
             chkMultiPago.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold | FontStyle.Italic, GraphicsUnit.Point, 0);
-            chkMultiPago.Location = new Point(183, 546);
+            chkMultiPago.Location = new Point(182, 542);
             chkMultiPago.Name = "chkMultiPago";
             chkMultiPago.Size = new Size(170, 19);
             chkMultiPago.TabIndex = 11;
@@ -107,7 +109,7 @@ namespace StockControl
             // 
             cbMetodosPago.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             cbMetodosPago.FormattingEnabled = true;
-            cbMetodosPago.Location = new Point(20, 544);
+            cbMetodosPago.Location = new Point(20, 542);
             cbMetodosPago.Name = "cbMetodosPago";
             cbMetodosPago.Size = new Size(156, 23);
             cbMetodosPago.TabIndex = 10;
@@ -130,7 +132,7 @@ namespace StockControl
             txtTotal.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             txtTotal.AutoSize = true;
             txtTotal.Font = new Font("Segoe UI", 15F);
-            txtTotal.Location = new Point(182, 520);
+            txtTotal.Location = new Point(182, 515);
             txtTotal.Name = "txtTotal";
             txtTotal.Size = new Size(67, 28);
             txtTotal.TabIndex = 7;
@@ -165,7 +167,7 @@ namespace StockControl
             // 
             brnCancelar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             brnCancelar.ForeColor = Color.FromArgb(192, 0, 0);
-            brnCancelar.Location = new Point(101, 496);
+            brnCancelar.Location = new Point(101, 495);
             brnCancelar.Name = "brnCancelar";
             brnCancelar.Size = new Size(75, 42);
             brnCancelar.TabIndex = 4;
@@ -178,7 +180,7 @@ namespace StockControl
             btnCobrar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnCobrar.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
             btnCobrar.ForeColor = Color.ForestGreen;
-            btnCobrar.Location = new Point(20, 496);
+            btnCobrar.Location = new Point(20, 495);
             btnCobrar.Name = "btnCobrar";
             btnCobrar.Size = new Size(75, 42);
             btnCobrar.TabIndex = 3;
@@ -359,6 +361,19 @@ namespace StockControl
             lblCantProd.TabIndex = 13;
             lblCantProd.Text = "0";
             // 
+            // chkImprimirTicket
+            // 
+            chkImprimirTicket.AutoSize = true;
+            chkImprimirTicket.Checked = true;
+            chkImprimirTicket.CheckState = CheckState.Checked;
+            chkImprimirTicket.Location = new Point(182, 557);
+            chkImprimirTicket.Name = "chkImprimirTicket";
+            chkImprimirTicket.Size = new Size(107, 19);
+            chkImprimirTicket.TabIndex = 12;
+            chkImprimirTicket.Text = "Imprimir Ticket";
+            chkImprimirTicket.UseVisualStyleBackColor = true;
+            chkImprimirTicket.CheckedChanged += chkImprimirTicket_CheckedChanged;
+            // 
             // StockMain
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -420,5 +435,6 @@ namespace StockControl
         private Button btnGrupos;
         private Label label4;
         private Label lblCantProd;
+        private CheckBox chkImprimirTicket;
     }
 }

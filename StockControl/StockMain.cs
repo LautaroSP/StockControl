@@ -377,7 +377,6 @@ namespace StockControl
                 {
                     CargarProductos();
                 }
-
             }
         }
 
@@ -686,7 +685,66 @@ namespace StockControl
                             SeleccionarPrecioProductoSector(producto);
                         }
                     }
-                    CalcularTotal();
+                    else
+                    {
+                        var result = MessageBox.Show("El producto no existe. ¿Desea agregar uno nuevo con este código?",
+                            "Producto no encontrado",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question
+                        );
+                        if (result == DialogResult.Yes)
+                        {
+                            frmProducto frmProducto = new frmProducto(codigo, _prodRepository, _cobrarEnPesos, true);
+                            frmProducto.ShowDialog();
+
+                            if (frmProducto.DialogResult == DialogResult.OK)
+                            {
+                                Load();
+                                producto = productos.FirstOrDefault(p => p.Codigo == codigo);
+
+                                if (producto != null)
+                                {
+                                    var itemExistente = _carrito.FirstOrDefault(c => c.Codigo == producto.Codigo);
+
+                                    if (itemExistente != null && producto.ProductoSector != 1)
+                                    {
+                                        itemExistente.Cantidad++;
+                                    }
+                                    else if (producto.ProductoSector == 1 && itemExistente != null)
+                                    {
+                                        SeleccionarPrecioProductoSector(producto);
+                                        return;
+                                    }
+                                    else
+                                    {
+                                        _carrito.Add(new ItemSeleccionado
+                                        {
+                                            Codigo = producto.Codigo,
+                                            Nombre = producto.Nombre,
+                                            Precio = producto.Precio,
+                                            Cantidad = 1,
+                                            IdProducto = producto.Id
+                                        });
+                                    }
+                                    int i = 0;
+                                    foreach (var p in _carrito)
+                                    {
+                                        var prod = _prodRepository.BuscarPorCodigo(p.Codigo);
+                                        preciosBase[i] = prod.Precio;
+                                        i++;
+                                    }
+                                    dataGridView2.DataSource = null;
+                                    dataGridView2.DataSource = _carrito;
+                                    if (producto.ProductoSector == 1)
+                                    {
+                                        SeleccionarPrecioProductoSector(producto);
+                                    }
+                                }
+                            }
+                        }
+                        CalcularTotal();
+                    }
+
                 }
             }
         }

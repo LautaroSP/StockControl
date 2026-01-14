@@ -43,7 +43,27 @@ namespace StockControl
             txtIVA.Enabled = false;
             txtIVA.Text = StockMain.IVA.ToString();
         }
-
+        public frmProducto(string codigo, ProductoRepository prodRep, bool cobrarEnPesos, bool nuevoCodigo)
+        {
+            InitializeComponent();
+            this.Icon = new Icon("Resources\\stockIcon.ico");
+            _prodRepository = prodRep;
+            txtValorDolar.Enabled = false;
+            txtValorDolar.Text = StockMain._valorDolar.ToString();
+            _dolar = StockMain._valorDolar;
+            CargarGrupos();
+            _prod = new Producto();
+            if (cobrarEnPesos)
+            {
+                chkDolar.Visible = false;
+                txtValorDolar.Visible = false;
+                lblDoalr.Visible = false;
+            }
+            txtGanancia.Enabled = false;
+            txtIVA.Enabled = false;
+            txtIVA.Text = StockMain.IVA.ToString();
+            txtCodigo.Text = codigo;
+        }
         private void CargarInformacionDelProducto()
         {
             txtCodigo.Text = _prod.Codigo.ToString();

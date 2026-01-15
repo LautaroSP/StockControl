@@ -192,9 +192,13 @@ namespace StockControl
         private void btnAgregar_Click(object sender, EventArgs e)
         {
             frmProducto frmProducto = new frmProducto(null, _prodRepository, _cobrarEnPesos);
-            frmProducto.ShowDialog();
-            if (frmProducto.DialogResult == DialogResult.OK)
-                Load();
+            frmProducto.FormClosed += (s, e) =>
+            {
+                if (frmProducto.DialogResult == DialogResult.OK)
+                    Load();
+            };
+
+            frmProducto.Show();
         }
         private void Load()
         {
@@ -579,7 +583,7 @@ namespace StockControl
         private void btnVerInforme_Click(object sender, EventArgs e)
         {
             frmInformeVentas frmInformeVentas = new frmInformeVentas();
-            frmInformeVentas.ShowDialog();
+            frmInformeVentas.Show();
             if (frmInformeVentas.DialogResult == DialogResult.OK)
             {
                 Load();
@@ -943,8 +947,8 @@ namespace StockControl
         private void btnGrupos_Click(object sender, EventArgs e)
         {
             Grupo frmGrupo = new Grupo(_cobrarEnPesos);
-            frmGrupo.ShowDialog();
-            CargarProductos();
+            frmGrupo.FormClosed += (s, args) => CargarProductos();
+            frmGrupo.Show();
         }
 
         private void chkImprimirTicket_CheckedChanged(object sender, EventArgs e)

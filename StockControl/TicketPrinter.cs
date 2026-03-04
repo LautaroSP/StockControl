@@ -1,16 +1,17 @@
-﻿using System.Text;
-using ZXing;
-using ZXing.Rendering;
-using ZXing.Common;
-using System.Drawing;
+﻿using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Text;
+using ZXing;
+using ZXing.Common;
+using ZXing.Rendering;
 
 namespace StockControl
 {
     using StockControl.Domain;
     using System;
     using System.Collections.Generic;
+    using System.Drawing.Printing;
     using System.Net.NetworkInformation;
     using System.Runtime.InteropServices;
     using ZXing.Windows.Compatibility;
@@ -82,6 +83,7 @@ namespace StockControl
 
                     sb.AppendLine(nombre + cant + sub);
                 }
+                total += item.Subtotal;
             }
 
 
@@ -185,7 +187,76 @@ namespace StockControl
             return ms.ToArray();
         }
 
+        public string GenerarTicketTexto()
+        {
+            StringBuilder sb = new StringBuilder();
 
+            sb.AppendLine("=== " + StockMain.nombreLocal + " ===");
+            sb.AppendLine(DateTime.Now.ToString("dd/MM/yyyy HH:mm"));
+
+            int anchoTotal = 32;
+            int anchoNombre = 20;
+            int anchoCant = 3;
+            int anchoSubtotal = anchoTotal - anchoNombre - anchoCant;
+
+            sb.AppendLine(
+                "Prod".PadRight(anchoNombre) +
+                "Cant".PadLeft(anchoCant) +
+                "Subt".PadLeft(anchoSubtotal)
+            );
+
+            sb.AppendLine(new string('-', anchoTotal));
+
+            decimal total = 0;
+
+            foreach (var item in _carrito)
+            {
+                var lineas = WrapText(item.Nombre, anchoNombre);
+
+                for (int i = 0; i < lineas.Count; i++)
+                {
+                    string nombre = lineas[i].PadRight(anchoNombre);
+
+                    string cant = i == 0 ? item.Cantidad.ToString().PadLeft(anchoCant) : "".PadLeft(anchoCant);
+                    string sub = i == 0 ? item.Subtotal.ToString("0.##").PadLeft(anchoSubtotal) : "".PadLeft(anchoSubtotal);
+
+                    sb.AppendLine(nombre + cant + sub);
+                }
+
+                total += item.Subtotal;
+            }
+
+            sb.AppendLine(new string('-', anchoTotal));
+            sb.AppendLine("TOTAL:".PadRight(anchoTotal - total.ToString("0.##").Length) + total);
+
+            sb.AppendLine("Gracias por su compra");
+
+            return sb.ToString();
+        }
+        public void ShowPrint()
+
+        {
+            PrintDocument pd = new PrintDocument();
+            var lines = GenerarTicketTexto().Split('\n');
+            pd.PrintPage += (sender, e) =>
+            {
+                var font = new Font("Consolas", 10);
+                float y = 0;
+
+                foreach (var line in lines)
+                {
+                    e.Graphics.DrawString(line, font, Brushes.Black, 0, y);
+                    y += font.GetHeight();
+                }
+            };
+
+            PrintPreviewDialog preview = new PrintPreviewDialog
+            {
+                Document = pd
+            };
+
+            preview.ShowDialog();
+        }
 
 
     }
@@ -241,7 +312,7 @@ namespace StockControl
 
             return true;
         }
-
+       
 
     }
 

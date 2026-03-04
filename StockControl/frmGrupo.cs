@@ -608,5 +608,29 @@ namespace StockControl
         {
 
         }
+
+        private void textBox1_TextChanged(object sender, EventArgs e)
+        {
+            FiltrarGrupos();
+        }
+
+        private void FiltrarGrupos()
+        {
+            var texto = textBox1.Text.Trim().ToLower();
+
+            IEnumerable<GrupoProductos> fuente = _grupos;
+
+            if (!string.IsNullOrEmpty(texto))
+            {
+                fuente = fuente.Where(g =>
+                    (g.NombreGrupo?.ToLower().Contains(texto) ?? false)
+                );
+            }
+
+            dgGrupos.DataSource = new BindingList<GrupoProductos>(fuente.ToList());
+
+            OcultarColumnas();
+        }
+
     }
 }

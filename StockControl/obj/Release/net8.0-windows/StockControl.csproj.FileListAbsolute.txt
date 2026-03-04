@@ -119,6 +119,7 @@ C:\Users\lauta\Documents\Github\StockControl\StockControl\obj\Release\net8.0-win
 C:\Users\lauta\Documents\Github\StockControl\StockControl\obj\Release\net8.0-windows\StockControl.frmProducto.resources
 C:\Users\lauta\Documents\Github\StockControl\StockControl\obj\Release\net8.0-windows\StockControl.Properties.Resources.resources
 C:\Users\lauta\Documents\Github\StockControl\StockControl\obj\Release\net8.0-windows\StockControl.StockMain.resources
+C:\Users\lauta\Documents\Github\StockControl\StockControl\obj\Release\net8.0-windows\StockControl.TestPrint.resources
 C:\Users\lauta\Documents\Github\StockControl\StockControl\obj\Release\net8.0-windows\StockControl.csproj.GenerateResource.cache
 C:\Users\lauta\Documents\Github\StockControl\StockControl\obj\Release\net8.0-windows\StockControl.GeneratedMSBuildEditorConfig.editorconfig
 C:\Users\lauta\Documents\Github\StockControl\StockControl\obj\Release\net8.0-windows\StockControl.AssemblyInfoInputs.cache

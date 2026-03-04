@@ -12,6 +12,7 @@ namespace StockControl
         private decimal _dolar = 1;
         private GrupoRepository _grupoRepository = new GrupoRepository();
         private bool _actualizando = false;
+        private bool _cargandoInfo = false;
 
         public frmProducto(Producto? prod, ProductoRepository prodRep, bool cobrarEnPesos)
         {
@@ -22,6 +23,7 @@ namespace StockControl
             txtValorDolar.Text = StockMain._valorDolar.ToString();
             _dolar = StockMain._valorDolar;
             CargarGrupos();
+            _cargandoInfo = true;
             if (prod != null)
             {
                 _prod = prod;
@@ -42,6 +44,7 @@ namespace StockControl
             txtGanancia.Enabled = false;
             txtIVA.Enabled = false;
             txtIVA.Text = StockMain.IVA.ToString();
+            _cargandoInfo = false;
         }
         public frmProducto(string codigo, ProductoRepository prodRep, bool cobrarEnPesos, bool nuevoCodigo)
         {
@@ -239,7 +242,8 @@ namespace StockControl
 
         private void txtCosto_TextChanged(object sender, EventArgs e)
         {
-            CalcularCosto();
+            if (_cargandoInfo) return;
+                CalcularCosto();
         }
 
         private void chkDolar_CheckedChanged(object sender, EventArgs e)
@@ -262,23 +266,28 @@ namespace StockControl
 
         private void chkGananciaProd_CheckedChanged(object sender, EventArgs e)
         {
+
             if (chkGananciaProd.Checked)
             {
                 txtGanancia.Enabled = true;
                 txtIVA.Enabled = true;
+
+                if(_cargandoInfo) return;
                 CalcularCosto();
             }
             else
             {
                 txtGanancia.Enabled = false;
                 txtIVA.Enabled = false;
+
+                if (_cargandoInfo) return;
                 CalcularCosto();
             }
         }
 
         private void txtGanancia_TextChanged(object sender, EventArgs e)
         {
-            if (_actualizando) return;
+            if (_actualizando || _cargandoInfo) return;
             CalcularCosto();
         }
         private void CalcularCosto()
@@ -351,7 +360,7 @@ namespace StockControl
 
         private void txtIVA_TextChanged(object sender, EventArgs e)
         {
-            if (_actualizando) return;
+            if (_actualizando || _cargandoInfo) return;
             CalcularCosto();
         }
 
@@ -401,6 +410,7 @@ namespace StockControl
                     txtCosto.Enabled = false;
                     chkSector.Enabled = false;
                     chkGananciaProd.Enabled = false;
+                    txtGanancia.Enabled = false;
                 }
             }
         }
@@ -429,7 +439,7 @@ namespace StockControl
 
         private void txtPrecio_TextChanged(object sender, EventArgs e)
         {
-            if (_actualizando) return;
+            if (_actualizando || _cargandoInfo) return;
             CalcularGanancia();
         }
         private void CalcularGanancia()

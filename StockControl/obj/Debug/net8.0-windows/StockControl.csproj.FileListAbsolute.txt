@@ -131,3 +131,4 @@ C:\Users\lauta\Documents\Github\StockControl\StockControl\obj\Debug\net8.0-windo
 C:\Users\lauta\Documents\Github\StockControl\StockControl\obj\Debug\net8.0-windows\StockControl.pdb
 C:\Users\lauta\Documents\Github\StockControl\StockControl\obj\Debug\net8.0-windows\StockControl.genruntimeconfig.cache
 C:\Users\lauta\Documents\Github\StockControl\StockControl\obj\Debug\net8.0-windows\ref\StockControl.dll
+C:\Users\lauta\Documents\Github\StockControl\StockControl\obj\Debug\net8.0-windows\StockControl.TestPrint.resources

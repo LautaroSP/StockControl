@@ -52,6 +52,7 @@
             dgProductos = new DataGridView();
             label1 = new Label();
             txtBuscador = new TextBox();
+            textBox1 = new TextBox();
             Grupos.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgGrupos).BeginInit();
             groupBox2.SuspendLayout();
@@ -80,7 +81,7 @@
             Grupos.Controls.Add(txtNombreGrupo);
             Grupos.Controls.Add(dgGrupos);
             Grupos.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold | FontStyle.Italic, GraphicsUnit.Point, 0);
-            Grupos.Location = new Point(12, 12);
+            Grupos.Location = new Point(12, 21);
             Grupos.Name = "Grupos";
             Grupos.Size = new Size(997, 182);
             Grupos.TabIndex = 0;
@@ -319,11 +320,21 @@
             txtBuscador.TabIndex = 0;
             txtBuscador.TextChanged += txtBuscador_TextChanged;
             // 
+            // textBox1
+            // 
+            textBox1.Location = new Point(72, 12);
+            textBox1.Name = "textBox1";
+            textBox1.PlaceholderText = "Buscar Grupo";
+            textBox1.Size = new Size(215, 23);
+            textBox1.TabIndex = 25;
+            textBox1.TextChanged += textBox1_TextChanged;
+            // 
             // Grupo
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1021, 564);
+            Controls.Add(textBox1);
             Controls.Add(groupBox2);
             Controls.Add(Grupos);
             MaximizeBox = false;
@@ -336,6 +347,7 @@
             groupBox2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)dgProductos).EndInit();
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -364,5 +376,6 @@
         private TextBox txtGanancia;
         private Label Ganancia;
         private CheckBox chkGananciaProd;
+        private TextBox textBox1;
     }
 }

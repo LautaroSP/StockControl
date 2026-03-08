@@ -173,7 +173,6 @@ namespace StockControl.Infrastructure
             {
                 // La columna ya existe, no hacer nada
             }
-
         }
     }
 }

@@ -32,6 +32,9 @@ namespace StockControl
         {
             dataGridView1 = new DataGridView();
             groupBox1 = new GroupBox();
+            lblItems = new Label();
+            label5 = new Label();
+            chkImprimirTicket = new CheckBox();
             chkMultiPago = new CheckBox();
             cbMetodosPago = new ComboBox();
             chkCobroEnPesos = new CheckBox();
@@ -56,7 +59,7 @@ namespace StockControl
             btnGrupos = new Button();
             label4 = new Label();
             lblCantProd = new Label();
-            chkImprimirTicket = new CheckBox();
+            btnGeneric = new Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
@@ -76,6 +79,8 @@ namespace StockControl
             // groupBox1
             // 
             groupBox1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
+            groupBox1.Controls.Add(lblItems);
+            groupBox1.Controls.Add(label5);
             groupBox1.Controls.Add(chkImprimirTicket);
             groupBox1.Controls.Add(chkMultiPago);
             groupBox1.Controls.Add(cbMetodosPago);
@@ -91,6 +96,39 @@ namespace StockControl
             groupBox1.TabIndex = 1;
             groupBox1.TabStop = false;
             groupBox1.Text = "Opciones";
+            // 
+            // lblItems
+            // 
+            lblItems.AutoSize = true;
+            lblItems.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            lblItems.Location = new Point(279, 481);
+            lblItems.Name = "lblItems";
+            lblItems.Size = new Size(14, 15);
+            lblItems.TabIndex = 15;
+            lblItems.Text = "0";
+            // 
+            // label5
+            // 
+            label5.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            label5.AutoSize = true;
+            label5.Location = new Point(182, 481);
+            label5.Name = "label5";
+            label5.Size = new Size(91, 15);
+            label5.TabIndex = 14;
+            label5.Text = "Items en Carrito";
+            // 
+            // chkImprimirTicket
+            // 
+            chkImprimirTicket.AutoSize = true;
+            chkImprimirTicket.Checked = true;
+            chkImprimirTicket.CheckState = CheckState.Checked;
+            chkImprimirTicket.Location = new Point(182, 557);
+            chkImprimirTicket.Name = "chkImprimirTicket";
+            chkImprimirTicket.Size = new Size(107, 19);
+            chkImprimirTicket.TabIndex = 12;
+            chkImprimirTicket.Text = "Imprimir Ticket";
+            chkImprimirTicket.UseVisualStyleBackColor = true;
+            chkImprimirTicket.CheckedChanged += chkImprimirTicket_CheckedChanged;
             // 
             // chkMultiPago
             // 
@@ -109,7 +147,7 @@ namespace StockControl
             // 
             cbMetodosPago.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             cbMetodosPago.FormattingEnabled = true;
-            cbMetodosPago.Location = new Point(20, 542);
+            cbMetodosPago.Location = new Point(20, 531);
             cbMetodosPago.Name = "cbMetodosPago";
             cbMetodosPago.Size = new Size(156, 23);
             cbMetodosPago.TabIndex = 10;
@@ -155,7 +193,7 @@ namespace StockControl
             dataGridView2.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridView2.Location = new Point(20, 22);
             dataGridView2.Name = "dataGridView2";
-            dataGridView2.Size = new Size(341, 468);
+            dataGridView2.Size = new Size(341, 456);
             dataGridView2.TabIndex = 5;
             dataGridView2.CellBeginEdit += dataGridViewProductos_CellBeginEdit;
             dataGridView2.CellMouseDoubleClick += dataGridView2_CellMouseDoubleClick;
@@ -167,7 +205,7 @@ namespace StockControl
             // 
             brnCancelar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             brnCancelar.ForeColor = Color.FromArgb(192, 0, 0);
-            brnCancelar.Location = new Point(101, 495);
+            brnCancelar.Location = new Point(101, 484);
             brnCancelar.Name = "brnCancelar";
             brnCancelar.Size = new Size(75, 42);
             brnCancelar.TabIndex = 4;
@@ -180,7 +218,7 @@ namespace StockControl
             btnCobrar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnCobrar.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
             btnCobrar.ForeColor = Color.ForestGreen;
-            btnCobrar.Location = new Point(20, 495);
+            btnCobrar.Location = new Point(20, 484);
             btnCobrar.Name = "btnCobrar";
             btnCobrar.Size = new Size(75, 42);
             btnCobrar.TabIndex = 3;
@@ -298,7 +336,7 @@ namespace StockControl
             txtScanner.Name = "txtScanner";
             txtScanner.PlaceholderText = "Codigo + Enter";
             txtScanner.Size = new Size(174, 23);
-            txtScanner.TabIndex = 7;
+            txtScanner.TabIndex = 500;
             txtScanner.KeyDown += txtScanner_KeyDown;
             // 
             // btnConfiguracion
@@ -361,24 +399,24 @@ namespace StockControl
             lblCantProd.TabIndex = 13;
             lblCantProd.Text = "0";
             // 
-            // chkImprimirTicket
+            // btnGeneric
             // 
-            chkImprimirTicket.AutoSize = true;
-            chkImprimirTicket.Checked = true;
-            chkImprimirTicket.CheckState = CheckState.Checked;
-            chkImprimirTicket.Location = new Point(182, 557);
-            chkImprimirTicket.Name = "chkImprimirTicket";
-            chkImprimirTicket.Size = new Size(107, 19);
-            chkImprimirTicket.TabIndex = 12;
-            chkImprimirTicket.Text = "Imprimir Ticket";
-            chkImprimirTicket.UseVisualStyleBackColor = true;
-            chkImprimirTicket.CheckedChanged += chkImprimirTicket_CheckedChanged;
+            btnGeneric.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+            btnGeneric.BackgroundImage = Properties.Resources.download;
+            btnGeneric.BackgroundImageLayout = ImageLayout.Stretch;
+            btnGeneric.Location = new Point(957, 11);
+            btnGeneric.Name = "btnGeneric";
+            btnGeneric.Size = new Size(44, 33);
+            btnGeneric.TabIndex = 501;
+            btnGeneric.UseVisualStyleBackColor = true;
+            btnGeneric.Click += btnGeneric_Click;
             // 
             // StockMain
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1096, 629);
+            Controls.Add(btnGeneric);
             Controls.Add(lblCantProd);
             Controls.Add(label4);
             Controls.Add(btnGrupos);
@@ -436,5 +474,8 @@ namespace StockControl
         private Label label4;
         private Label lblCantProd;
         private CheckBox chkImprimirTicket;
+        private Label lblItems;
+        private Label label5;
+        private Button btnGeneric;
     }
 }

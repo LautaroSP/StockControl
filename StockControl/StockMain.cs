@@ -29,6 +29,7 @@ namespace StockControl
         private List<MetodoDePago> multiplesMetodos = new List<MetodoDePago>();
         private GrupoRepository _grupoRepository = new GrupoRepository();
         private bool imprimirTicket = true;
+        private bool editandoProductoSector = false;
 
         public StockMain()
         {
@@ -103,6 +104,8 @@ namespace StockControl
                 chkCobroEnPesos.Visible = false;
                 txtValorDolar.Visible = false;
             }
+            dataGridView2.CellEndEdit += dataGridView2_CellEndEdit;
+
         }
 
         private void CargarProductos()
@@ -305,6 +308,33 @@ namespace StockControl
                 dataGridView2.BeginEdit(true);
             }));
         }
+        private void dataGridView2_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            int row = e.RowIndex;
+
+            if (e.ColumnIndex == 1)
+            {
+                IrACelda(row, 2);
+            }
+            else if (e.ColumnIndex == 2)
+            {
+                IrACelda(row, 3);
+            }
+            else if (e.ColumnIndex == 3) 
+            {
+                CalcularTotal();
+                VolverAScanner();
+            }
+        }
+
+        private void IrACelda(int row, int col)
+        {
+            BeginInvoke(new Action(() =>
+            {
+                dataGridView2.CurrentCell = dataGridView2.Rows[row].Cells[col];
+                dataGridView2.BeginEdit(true);
+            }));
+        }
 
         private void dataGridViewCarrito_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
@@ -356,6 +386,9 @@ namespace StockControl
                 .Sum(i => i.Subtotal);
 
             txtTotal.Text = total.ToString("C2", new CultureInfo("es-AR"));
+
+            decimal items = _carrito.Sum(i => i.Cantidad);
+            lblItems.Text = items.ToString("0", new CultureInfo("es-AR"));
         }
 
         private void brnCancelar_Click(object sender, EventArgs e)
@@ -447,6 +480,7 @@ namespace StockControl
                     }
                     foreach (var item in _carrito)
                     {
+                        if (item.IdProducto == 0) continue;
                         var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
                         if (producto.ProductoSector != 1)
                         {
@@ -458,7 +492,7 @@ namespace StockControl
                     }
                     GenerarInformeDeVenta();
 
-                    
+
 
                     if (imprimirTicket)
                     {
@@ -468,6 +502,7 @@ namespace StockControl
                     dataGridView2.Refresh();
                     frmMetodoPago._metodosDePago.Clear();
                     chkMultiPago.Checked = false;
+                    lblItems.Text = "0";
                 }
             }
             catch (Exception ex)
@@ -480,6 +515,11 @@ namespace StockControl
 
         private void dataGridViewProductos_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
         {
+            var prod = (ItemSeleccionado)dataGridView2.Rows[e.RowIndex].DataBoundItem;
+            if(prod.IdProducto == 0 || prod == null)
+            {
+                return;
+            }
             if (dataGridView2.Columns[e.ColumnIndex].Name == "Precio")
             {
                 var itemCarrito = (ItemSeleccionado)dataGridView2.Rows[e.RowIndex].DataBoundItem;
@@ -562,6 +602,7 @@ namespace StockControl
         {
             foreach (var item in _carrito)
             {
+                if (item.IdProducto == 0) continue;
                 var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
                 if (producto.ProductoSector == 1)
                 {
@@ -679,7 +720,10 @@ namespace StockControl
                         foreach (var p in _carrito)
                         {
                             var prod = _prodRepository.BuscarPorCodigo(p.Codigo);
-                            preciosBase[i] = prod.Precio;
+                            if (p.IdProducto == 0)
+                                preciosBase[i] = p.Precio;
+                            else
+                                preciosBase[i] = prod.Precio;
                             i++;
                         }
                         dataGridView2.DataSource = null;
@@ -746,11 +790,22 @@ namespace StockControl
                                 }
                             }
                         }
-                        CalcularTotal();
+
                     }
 
                 }
+                CalcularTotal();
+                if (!editandoProductoSector)
+                {
+                    VolverAScanner();
+                }
+
             }
+        }
+
+        private void VolverAScanner()
+        {
+            txtScanner.Focus();
         }
 
         private void btnConfiguracion_Click(object sender, EventArgs e)
@@ -880,6 +935,7 @@ namespace StockControl
                     ActualizarTotal();
                     CalcularTotal();
                 }
+                VolverAScanner();
             }
         }
 
@@ -955,5 +1011,34 @@ namespace StockControl
         {
             imprimirTicket = chkImprimirTicket.Checked;
         }
+
+        private void btnGeneric_Click(object sender, EventArgs e)
+        {
+            AgregarProductoGenerico();
+        }
+
+        private void AgregarProductoGenerico()
+        {
+            _carrito.Add(new ItemSeleccionado
+            {
+                Codigo = "0",
+                Nombre = "Producto",
+                Precio = 0,
+                Cantidad = 1,
+                IdProducto = 0
+            });
+            dataGridView2.DataSource = null;
+            dataGridView2.DataSource = _carrito;
+            int lastRow = dataGridView2.Rows.Count - 1;
+            BeginInvoke(new Action(() =>
+            {
+                var cell = dataGridView2.Rows[lastRow].Cells[1]; // Nombre
+                cell.ReadOnly = false;
+
+                dataGridView2.CurrentCell = cell;
+                dataGridView2.BeginEdit(true);
+            }));
+        }
     }
 }
+

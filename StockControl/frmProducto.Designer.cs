@@ -53,6 +53,7 @@ namespace StockControl
             txtIVA = new TextBox();
             cbGrupoProducto = new ComboBox();
             Grupo = new Label();
+            lblFechaModificacion = new Label();
             SuspendLayout();
             // 
             // brnGrabar
@@ -262,11 +263,21 @@ namespace StockControl
             Grupo.TabIndex = 22;
             Grupo.Text = "Grupo";
             // 
+            // lblFechaModificacion
+            // 
+            lblFechaModificacion.AutoSize = true;
+            lblFechaModificacion.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold | FontStyle.Italic, GraphicsUnit.Point, 0);
+            lblFechaModificacion.Location = new Point(27, 9);
+            lblFechaModificacion.Name = "lblFechaModificacion";
+            lblFechaModificacion.Size = new Size(0, 15);
+            lblFechaModificacion.TabIndex = 23;
+            // 
             // frmProducto
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(524, 267);
+            Controls.Add(lblFechaModificacion);
             Controls.Add(Grupo);
             Controls.Add(cbGrupoProducto);
             Controls.Add(txtIVA);
@@ -321,5 +332,6 @@ namespace StockControl
         private TextBox txtIVA;
         private ComboBox cbGrupoProducto;
         private Label Grupo;
+        private Label lblFechaModificacion;
     }
 }

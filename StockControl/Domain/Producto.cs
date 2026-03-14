@@ -20,5 +20,6 @@ namespace StockControl.Domain
         public decimal ValorGanancia { get; set; }
         public int IdGrupoProducto { get; set; }
         public string NombreGrupo {  get; set; }
+        public DateTime fechaModificacion { get; set; }
     }
 }

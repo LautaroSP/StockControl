@@ -131,6 +131,8 @@ namespace StockControl
             dataGridView1.Columns["Id"].Visible = false;
             dataGridView1.Columns["Codigo"].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
             dataGridView1.Columns["Nombre"].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
+            dataGridView1.Columns["fechaModificacion"].HeaderText = "Fecha de Modificación";
+            dataGridView1.Columns["fechaModificacion"].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
             lblTotal.AutoSize = false;
             lblTotal.MaximumSize = new Size(200, 0);
             lblTotal.AutoEllipsis = false;
@@ -143,6 +145,21 @@ namespace StockControl
             dataGridView1.Columns["NombreGrupo"].HeaderText = "Grupo";
             int cantidad = dataGridView1.Rows.Count;
             lblCantProd.Text = cantidad.ToString();
+
+            var prodFechaModif = productos.Where(p => p.fechaModificacion.Date == DateTime.Now.Date).ToList();
+            CargarFiltro();
+        }
+
+        private void CargarFiltro()
+        {
+            string filtro = txtBuscar.Text.ToLower();
+
+            var filtrados = productos.Where(p =>
+                p.Codigo.ToLower().Contains(filtro) ||
+                p.Nombre.ToLower().Contains(filtro)
+            ).ToList();
+
+            dataGridView1.DataSource = filtrados;
         }
 
         private void CrearDataGrid2()
@@ -237,14 +254,7 @@ namespace StockControl
 
         private void textBox1_TextChanged(object sender, EventArgs e)
         {
-            string filtro = txtBuscar.Text.ToLower();
-
-            var filtrados = productos.Where(p =>
-                p.Codigo.ToLower().Contains(filtro) ||
-                p.Nombre.ToLower().Contains(filtro)
-            ).ToList();
-
-            dataGridView1.DataSource = filtrados;
+            CargarFiltro();
         }
         private void dataGridViewProductos_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
@@ -320,7 +330,7 @@ namespace StockControl
             {
                 IrACelda(row, 3);
             }
-            else if (e.ColumnIndex == 3) 
+            else if (e.ColumnIndex == 3)
             {
                 CalcularTotal();
                 VolverAScanner();
@@ -472,19 +482,23 @@ namespace StockControl
                 }
                 if (_carrito.Count > 0)
                 {
-                    var stockValido = VerificarStockDisponible();
-                    if (stockValido != null)
-                    {
-                        MessageBox.Show($"El producto {stockValido.Nombre} no tiene stock suficiente, por favor verificar", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
+                    //var stockValido = VerificarStockDisponible();
+                    //if (stockValido != null)
+                    //{
+                    //    MessageBox.Show($"El producto {stockValido.Nombre} no tiene stock suficiente, por favor verificar", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    //    return;
+                    //}
                     foreach (var item in _carrito)
                     {
                         if (item.IdProducto == 0) continue;
                         var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
-                        if (producto.ProductoSector != 1)
+                        if (producto!.ProductoSector != 1)
                         {
                             producto.Cantidad = producto.Cantidad - item.Cantidad;
+
+                            if(producto.Cantidad <= 0)
+                                producto.Cantidad = 0;
+
                             _prodRepository.Actualizar(producto);
                         }
                         Load();
@@ -516,7 +530,7 @@ namespace StockControl
         private void dataGridViewProductos_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
         {
             var prod = (ItemSeleccionado)dataGridView2.Rows[e.RowIndex].DataBoundItem;
-            if(prod.IdProducto == 0 || prod == null)
+            if (prod.IdProducto == 0 || prod == null)
             {
                 return;
             }

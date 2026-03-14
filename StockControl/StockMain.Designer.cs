@@ -99,6 +99,7 @@ namespace StockControl
             // 
             // lblItems
             // 
+            lblItems.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             lblItems.AutoSize = true;
             lblItems.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
             lblItems.Location = new Point(279, 481);
@@ -109,7 +110,7 @@ namespace StockControl
             // 
             // label5
             // 
-            label5.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            label5.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             label5.AutoSize = true;
             label5.Location = new Point(182, 481);
             label5.Name = "label5";
@@ -119,6 +120,7 @@ namespace StockControl
             // 
             // chkImprimirTicket
             // 
+            chkImprimirTicket.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             chkImprimirTicket.AutoSize = true;
             chkImprimirTicket.Checked = true;
             chkImprimirTicket.CheckState = CheckState.Checked;
@@ -401,7 +403,6 @@ namespace StockControl
             // 
             // btnGeneric
             // 
-            btnGeneric.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
             btnGeneric.BackgroundImage = Properties.Resources.download;
             btnGeneric.BackgroundImageLayout = ImageLayout.Stretch;
             btnGeneric.Location = new Point(957, 11);

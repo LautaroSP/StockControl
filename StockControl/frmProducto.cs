@@ -91,6 +91,8 @@ namespace StockControl
                 cbGrupoProducto.SelectedIndex = 0;
             if (chkSector.Checked)
                 cbGrupoProducto.Enabled = false;
+
+            lblFechaModificacion.Text = $"Fecha de última modificación: {_prod.fechaModificacion.ToString("dd/MM/yyyy HH:mm:ss")}";
         }
 
         private void brnCancelar_Click(object sender, EventArgs e)
@@ -228,6 +230,7 @@ namespace StockControl
             }
 
             _prod.ProductoSector = chkSector.Checked ? 1 : 0;
+            _prod.fechaModificacion = DateTime.Now;
             return true;
 
         }

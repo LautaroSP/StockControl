@@ -173,6 +173,15 @@ namespace StockControl.Infrastructure
             {
                 // La columna ya existe, no hacer nada
             }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE Productos ADD COLUMN FechaModificacion TEXT;";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException ex)
+            {
+                // La columna ya existe, no hacer nada
+            }
         }
     }
 }

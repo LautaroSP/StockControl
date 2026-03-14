@@ -1,65 +1,37 @@
-# =========================
-# .NET / Visual Studio
-# =========================
-
-## Build results
-bin/
-obj/
-[Bb]in/
-[Oo]bj/
-
-## Build folders
-[Dd]ebug/
-[Rr]elease/
-x64/
-x86/
-ARM/
-ARM64/
-
-## VS files
+# Visual Studio / Rider / VSCode
 .vs/
+.vscode/
+.idea/
 *.user
 *.suo
 *.userosscache
 *.sln.docstates
 
-## Rider / VS Code
-.idea/
-.vscode/
+# Build outputs
+bin/
+obj/
+**/bin/
+**/obj/
+Debug/
+Release/
 
-## Logs
-*.log
-
-## NuGet
-*.nupkg
+# NuGet / paquetes
 packages/
-packages.lock.json
+*.nupkg
+project.lock.json
+project.fragment.lock.json
 
-## Test results
+# Publicación / resultados de tests
+publish/
 TestResults/
 *.trx
 
-## Publish
-publish/
-*.Publish.xml
-
-## OS files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
+# Logs y archivos temporales
+*.log
+*.dbmdl
 .DS_Store
 
-## Backup / temp
-*.bak
-*.tmp
-*.temp
-*.swp
-
-## SQLite / local DB
-*.db
-*.db-shm
-*.db-wal
-
-## Configs locales
-appsettings.Development.json
-appsettings.Local.json
+# Otros caches / herramientas
+_ReSharper*/
+*.DotSettings.user
+*.ide

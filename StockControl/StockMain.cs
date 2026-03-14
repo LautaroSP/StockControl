@@ -624,7 +624,7 @@ namespace StockControl
         private void btnVerInforme_Click(object sender, EventArgs e)
         {
             frmInformeVentas frmInformeVentas = new frmInformeVentas();
-            frmInformeVentas.Show();
+            frmInformeVentas.ShowDialog();
             if (frmInformeVentas.DialogResult == DialogResult.OK)
             {
                 Load();
@@ -635,7 +635,6 @@ namespace StockControl
                 _carrito = new BindingList<ItemSeleccionado>(frmInformeVentas.ticket);
                 dataGridView2.DataSource = null;
                 dataGridView2.DataSource = _carrito;
-                dataGridView2.Refresh();
                 ActualizarTotal();
                 CalcularTotal();
                 MessageBox.Show("Los items del ticket se cargaron en el carrito", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -920,24 +919,23 @@ namespace StockControl
 
         private void dataGridView2_CellMouseDoubleClick(object sender, DataGridViewCellMouseEventArgs e)
         {
-            if (e.RowIndex >= 0)
+            if (e.RowIndex < 0 || e.RowIndex >= dataGridView2.Rows.Count)
+                return;
+
+            var row = dataGridView2.Rows[e.RowIndex];
+            var itemAEliminar = row.DataBoundItem as ItemSeleccionado;
+
+            if (itemAEliminar != null)
             {
-                var row = dataGridView2.Rows[e.RowIndex];
+                _carrito.Remove(itemAEliminar);
 
-                var itemAEliminar = row.DataBoundItem as ItemSeleccionado;
-
-                if (itemAEliminar != null)
-                {
-                    _carrito.Remove(itemAEliminar);
-                    dataGridView2.DataSource = null;
-                    dataGridView2.DataSource = _carrito;
-                    dataGridView2.Refresh();
-                    ActualizarTotal();
-                    CalcularTotal();
-                }
-                VolverAScanner();
+                ActualizarTotal();
+                CalcularTotal();
             }
+
+            VolverAScanner();
         }
+
 
         private void cbMetodosPago_SelectedIndexChanged(object sender, EventArgs e)
         {

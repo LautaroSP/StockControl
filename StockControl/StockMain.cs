@@ -2,6 +2,7 @@ using Microsoft.VisualBasic;
 using StockControl.Domain;
 using StockControl.Repository;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing.Printing;
 using System.Globalization;
 
@@ -320,10 +321,13 @@ namespace StockControl
         }
         private void dataGridView2_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
+            dataGridView2.CommitEdit(DataGridViewDataErrorContexts.Commit);
+            dataGridView2.EndEdit();
             int row = e.RowIndex;
 
             if (e.ColumnIndex == 1)
             {
+                dataGridView2.Rows[row].Cells[1].ReadOnly = true;
                 IrACelda(row, 2);
             }
             else if (e.ColumnIndex == 2)
@@ -333,17 +337,38 @@ namespace StockControl
             else if (e.ColumnIndex == 3)
             {
                 CalcularTotal();
+                foreach (var item in _carrito)
+                {
+                    Debug.WriteLine($"{item.Nombre} - {item.Precio} - {item.GetHashCode()}");
+                }
+
                 VolverAScanner();
             }
         }
 
         private void IrACelda(int row, int col)
         {
-            BeginInvoke(new Action(() =>
+            try
             {
-                dataGridView2.CurrentCell = dataGridView2.Rows[row].Cells[col];
-                dataGridView2.BeginEdit(true);
-            }));
+                if (_carrito.Count == 0) return;
+                BeginInvoke(new Action(() =>
+                { 
+                    try
+                    {
+                        dataGridView2.CurrentCell = dataGridView2.Rows[row].Cells[col];
+                        dataGridView2.BeginEdit(true);
+                    }
+                    catch
+                    {
+                        return;
+                    }
+                }));
+            }
+            catch
+            {
+                return;
+            }
+
         }
 
         private void dataGridViewCarrito_CellValueChanged(object sender, DataGridViewCellEventArgs e)
@@ -530,7 +555,7 @@ namespace StockControl
         private void dataGridViewProductos_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
         {
             var prod = (ItemSeleccionado)dataGridView2.Rows[e.RowIndex].DataBoundItem;
-            if (prod.IdProducto == 0 || prod == null)
+            if (prod.Codigo.Contains("GENERIC-") || prod == null)
             {
                 return;
             }
@@ -1033,11 +1058,11 @@ namespace StockControl
         {
             _carrito.Add(new ItemSeleccionado
             {
-                Codigo = "0",
+                Codigo = $"GENERIC-{Guid.NewGuid().ToString().Substring(0, 8)}",
                 Nombre = "Producto",
                 Precio = 0,
                 Cantidad = 1,
-                IdProducto = 0
+                IdProducto = Guid.NewGuid().GetHashCode()
             });
             dataGridView2.DataSource = null;
             dataGridView2.DataSource = _carrito;

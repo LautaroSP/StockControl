@@ -10,6 +10,9 @@
     <Compile Update="Domain\frmMetodoPago.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Update="frmBuscarGrupo.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="FrmCerrarCajaAnterior.cs">
       <SubType>Form</SubType>
     </Compile>

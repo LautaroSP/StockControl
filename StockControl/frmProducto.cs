@@ -22,7 +22,6 @@ namespace StockControl
             txtValorDolar.Enabled = false;
             txtValorDolar.Text = StockMain._valorDolar.ToString();
             _dolar = StockMain._valorDolar;
-            CargarGrupos();
             _cargandoInfo = true;
             if (prod != null)
             {
@@ -54,7 +53,6 @@ namespace StockControl
             txtValorDolar.Enabled = false;
             txtValorDolar.Text = StockMain._valorDolar.ToString();
             _dolar = StockMain._valorDolar;
-            CargarGrupos();
             _prod = new Producto();
             if (cobrarEnPesos)
             {
@@ -80,17 +78,16 @@ namespace StockControl
                 txtGanancia.Text = _prod.ValorGanancia.ToString();
             if (_prod.IdGrupoProducto != 0)
             {
-                var grupo = cbGrupoProducto.Items
-                            .OfType<GrupoProductos>()
-                            .FirstOrDefault(g => g.IdGrupoProducto == _prod.IdGrupoProducto);
-
-                if (grupo != null)
-                    cbGrupoProducto.SelectedItem = grupo;
+                lblGrupoSel.Text = _prod.NombreGrupo;
+                txtPrecio.Enabled = false;
+                txtCosto.Enabled = false;
+                chkSector.Enabled = false;
+                chkGananciaProd.Enabled = false;
+                txtGanancia.Enabled = false;
             }
-            else
-                cbGrupoProducto.SelectedIndex = 0;
+
             if (chkSector.Checked)
-                cbGrupoProducto.Enabled = false;
+                btnBuscarGrupo.Enabled = false;
 
             lblFechaModificacion.Text = $"Fecha de última modificación: {_prod.fechaModificacion.ToString("dd/MM/yyyy HH:mm:ss")}";
         }
@@ -246,7 +243,7 @@ namespace StockControl
         private void txtCosto_TextChanged(object sender, EventArgs e)
         {
             if (_cargandoInfo) return;
-                CalcularCosto();
+            CalcularCosto();
         }
 
         private void chkDolar_CheckedChanged(object sender, EventArgs e)
@@ -275,7 +272,7 @@ namespace StockControl
                 txtGanancia.Enabled = true;
                 txtIVA.Enabled = true;
 
-                if(_cargandoInfo) return;
+                if (_cargandoInfo) return;
                 CalcularCosto();
             }
             else
@@ -295,7 +292,7 @@ namespace StockControl
         }
         private void CalcularCosto()
         {
-            try 
+            try
             {
                 if (txtCosto.Text != string.Empty)
                 {
@@ -315,15 +312,15 @@ namespace StockControl
                     }
                 }
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
 
             }
-            finally 
+            finally
             {
                 _actualizando = false;
             }
-            
+
         }
 
         private void chkSector_CheckedChanged(object sender, EventArgs e)
@@ -340,7 +337,7 @@ namespace StockControl
                 txtGanancia.Enabled = false;
                 chkDolar.Enabled = false;
                 chkGananciaProd.Enabled = false;
-                cbGrupoProducto.Enabled = false;
+                btnBuscarGrupo.Enabled = false;
             }
             else
             {
@@ -357,7 +354,7 @@ namespace StockControl
                 else
                     txtValorDolar.Enabled = false;
 
-                cbGrupoProducto.Enabled = true;
+                btnBuscarGrupo.Enabled = true;
             }
         }
 
@@ -367,78 +364,7 @@ namespace StockControl
             CalcularCosto();
         }
 
-        private void cbGrupoProducto_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (cbGrupoProducto.SelectedIndex == 1)
-            {
-                using (var formNuevoGrupo = new frmCrearGrupo())
-                {
-                    if (formNuevoGrupo.ShowDialog() == DialogResult.OK)
-                    {
-                        // Supongamos que el form devuelve el nuevo grupo creado
-                        var nuevoGrupo = formNuevoGrupo.grupoNuevo;
-
-                        // Lo agregás al combo
-                        cbGrupoProducto.Items.Add(nuevoGrupo);
-                        cbGrupoProducto.DisplayMember = "NombreGrupo";
-                        cbGrupoProducto.ValueMember = "IdGrupoProducto";
-                    }
-                    else
-                    {
-                        // Si canceló, volver a la selección anterior
-                        cbGrupoProducto.SelectedIndex = 0;
-                    }
-                }
-            }
-            else if (cbGrupoProducto.SelectedIndex == 0)
-            {
-                _prod.IdGrupoProducto = 0;
-                txtPrecio.Text = string.Empty;
-                txtPrecio.Enabled = true;
-                txtCosto.Enabled = true;
-                chkSector.Enabled = true;
-                chkGananciaProd.Enabled = true;
-                CalcularCosto();
-                return;
-            }
-            else
-            {
-                var grupoSeleccionado = cbGrupoProducto.SelectedItem as GrupoProductos;
-                if (grupoSeleccionado != null)
-                {
-                    _prod.IdGrupoProducto = grupoSeleccionado.IdGrupoProducto;
-                    txtPrecio.Text = grupoSeleccionado.PrecioGrupo.ToString("#0.00");
-                    txtCosto.Text = grupoSeleccionado.Costo.ToString("#0.00");
-                    txtPrecio.Enabled = false;
-                    txtCosto.Enabled = false;
-                    chkSector.Enabled = false;
-                    chkGananciaProd.Enabled = false;
-                    txtGanancia.Enabled = false;
-                }
-            }
-        }
-        private void CargarGrupos()
-        {
-            cbGrupoProducto.SelectedIndexChanged -= cbGrupoProducto_SelectedIndexChanged; // Evita que se dispare mientras cargas
-
-            cbGrupoProducto.Items.Clear();
-            cbGrupoProducto.Items.Add("Seleccionar...");
-            cbGrupoProducto.Items.Add("Crear nuevo grupo..."); // opción especial
-
-            var grupos = _grupoRepository.Listar(); // tu método para traer los grupos
-
-            foreach (var grupo in grupos)
-            {
-                cbGrupoProducto.Items.Add(grupo);
-            }
-
-            cbGrupoProducto.DisplayMember = "NombreGrupo";
-            cbGrupoProducto.ValueMember = "IdGrupoProducto";
-
-            cbGrupoProducto.SelectedIndex = 0; // selecciona el primero "real"
-
-            cbGrupoProducto.SelectedIndexChanged += cbGrupoProducto_SelectedIndexChanged;
-        }
+       
 
         private void txtPrecio_TextChanged(object sender, EventArgs e)
         {
@@ -451,7 +377,7 @@ namespace StockControl
                 return;
             if (!TryParseDecimal(txtCosto.Text, out decimal costo))
                 return;
-            if(!TryParseDecimal(txtIVA.Text, out decimal iva))
+            if (!TryParseDecimal(txtIVA.Text, out decimal iva))
                 return;
             if (costo == 0)
                 return;
@@ -488,6 +414,39 @@ namespace StockControl
 
             // Bloquear todo lo demás
             e.Handled = true;
+        }
+
+        private void btnBuscarGrupo_Click(object sender, EventArgs e)
+        {
+            using (var frm = new frmBuscarGrupo())
+            {
+                if (frm.ShowDialog() == DialogResult.OK)
+                {
+                    var grupoSeleccionado = frm.GrupoSeleccionado;
+                    lblGrupoSel.Text = grupoSeleccionado.NombreGrupo;
+                    _prod.IdGrupoProducto = grupoSeleccionado.IdGrupoProducto;
+                    txtPrecio.Text = grupoSeleccionado.PrecioGrupo.ToString("#0.00");
+                    txtCosto.Text = grupoSeleccionado.Costo.ToString("#0.00");
+                    txtPrecio.Enabled = false;
+                    txtCosto.Enabled = false;
+                    chkSector.Enabled = false;
+                    chkGananciaProd.Enabled = false;
+                    txtGanancia.Enabled = false;
+                }
+            }
+        }
+
+        private void btnSacarGrupo_Click(object sender, EventArgs e)
+        {
+            _prod.IdGrupoProducto = 0;
+            txtPrecio.Text = string.Empty;
+            txtPrecio.Enabled = true;
+            txtCosto.Enabled = true;
+            chkSector.Enabled = true;
+            chkGananciaProd.Enabled = true;
+            lblGrupoSel.Text = "Sin Grupo";
+            CalcularCosto();
+            return;
         }
     }
 }

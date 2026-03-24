@@ -51,16 +51,18 @@ namespace StockControl
             chkSector = new CheckBox();
             label6 = new Label();
             txtIVA = new TextBox();
-            cbGrupoProducto = new ComboBox();
             Grupo = new Label();
             lblFechaModificacion = new Label();
+            lblGrupoSel = new Label();
+            btnBuscarGrupo = new Button();
+            btnSacarGrupo = new Button();
             SuspendLayout();
             // 
             // brnGrabar
             // 
             brnGrabar.Location = new Point(12, 234);
             brnGrabar.Name = "brnGrabar";
-            brnGrabar.Size = new Size(75, 23);
+            brnGrabar.Size = new Size(93, 23);
             brnGrabar.TabIndex = 0;
             brnGrabar.Text = "Grabar";
             brnGrabar.UseVisualStyleBackColor = true;
@@ -68,9 +70,9 @@ namespace StockControl
             // 
             // brnCancelar
             // 
-            brnCancelar.Location = new Point(93, 234);
+            brnCancelar.Location = new Point(111, 234);
             brnCancelar.Name = "brnCancelar";
-            brnCancelar.Size = new Size(75, 23);
+            brnCancelar.Size = new Size(83, 23);
             brnCancelar.TabIndex = 1;
             brnCancelar.Text = "Cancelar";
             brnCancelar.UseVisualStyleBackColor = true;
@@ -245,15 +247,6 @@ namespace StockControl
             txtIVA.TabIndex = 20;
             txtIVA.TextChanged += txtIVA_TextChanged;
             // 
-            // cbGrupoProducto
-            // 
-            cbGrupoProducto.FormattingEnabled = true;
-            cbGrupoProducto.Location = new Point(93, 173);
-            cbGrupoProducto.Name = "cbGrupoProducto";
-            cbGrupoProducto.Size = new Size(157, 23);
-            cbGrupoProducto.TabIndex = 21;
-            cbGrupoProducto.SelectedIndexChanged += cbGrupoProducto_SelectedIndexChanged;
-            // 
             // Grupo
             // 
             Grupo.AutoSize = true;
@@ -272,14 +265,50 @@ namespace StockControl
             lblFechaModificacion.Size = new Size(0, 15);
             lblFechaModificacion.TabIndex = 23;
             // 
+            // lblGrupoSel
+            // 
+            lblGrupoSel.AutoSize = true;
+            lblGrupoSel.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            lblGrupoSel.Location = new Point(93, 176);
+            lblGrupoSel.Name = "lblGrupoSel";
+            lblGrupoSel.Size = new Size(59, 15);
+            lblGrupoSel.TabIndex = 24;
+            lblGrupoSel.Text = "Sin grupo";
+            // 
+            // btnBuscarGrupo
+            // 
+            btnBuscarGrupo.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnBuscarGrupo.ForeColor = Color.DarkGreen;
+            btnBuscarGrupo.Location = new Point(12, 205);
+            btnBuscarGrupo.Name = "btnBuscarGrupo";
+            btnBuscarGrupo.Size = new Size(93, 23);
+            btnBuscarGrupo.TabIndex = 25;
+            btnBuscarGrupo.Text = "Buscar Grupo";
+            btnBuscarGrupo.UseVisualStyleBackColor = true;
+            btnBuscarGrupo.Click += btnBuscarGrupo_Click;
+            // 
+            // btnSacarGrupo
+            // 
+            btnSacarGrupo.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnSacarGrupo.ForeColor = Color.Brown;
+            btnSacarGrupo.Location = new Point(111, 205);
+            btnSacarGrupo.Name = "btnSacarGrupo";
+            btnSacarGrupo.Size = new Size(83, 23);
+            btnSacarGrupo.TabIndex = 26;
+            btnSacarGrupo.Text = "Sacar Grupo";
+            btnSacarGrupo.UseVisualStyleBackColor = true;
+            btnSacarGrupo.Click += btnSacarGrupo_Click;
+            // 
             // frmProducto
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(524, 267);
+            Controls.Add(btnSacarGrupo);
+            Controls.Add(btnBuscarGrupo);
+            Controls.Add(lblGrupoSel);
             Controls.Add(lblFechaModificacion);
             Controls.Add(Grupo);
-            Controls.Add(cbGrupoProducto);
             Controls.Add(txtIVA);
             Controls.Add(label6);
             Controls.Add(chkSector);
@@ -330,8 +359,10 @@ namespace StockControl
         private CheckBox chkSector;
         private Label label6;
         private TextBox txtIVA;
-        private ComboBox cbGrupoProducto;
         private Label Grupo;
         private Label lblFechaModificacion;
+        private Label lblGrupoSel;
+        private Button btnBuscarGrupo;
+        private Button btnSacarGrupo;
     }
 }

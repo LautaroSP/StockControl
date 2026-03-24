@@ -287,10 +287,17 @@ namespace StockControl
                 int i = 0;
                 foreach (var p in _carrito)
                 {
-                    var prod = _prodRepository.BuscarPorCodigo(p.Codigo);
-                    if (prod.ProductoSector != 1)
+                    if (p.Codigo.Contains("GENERIC-"))
                     {
-                        preciosBase[i] = prod.Precio;
+                        preciosBase[i] = p.Precio;
+                    }
+                    else
+                    {
+                        var prod = _prodRepository.BuscarPorCodigo(p.Codigo);
+                        if (prod.ProductoSector != 1)
+                        {
+                            preciosBase[i] = prod.Precio;
+                        }
                     }
                     i++;
                 }
@@ -515,7 +522,7 @@ namespace StockControl
                     //}
                     foreach (var item in _carrito)
                     {
-                        if (item.IdProducto == 0) continue;
+                        if (item.Codigo.Contains("GENERIC-")) continue;
                         var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
                         if (producto!.ProductoSector != 1)
                         {
@@ -542,6 +549,7 @@ namespace StockControl
                     frmMetodoPago._metodosDePago.Clear();
                     chkMultiPago.Checked = false;
                     lblItems.Text = "0";
+                    txtTotal.Text = "0";
                 }
             }
             catch (Exception ex)

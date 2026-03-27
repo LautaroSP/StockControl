@@ -314,8 +314,19 @@ namespace StockControl
             }
             foreach (var item in informeDetalle)
             {
+                Producto producto = new Producto();
                 var productoRepo = new ProductoRepository();
-                var producto = productoRepo.BuscarPorCodigo(item.Codigo);
+                if(item.Codigo.Contains("GENERIC"))
+                {
+                    producto.Cantidad = item.Cantidad;
+                    producto.Nombre = item.Nombre;
+                    producto.Precio = item.Precio;
+                    producto.Codigo = item.Codigo;
+                    producto.Id = Guid.NewGuid().GetHashCode();
+                }
+                else
+                 producto = productoRepo.BuscarPorCodigo(item.Codigo);
+
                 if(producto == null)
                 {
                     MessageBox.Show($"El producto con código {item.Codigo} no existe en el sistema. No se podrá agregar al carrito.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);

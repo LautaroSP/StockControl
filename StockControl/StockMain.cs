@@ -778,7 +778,7 @@ namespace StockControl
                         foreach (var p in _carrito)
                         {
                             var prod = _prodRepository.BuscarPorCodigo(p.Codigo);
-                            if (p.IdProducto == 0)
+                            if (p.Codigo.Contains("GENERIC"))
                                 preciosBase[i] = p.Precio;
                             else
                                 preciosBase[i] = prod.Precio;

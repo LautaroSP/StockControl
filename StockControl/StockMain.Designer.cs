@@ -154,6 +154,7 @@ namespace StockControl
             cbMetodosPago.Size = new Size(156, 23);
             cbMetodosPago.TabIndex = 10;
             cbMetodosPago.SelectedIndexChanged += cbMetodosPago_SelectedIndexChanged;
+            cbMetodosPago.KeyDown += cbMetodosPago_KeyDown;
             // 
             // chkCobroEnPesos
             // 

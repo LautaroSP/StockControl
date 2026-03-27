@@ -144,6 +144,10 @@ namespace StockControl
             dataGridView1.Columns["GananciaIndividual"].Visible = false;
             dataGridView1.Columns["ValorGanancia"].Visible = false;
             dataGridView1.Columns["NombreGrupo"].HeaderText = "Grupo";
+            dataGridView1.Columns["Costo"].DefaultCellStyle.Format = "C2";
+            dataGridView1.Columns["Costo"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
+            dataGridView1.Columns["Precio"].DefaultCellStyle.Format = "C2";
+            dataGridView1.Columns["Precio"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
             int cantidad = dataGridView1.Rows.Count;
             lblCantProd.Text = cantidad.ToString();
 
@@ -197,7 +201,11 @@ namespace StockControl
                 HeaderText = "Precio",
                 Name = "Precio",
                 ReadOnly = false,
-                Width = 50
+                Width = 50,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    FormatProvider = new CultureInfo("es-AR")
+                }
             });
 
             dataGridView2.Columns.Add(new DataGridViewTextBoxColumn
@@ -205,9 +213,12 @@ namespace StockControl
                 DataPropertyName = "Subtotal",
                 HeaderText = "Subtotal",
                 ReadOnly = true,
-                Width = 70
+                Width = 70,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    FormatProvider = new CultureInfo("es-AR")
+                }
             });
-
         }
 
         private void btnAgregar_Click(object sender, EventArgs e)
@@ -359,7 +370,7 @@ namespace StockControl
             {
                 if (_carrito.Count == 0) return;
                 BeginInvoke(new Action(() =>
-                { 
+                {
                     try
                     {
                         dataGridView2.CurrentCell = dataGridView2.Rows[row].Cells[col];
@@ -528,7 +539,7 @@ namespace StockControl
                         {
                             producto.Cantidad = producto.Cantidad - item.Cantidad;
 
-                            if(producto.Cantidad <= 0)
+                            if (producto.Cantidad <= 0)
                                 producto.Cantidad = 0;
 
                             _prodRepository.Actualizar(producto);
@@ -551,6 +562,7 @@ namespace StockControl
                     lblItems.Text = "0";
                     txtTotal.Text = "0";
                 }
+                VolverAScanner();
             }
             catch (Exception ex)
             {
@@ -847,6 +859,20 @@ namespace StockControl
                 }
 
             }
+            else if (e.KeyCode == Keys.Add)
+            {
+                IrAMedioDePago();
+                e.SuppressKeyPress = true;
+            }
+        }
+
+        private void IrAMedioDePago()
+        {
+            cbMetodosPago.Focus();
+             BeginInvoke(new Action(() =>
+            {
+                cbMetodosPago.DroppedDown = true;
+            }));
         }
 
         private void VolverAScanner()
@@ -1083,6 +1109,20 @@ namespace StockControl
                 dataGridView2.CurrentCell = cell;
                 dataGridView2.BeginEdit(true);
             }));
+        }
+
+        private void cbMetodosPago_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Add)
+            {
+                IrACobrar();
+                e.SuppressKeyPress = true;
+            }
+        }
+
+        private void IrACobrar()
+        {
+            btnCobrar.Focus();
         }
     }
 }

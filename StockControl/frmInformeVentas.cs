@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -57,7 +58,9 @@ namespace StockControl
             dataGridView1.Columns["DetalleAdjunto"].Visible = false;
             dataGridView1.Columns["MultipleMetodoDePagoStr"].HeaderText = "Método de Pago Múltiple";
             dataGridView1.Columns["DetalleAdjuntoStr"].HeaderText = "Detalle Adjunto";
-
+            dataGridView1.Columns["Fecha"].DefaultCellStyle.Format = "dd/MM/yyyy HH:mm:ss";
+            dataGridView1.Columns["Total"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
+            dataGridView1.Columns["Total"].DefaultCellStyle.Format = "C2";
             foreach (DataGridViewColumn column in dataGridView1.Columns)
                 column.SortMode = DataGridViewColumnSortMode.Programmatic;
 

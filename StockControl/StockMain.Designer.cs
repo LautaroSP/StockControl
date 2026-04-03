@@ -32,6 +32,9 @@ namespace StockControl
         {
             dataGridView1 = new DataGridView();
             groupBox1 = new GroupBox();
+            txtDescuento = new TextBox();
+            chkDescuento = new CheckBox();
+            chkCosto = new CheckBox();
             lblItems = new Label();
             label5 = new Label();
             chkImprimirTicket = new CheckBox();
@@ -71,7 +74,7 @@ namespace StockControl
             dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridView1.Location = new Point(12, 39);
             dataGridView1.Name = "dataGridView1";
-            dataGridView1.Size = new Size(710, 538);
+            dataGridView1.Size = new Size(710, 563);
             dataGridView1.TabIndex = 0;
             dataGridView1.CellDoubleClick += dataGridViewProductos_CellDoubleClick;
             dataGridView1.CellFormatting += dataGridView1_CellFormatting;
@@ -79,6 +82,9 @@ namespace StockControl
             // groupBox1
             // 
             groupBox1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
+            groupBox1.Controls.Add(txtDescuento);
+            groupBox1.Controls.Add(chkDescuento);
+            groupBox1.Controls.Add(chkCosto);
             groupBox1.Controls.Add(lblItems);
             groupBox1.Controls.Add(label5);
             groupBox1.Controls.Add(chkImprimirTicket);
@@ -92,17 +98,50 @@ namespace StockControl
             groupBox1.Controls.Add(btnCobrar);
             groupBox1.Location = new Point(728, 39);
             groupBox1.Name = "groupBox1";
-            groupBox1.Size = new Size(367, 578);
+            groupBox1.Size = new Size(367, 603);
             groupBox1.TabIndex = 1;
             groupBox1.TabStop = false;
             groupBox1.Text = "Opciones";
+            // 
+            // txtDescuento
+            // 
+            txtDescuento.Enabled = false;
+            txtDescuento.Location = new Point(131, 574);
+            txtDescuento.Name = "txtDescuento";
+            txtDescuento.Size = new Size(45, 23);
+            txtDescuento.TabIndex = 18;
+            txtDescuento.Enter += txtDescuento_Enter;
+            txtDescuento.KeyPress += txtDescuento_KeyPress;
+            txtDescuento.Leave += txtDescuento_Leave;
+            // 
+            // chkDescuento
+            // 
+            chkDescuento.AutoSize = true;
+            chkDescuento.Location = new Point(20, 584);
+            chkDescuento.Name = "chkDescuento";
+            chkDescuento.Size = new Size(82, 19);
+            chkDescuento.TabIndex = 17;
+            chkDescuento.Text = "Descuento";
+            chkDescuento.UseVisualStyleBackColor = true;
+            chkDescuento.CheckedChanged += chkDescuento_CheckedChanged;
+            // 
+            // chkCosto
+            // 
+            chkCosto.AutoSize = true;
+            chkCosto.Location = new Point(20, 569);
+            chkCosto.Name = "chkCosto";
+            chkCosto.Size = new Size(106, 19);
+            chkCosto.TabIndex = 16;
+            chkCosto.Text = "Cobrar al costo";
+            chkCosto.UseVisualStyleBackColor = true;
+            chkCosto.CheckedChanged += chkCosto_CheckedChanged;
             // 
             // lblItems
             // 
             lblItems.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             lblItems.AutoSize = true;
             lblItems.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            lblItems.Location = new Point(279, 481);
+            lblItems.Location = new Point(279, 491);
             lblItems.Name = "lblItems";
             lblItems.Size = new Size(14, 15);
             lblItems.TabIndex = 15;
@@ -112,7 +151,7 @@ namespace StockControl
             // 
             label5.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             label5.AutoSize = true;
-            label5.Location = new Point(182, 481);
+            label5.Location = new Point(182, 491);
             label5.Name = "label5";
             label5.Size = new Size(91, 15);
             label5.TabIndex = 14;
@@ -124,7 +163,7 @@ namespace StockControl
             chkImprimirTicket.AutoSize = true;
             chkImprimirTicket.Checked = true;
             chkImprimirTicket.CheckState = CheckState.Checked;
-            chkImprimirTicket.Location = new Point(182, 557);
+            chkImprimirTicket.Location = new Point(182, 567);
             chkImprimirTicket.Name = "chkImprimirTicket";
             chkImprimirTicket.Size = new Size(107, 19);
             chkImprimirTicket.TabIndex = 12;
@@ -137,7 +176,7 @@ namespace StockControl
             chkMultiPago.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             chkMultiPago.AutoSize = true;
             chkMultiPago.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold | FontStyle.Italic, GraphicsUnit.Point, 0);
-            chkMultiPago.Location = new Point(182, 542);
+            chkMultiPago.Location = new Point(182, 552);
             chkMultiPago.Name = "chkMultiPago";
             chkMultiPago.Size = new Size(170, 19);
             chkMultiPago.TabIndex = 11;
@@ -149,7 +188,7 @@ namespace StockControl
             // 
             cbMetodosPago.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             cbMetodosPago.FormattingEnabled = true;
-            cbMetodosPago.Location = new Point(20, 531);
+            cbMetodosPago.Location = new Point(20, 544);
             cbMetodosPago.Name = "cbMetodosPago";
             cbMetodosPago.Size = new Size(156, 23);
             cbMetodosPago.TabIndex = 10;
@@ -160,7 +199,7 @@ namespace StockControl
             // 
             chkCobroEnPesos.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             chkCobroEnPesos.AutoSize = true;
-            chkCobroEnPesos.Location = new Point(250, 495);
+            chkCobroEnPesos.Location = new Point(250, 505);
             chkCobroEnPesos.Name = "chkCobroEnPesos";
             chkCobroEnPesos.Size = new Size(111, 19);
             chkCobroEnPesos.TabIndex = 9;
@@ -173,7 +212,7 @@ namespace StockControl
             txtTotal.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             txtTotal.AutoSize = true;
             txtTotal.Font = new Font("Segoe UI", 15F);
-            txtTotal.Location = new Point(182, 515);
+            txtTotal.Location = new Point(182, 525);
             txtTotal.Name = "txtTotal";
             txtTotal.Size = new Size(67, 28);
             txtTotal.TabIndex = 7;
@@ -183,7 +222,7 @@ namespace StockControl
             // 
             lblTotal.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             lblTotal.AutoSize = true;
-            lblTotal.Location = new Point(182, 496);
+            lblTotal.Location = new Point(182, 506);
             lblTotal.Name = "lblTotal";
             lblTotal.Size = new Size(41, 15);
             lblTotal.TabIndex = 6;
@@ -196,7 +235,7 @@ namespace StockControl
             dataGridView2.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridView2.Location = new Point(20, 22);
             dataGridView2.Name = "dataGridView2";
-            dataGridView2.Size = new Size(341, 456);
+            dataGridView2.Size = new Size(341, 466);
             dataGridView2.TabIndex = 5;
             dataGridView2.CellBeginEdit += dataGridViewProductos_CellBeginEdit;
             dataGridView2.CellMouseDoubleClick += dataGridView2_CellMouseDoubleClick;
@@ -208,7 +247,7 @@ namespace StockControl
             // 
             brnCancelar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             brnCancelar.ForeColor = Color.FromArgb(192, 0, 0);
-            brnCancelar.Location = new Point(101, 484);
+            brnCancelar.Location = new Point(101, 497);
             brnCancelar.Name = "brnCancelar";
             brnCancelar.Size = new Size(75, 42);
             brnCancelar.TabIndex = 4;
@@ -221,7 +260,7 @@ namespace StockControl
             btnCobrar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnCobrar.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
             btnCobrar.ForeColor = Color.ForestGreen;
-            btnCobrar.Location = new Point(20, 484);
+            btnCobrar.Location = new Point(20, 497);
             btnCobrar.Name = "btnCobrar";
             btnCobrar.Size = new Size(75, 42);
             btnCobrar.TabIndex = 3;
@@ -233,7 +272,7 @@ namespace StockControl
             // 
             btnCodeBar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnCodeBar.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            btnCodeBar.Location = new Point(387, 583);
+            btnCodeBar.Location = new Point(387, 608);
             btnCodeBar.Name = "btnCodeBar";
             btnCodeBar.Size = new Size(75, 38);
             btnCodeBar.TabIndex = 8;
@@ -246,7 +285,7 @@ namespace StockControl
             btnEliminar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnEliminar.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
             btnEliminar.ForeColor = Color.Maroon;
-            btnEliminar.Location = new Point(300, 583);
+            btnEliminar.Location = new Point(300, 608);
             btnEliminar.Name = "btnEliminar";
             btnEliminar.Size = new Size(83, 38);
             btnEliminar.TabIndex = 2;
@@ -258,7 +297,7 @@ namespace StockControl
             // 
             btnEditar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnEditar.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            btnEditar.Location = new Point(211, 583);
+            btnEditar.Location = new Point(211, 608);
             btnEditar.Name = "btnEditar";
             btnEditar.Size = new Size(83, 38);
             btnEditar.TabIndex = 1;
@@ -271,7 +310,7 @@ namespace StockControl
             btnAgregar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnAgregar.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
             btnAgregar.ForeColor = Color.Green;
-            btnAgregar.Location = new Point(121, 583);
+            btnAgregar.Location = new Point(121, 608);
             btnAgregar.Name = "btnAgregar";
             btnAgregar.Size = new Size(84, 38);
             btnAgregar.TabIndex = 0;
@@ -313,7 +352,7 @@ namespace StockControl
             // btnVerInforme
             // 
             btnVerInforme.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            btnVerInforme.Location = new Point(12, 583);
+            btnVerInforme.Location = new Point(12, 608);
             btnVerInforme.Name = "btnVerInforme";
             btnVerInforme.Size = new Size(104, 34);
             btnVerInforme.TabIndex = 5;
@@ -356,7 +395,7 @@ namespace StockControl
             // 
             lblDolar.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             lblDolar.AutoSize = true;
-            lblDolar.Location = new Point(552, 600);
+            lblDolar.Location = new Point(552, 625);
             lblDolar.Name = "lblDolar";
             lblDolar.Size = new Size(64, 15);
             lblDolar.TabIndex = 9;
@@ -365,7 +404,7 @@ namespace StockControl
             // txtValorDolar
             // 
             txtValorDolar.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            txtValorDolar.Location = new Point(622, 592);
+            txtValorDolar.Location = new Point(622, 617);
             txtValorDolar.Name = "txtValorDolar";
             txtValorDolar.Size = new Size(100, 23);
             txtValorDolar.TabIndex = 10;
@@ -375,7 +414,7 @@ namespace StockControl
             // 
             btnGrupos.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnGrupos.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            btnGrupos.Location = new Point(468, 583);
+            btnGrupos.Location = new Point(468, 608);
             btnGrupos.Name = "btnGrupos";
             btnGrupos.Size = new Size(85, 38);
             btnGrupos.TabIndex = 11;
@@ -417,7 +456,7 @@ namespace StockControl
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1096, 629);
+            ClientSize = new Size(1096, 654);
             Controls.Add(btnGeneric);
             Controls.Add(lblCantProd);
             Controls.Add(label4);
@@ -479,5 +518,8 @@ namespace StockControl
         private Label lblItems;
         private Label label5;
         private Button btnGeneric;
+        private TextBox txtDescuento;
+        private CheckBox chkDescuento;
+        private CheckBox chkCosto;
     }
 }

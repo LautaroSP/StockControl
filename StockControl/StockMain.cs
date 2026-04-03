@@ -31,6 +31,7 @@ namespace StockControl
         private GrupoRepository _grupoRepository = new GrupoRepository();
         private bool imprimirTicket = true;
         private bool editandoProductoSector = false;
+        private List<ItemSeleccionado> prodGenericos = new();
 
         public StockMain()
         {
@@ -44,7 +45,7 @@ namespace StockControl
             factorGanancia = _configuracionRepository.ObtenerPorClave("FactorGanancia");
             cobrarEnPesos = _configuracionRepository.ObtenerPorClave("CobrarEnPesos");
             factorIVA = _configuracionRepository.ObtenerPorClave("IVA");
-
+            
             if (nombreLocal == string.Empty)
             {
                 Configuracion frmconfig = new Configuracion();
@@ -355,11 +356,16 @@ namespace StockControl
             else if (e.ColumnIndex == 3)
             {
                 CalcularTotal();
-                foreach (var item in _carrito)
+                var itemSeleccionado = dataGridView2.Rows[row].DataBoundItem as ItemSeleccionado;
+                if (itemSeleccionado != null && itemSeleccionado.Codigo.Contains("GENERIC-"))
                 {
-                    Debug.WriteLine($"{item.Nombre} - {item.Precio} - {item.GetHashCode()}");
+                    var prodGenerico = new ItemSeleccionado
+                    {
+                        IdProducto = itemSeleccionado.IdProducto,
+                        Precio = itemSeleccionado.Precio
+                    };
+                    prodGenericos.Add(prodGenerico);
                 }
-
                 VolverAScanner();
             }
         }
@@ -431,17 +437,6 @@ namespace StockControl
                     dataGridView2.CommitEdit(DataGridViewDataErrorContexts.Commit);
                 }
             }
-        }
-
-        private void CalcularTotal()
-        {
-            decimal total = _carrito
-                .Sum(i => i.Subtotal);
-
-            txtTotal.Text = total.ToString("C2", new CultureInfo("es-AR"));
-
-            decimal items = _carrito.Sum(i => i.Cantidad);
-            lblItems.Text = items.ToString("0", new CultureInfo("es-AR"));
         }
 
         private void brnCancelar_Click(object sender, EventArgs e)
@@ -531,22 +526,38 @@ namespace StockControl
                     //    MessageBox.Show($"El producto {stockValido.Nombre} no tiene stock suficiente, por favor verificar", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     //    return;
                     //}
+                    if (chkCosto.Checked)
+                    {
+                        var result = MessageBox.Show("Está a punto de cobrar el ticket utilizando el costo del producto, en lugar del precio. ¿Desea continuar?",
+                            "Confirmar",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Warning
+                        );
+                        if (result == DialogResult.No)
+                        {
+                            return;
+                        }
+                    }
+
                     foreach (var item in _carrito)
                     {
-                        if (item.Codigo.Contains("GENERIC-")) continue;
-                        var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
-                        if (producto!.ProductoSector != 1)
+                        
+                        if (!item.Codigo.Contains("GENERIC-")) 
                         {
-                            producto.Cantidad = producto.Cantidad - item.Cantidad;
+                            var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
+                            if (producto!.ProductoSector != 1)
+                            {
+                                producto.Cantidad = producto.Cantidad - item.Cantidad;
 
-                            if (producto.Cantidad <= 0)
-                                producto.Cantidad = 0;
+                                if (producto.Cantidad <= 0)
+                                    producto.Cantidad = 0;
 
-                            _prodRepository.Actualizar(producto);
+                                _prodRepository.Actualizar(producto);
+                            }
                         }
-                        Load();
-
                     }
+
+                    Load();
                     GenerarInformeDeVenta();
 
 
@@ -561,6 +572,8 @@ namespace StockControl
                     chkMultiPago.Checked = false;
                     lblItems.Text = "0";
                     txtTotal.Text = "0";
+                    chkCosto.Checked = false;
+                    chkDescuento.Checked = false;
                 }
                 VolverAScanner();
             }
@@ -869,10 +882,10 @@ namespace StockControl
         private void IrAMedioDePago()
         {
             cbMetodosPago.Focus();
-             BeginInvoke(new Action(() =>
-            {
-                cbMetodosPago.DroppedDown = true;
-            }));
+            BeginInvoke(new Action(() =>
+           {
+               cbMetodosPago.DroppedDown = true;
+           }));
         }
 
         private void VolverAScanner()
@@ -1090,14 +1103,16 @@ namespace StockControl
 
         private void AgregarProductoGenerico()
         {
-            _carrito.Add(new ItemSeleccionado
+            var itemSeleccionado = new ItemSeleccionado
             {
                 Codigo = $"GENERIC-{Guid.NewGuid().ToString().Substring(0, 8)}",
                 Nombre = "Producto",
                 Precio = 0,
                 Cantidad = 1,
                 IdProducto = Guid.NewGuid().GetHashCode()
-            });
+            };
+            _carrito.Add(itemSeleccionado);
+
             dataGridView2.DataSource = null;
             dataGridView2.DataSource = _carrito;
             int lastRow = dataGridView2.Rows.Count - 1;
@@ -1123,6 +1138,114 @@ namespace StockControl
         private void IrACobrar()
         {
             btnCobrar.Focus();
+        }
+
+        private void chkDescuento_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkDescuento.Checked)
+            {
+                txtDescuento.Enabled = true;
+                txtDescuento.Focus();
+                
+            }
+            else
+            {
+                txtDescuento.Enabled = false;
+                txtDescuento.Text = string.Empty;
+                CalcularTotal();
+            }
+        }
+
+        private void AplicarDescuento()
+        {
+            bool usarCosto = chkCosto.Checked;
+
+            foreach (var item in _carrito)
+            {
+                // Primero establecemos el precio base correcto
+                if (item.Codigo.Contains("GENERIC-"))
+                {
+                    var prod = prodGenericos.FirstOrDefault(x => x.IdProducto == item.IdProducto);
+                    if (prod == null) continue;
+                    item.Precio = prod.Precio; // los genéricos no tienen costo, siempre precio
+                }
+                else
+                {
+                    var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
+                    if (producto == null) continue;
+                    item.Precio = usarCosto ? producto.Costo : producto.Precio;
+                }
+
+                // Después aplicamos el descuento si corresponde
+                if (chkDescuento.Checked &&
+                    int.TryParse(txtDescuento.Text.Replace("%", "").Trim(), out int descuento) &&
+                    descuento > 0)
+                {
+                    item.Precio = item.Precio - (item.Precio * descuento / 100m);
+                }
+            }
+        }
+
+        private void CalcularTotal()
+        {
+            AplicarDescuento(); // Esto setea todos los precios correctamente
+
+            decimal total = _carrito.Sum(i => i.Cantidad * i.Precio);
+
+            dataGridView2.Refresh();
+            txtTotal.Text = total.ToString("C2", new CultureInfo("es-AR"));
+
+            decimal items = _carrito.Sum(i => i.Cantidad);
+            lblItems.Text = items.ToString("0", new CultureInfo("es-AR"));
+        }
+
+        // Al entrar al campo: sacamos el % para editar
+        private void txtDescuento_Enter(object sender, EventArgs e)
+        {
+            string valor = txtDescuento.Text.Replace("%", "").Trim();
+            txtDescuento.Text = valor;
+            txtDescuento.SelectAll();
+        }
+
+        // Solo permite dígitos y teclas de control
+        private void txtDescuento_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (!char.IsDigit(e.KeyChar) && !char.IsControl(e.KeyChar))
+            {
+                e.Handled = true;
+                return;
+            }
+
+            // Evita que supere 100 al tipear
+            if (char.IsDigit(e.KeyChar))
+            {
+                string futuro = txtDescuento.Text + e.KeyChar;
+                if (int.TryParse(futuro, out int valor) && valor > 100)
+                {
+                    e.Handled = true;
+                    MessageBox.Show("El descuento no puede superar 100%.",
+                                    "Valor inválido",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Warning);
+                }
+            }
+        }
+
+        // Al salir del campo: validamos y concatenamos el %
+        private void txtDescuento_Leave(object sender, EventArgs e)
+        {
+            if (!int.TryParse(txtDescuento.Text.Replace("%", ""), out int valor))
+                valor = 0;
+
+            valor = Math.Max(0, Math.Min(100, valor));
+            txtDescuento.Text = valor + "%";
+            CalcularTotal();
+            IrAMedioDePago();
+        }
+
+        private void chkCosto_CheckedChanged(object sender, EventArgs e)
+        {
+            CalcularTotal();
         }
     }
 }

@@ -637,6 +637,26 @@ namespace StockControl
             decimal total = _carrito
                 .Sum(i => i.Subtotal);
             int idInformeVenta;
+            string descuentoStr = txtDescuento.Text.Trim().Replace("%", "");
+            decimal descuento = 0;
+            string costo = string.Empty;
+            if(!chkDescuento.Checked)
+            {
+                descuentoStr = "0";
+            }
+            if (!TryParseDecimal(descuentoStr, out descuento))
+            {
+                MessageBox.Show("El descuento ingresado no es válido.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (chkCosto.Checked)
+            {
+                costo = "Si";
+            }
+            else
+                costo = "No";
+            
             List<InformeVentaDetalle> informeDetalles = new();
 
             if (chkMultiPago.Checked && multiplesMetodos.Count > 0)
@@ -644,7 +664,7 @@ namespace StockControl
                 bool detalleAsignado = false;
                 foreach (var metodo in multiplesMetodos)
                 {
-                    idInformeVenta = _informeVentaRepository.InsertarInformeVenta(metodo.Monto, metodo.Descripcion, true, !detalleAsignado);
+                    idInformeVenta = _informeVentaRepository.InsertarInformeVenta(metodo.Monto, metodo.Descripcion, true, !detalleAsignado, descuento, costo);
                     if (!detalleAsignado)
                     {
                         foreach (var item in _carrito)
@@ -658,7 +678,7 @@ namespace StockControl
             }
             else
             {
-                idInformeVenta = _informeVentaRepository.InsertarInformeVenta(total, MetodoDePago, false, true);
+                idInformeVenta = _informeVentaRepository.InsertarInformeVenta(total, MetodoDePago, false, true, descuento, costo);
                 foreach (var item in _carrito)
                 {
                     informeDetalles.Add(new InformeVentaDetalle(item, idInformeVenta));

@@ -16,6 +16,9 @@ namespace StockControl.Domain
         public int DetalleAdjunto { get; set; }
         public string DetalleAdjuntoStr { get; set; } = string.Empty;
         public string MultipleMetodoDePagoStr { get; set; } = string.Empty;
-        
+        public decimal subTotal { get; set; } = 0;
+        public decimal Descuento { get; set; } = 0;
+        public string PrecioCosto { get; set; } = string.Empty;
+
     }
 }

@@ -182,6 +182,33 @@ namespace StockControl.Infrastructure
             {
                 // La columna ya existe, no hacer nada
             }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE InformeVenta ADD COLUMN Descuento REAL NOT NULL DEFAULT 0;";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException ex)
+            {
+                // La columna ya existe, no hacer nada
+            }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE InformeVenta ADD COLUMN Subtotal REAL NOT NULL DEFAULT 0;";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException ex)
+            {
+                // La columna ya existe, no hacer nada
+            }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE InformeVenta ADD COLUMN PrecioCosto TEXT NOT NULL DEFAULT 'NO';";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException ex)
+            {
+                // La columna ya existe, no hacer nada
+            }
         }
     }
 }

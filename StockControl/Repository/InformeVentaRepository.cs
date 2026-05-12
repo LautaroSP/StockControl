@@ -14,13 +14,14 @@ namespace StockControl.Repository
         private readonly string _connectionString = "Data Source=stock.db";
 
         private SqliteConnection GetConnection() => new SqliteConnection(_connectionString);
-        public int InsertarInformeVenta(decimal total, string metodoPago, bool multiple, bool detalle)
+        public int InsertarInformeVenta(decimal total, string metodoPago, bool multiple, bool detalle, decimal descuento, string costo)
         {
             using var con = GetConnection();
 
-            var id = con.ExecuteScalar<int>(@" INSERT INTO InformeVenta (Total, MetodoPago, MultipleMetodoDePago, DetalleAdjunto)
-                                                VALUES (@Total, @MetodoPago, @MultipleMetodoDePago, @DetalleAdjunto);
-                                                SELECT last_insert_rowid();", new { Total = total, MetodoPago = metodoPago, MultipleMetodoDePago = multiple ? 1 : 0 , DetalleAdjunto = detalle ? 1 : 0 });
+            decimal subTotal = total / (1 - descuento / 100);
+            var id = con.ExecuteScalar<int>(@" INSERT INTO InformeVenta (Total, MetodoPago, MultipleMetodoDePago, DetalleAdjunto, Descuento, SubTotal, PrecioCosto)
+                                                VALUES (@Total, @MetodoPago, @MultipleMetodoDePago, @DetalleAdjunto, @Descuento, @SubTotal, @PrecioCosto);
+                                                SELECT last_insert_rowid();", new { Total = total, MetodoPago = metodoPago, MultipleMetodoDePago = multiple ? 1 : 0 , DetalleAdjunto = detalle ? 1 : 0, Descuento = descuento, SubTotal = subTotal, PrecioCosto = costo });
 
             return id;
         }

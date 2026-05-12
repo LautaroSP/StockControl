@@ -61,6 +61,8 @@ namespace StockControl
             dataGridView1.Columns["Fecha"].DefaultCellStyle.Format = "dd/MM/yyyy HH:mm:ss";
             dataGridView1.Columns["Total"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
             dataGridView1.Columns["Total"].DefaultCellStyle.Format = "C2";
+            dataGridView1.Columns["subTotal"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
+            dataGridView1.Columns["subTotal"].DefaultCellStyle.Format = "C2";
             foreach (DataGridViewColumn column in dataGridView1.Columns)
                 column.SortMode = DataGridViewColumnSortMode.Programmatic;
 

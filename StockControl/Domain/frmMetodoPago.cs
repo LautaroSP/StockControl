@@ -9,7 +9,7 @@ namespace StockControl.Domain
     {
         private decimal _totalVenta;
         private List<MetodoDePago> _metodoDePagos;
-        public static List<MetodoDePago> _metodosDePago = new List<MetodoDePago>();
+        public List<MetodoDePago> _metodosDePago = new List<MetodoDePago>();
 
         public frmMetodoPago(List<MetodoDePago> metodoDePagos, decimal total)
         {
@@ -17,6 +17,7 @@ namespace StockControl.Domain
             InitializeDataGrid();
             _metodoDePagos = metodoDePagos;
             _totalVenta = total;
+            _metodosDePago.Clear(); // Limpiar instancia al inicializar
             CargarMetodosPago();
             lblRestante.Text = $"{_totalVenta:C}";
         }
@@ -228,9 +229,10 @@ namespace StockControl.Domain
             }
 
             decimal totalIngresado = _metodosDePago.Sum(x => x.Monto);
-            if (totalIngresado != _totalVenta)
+            // Comparar con tolerancia para evitar errores de redondeo
+            if (Math.Abs(totalIngresado - _totalVenta) > 0.01m)
             {
-                MessageBox.Show("El total ingresado no coincide con el total de la venta.", "Error de validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show($"El total ingresado ({totalIngresado:C}) no coincide con el total de la venta ({_totalVenta:C}).", "Error de validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 

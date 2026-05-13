@@ -95,10 +95,10 @@ namespace StockControl
             CargarProductos();
             Bitmap bmp = new Bitmap("Resources\\gear.png");
 
-            // Opcional: redimensionar si querés un tamaño fijo para el botón (ej: 32x32)
+            // Opcional: redimensionar si querï¿½s un tamaï¿½o fijo para el botï¿½n (ej: 32x32)
             Bitmap bmpRedimensionado = new Bitmap(bmp, new Size(20, 20));
 
-            // Asignar la imagen al botón
+            // Asignar la imagen al botï¿½n
             btnConfiguracion.Image = bmpRedimensionado;
             if (_cobrarEnPesos)
             {
@@ -133,7 +133,7 @@ namespace StockControl
             dataGridView1.Columns["Id"].Visible = false;
             dataGridView1.Columns["Codigo"].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
             dataGridView1.Columns["Nombre"].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
-            dataGridView1.Columns["fechaModificacion"].HeaderText = "Fecha de Modificación";
+            dataGridView1.Columns["fechaModificacion"].HeaderText = "Fecha de Modificaciï¿½n";
             dataGridView1.Columns["fechaModificacion"].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
             lblTotal.AutoSize = false;
             lblTotal.MaximumSize = new Size(200, 0);
@@ -175,7 +175,7 @@ namespace StockControl
             dataGridView2.Columns.Add(new DataGridViewTextBoxColumn
             {
                 DataPropertyName = "Codigo",
-                HeaderText = "Código",
+                HeaderText = "Cï¿½digo",
                 ReadOnly = true,
                 Visible = false
             });
@@ -472,7 +472,7 @@ namespace StockControl
                 MessageBox.Show($"Se debe seleccionar un producto a eliminar,", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            var result = MessageBox.Show("¿Estás seguro desea eliminar este Producto?",
+            var result = MessageBox.Show("ï¿½Estï¿½s seguro desea eliminar este Producto?",
                                 "Confirmar eliminacion",
                                 MessageBoxButtons.YesNo,
                                 MessageBoxIcon.Warning
@@ -500,7 +500,7 @@ namespace StockControl
                     }
                     else
                     {
-                        // Restauramos color por defecto si no cumple la condición
+                        // Restauramos color por defecto si no cumple la condiciï¿½n
                         dataGridView1.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.White;
                         dataGridView1.Rows[e.RowIndex].DefaultCellStyle.ForeColor = Color.Black;
                     }
@@ -528,7 +528,7 @@ namespace StockControl
                     //}
                     if (chkCosto.Checked)
                     {
-                        var result = MessageBox.Show("Está a punto de cobrar el ticket utilizando el costo del producto, en lugar del precio. ¿Desea continuar?",
+                        var result = MessageBox.Show("EstÃ¡ a punto de cobrar el ticket utilizando el costo del producto, en lugar del precio. Â¿Desea continuar?",
                             "Confirmar",
                             MessageBoxButtons.YesNo,
                             MessageBoxIcon.Warning
@@ -539,10 +539,13 @@ namespace StockControl
                         }
                     }
 
+                    // Primero guardamos la venta en BD
+                    GenerarInformeDeVenta();
+
+                    // Solo despuÃ©s de guardar exitosamente, actualizamos el stock
                     foreach (var item in _carrito)
                     {
-                        
-                        if (!item.Codigo.Contains("GENERIC-")) 
+                        if (!item.Codigo.Contains("GENERIC-"))
                         {
                             var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
                             if (producto!.ProductoSector != 1)
@@ -558,17 +561,17 @@ namespace StockControl
                     }
 
                     Load();
-                    GenerarInformeDeVenta();
 
-
-
+                    // Imprimir ticket al final
                     if (imprimirTicket)
                     {
                         ImprimirTicket();
                     }
+                    
+                    // Limpiar carrito solo si todo fue exitoso
                     _carrito.Clear();
                     dataGridView2.Refresh();
-                    frmMetodoPago._metodosDePago.Clear();
+                    multiplesMetodos.Clear(); // Limpiar mÃ©todos mÃºltiples locales
                     chkMultiPago.Checked = false;
                     lblItems.Text = "0";
                     txtTotal.Text = "0";
@@ -580,6 +583,7 @@ namespace StockControl
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message, "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                // Carrito NO se limpia si hay error, permitiendo reintentar
                 return;
             }
 
@@ -646,7 +650,7 @@ namespace StockControl
             }
             if (!TryParseDecimal(descuentoStr, out descuento))
             {
-                MessageBox.Show("El descuento ingresado no es válido.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("El descuento ingresado no es vï¿½lido.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -826,7 +830,7 @@ namespace StockControl
                     }
                     else
                     {
-                        var result = MessageBox.Show("El producto no existe. ¿Desea agregar uno nuevo con este código?",
+                        var result = MessageBox.Show("El producto no existe. ï¿½Desea agregar uno nuevo con este cï¿½digo?",
                             "Producto no encontrado",
                             MessageBoxButtons.YesNo,
                             MessageBoxIcon.Question
@@ -933,7 +937,7 @@ namespace StockControl
                 MessageBox.Show($"Se debe seleccionar un producto para generar el codigo de Barras", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            var result = MessageBox.Show("Se va a generar e ímprimir el codigo de barras. ¿Desea continuar?",
+            var result = MessageBox.Show("Se va a generar e ï¿½mprimir el codigo de barras. ï¿½Desea continuar?",
                                 "Confirmar",
                                 MessageBoxButtons.YesNo,
                                 MessageBoxIcon.Information
@@ -942,17 +946,17 @@ namespace StockControl
             if (result == DialogResult.Yes)
             {
                 int cantidad = 0;
-                var result2 = MessageBox.Show("¿Desea imprimir más de un codigo de barra?",
+                var result2 = MessageBox.Show("ï¿½Desea imprimir mï¿½s de un codigo de barra?",
                     "Confirmar",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Information
                 );
                 if (result2 == DialogResult.Yes)
                 {
-                    string input = Interaction.InputBox("Ingrese la cantidad de códigos a imprimir:", "Cantidad", "1");
+                    string input = Interaction.InputBox("Ingrese la cantidad de cï¿½digos a imprimir:", "Cantidad", "1");
                     if (!int.TryParse(input, out cantidad) || cantidad <= 0)
                     {
-                        MessageBox.Show("Cantidad inválida, se imprimirá 1 código.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        MessageBox.Show("Cantidad invï¿½lida, se imprimirï¿½ 1 cï¿½digo.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         cantidad = 1;
                     }
                 }
@@ -1017,8 +1021,12 @@ namespace StockControl
             decimal total = 0;
             foreach (DataGridViewRow row in dataGridView2.Rows)
             {
-                if (row.Cells["Precio"].Value != null && decimal.TryParse(row.Cells["Precio"].Value.ToString(), out decimal precio))
-                    total += precio;
+                if (row.Cells["Cantidad"].Value != null && row.Cells["Precio"].Value != null &&
+                    decimal.TryParse(row.Cells["Cantidad"].Value.ToString(), out decimal cantidad) &&
+                    decimal.TryParse(row.Cells["Precio"].Value.ToString(), out decimal precio))
+                {
+                    total += cantidad * precio;
+                }
             }
             lblTotal.Text = total.ToString("N2");
         }
@@ -1045,9 +1053,9 @@ namespace StockControl
 
         private void cbMetodosPago_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (cbMetodosPago.SelectedItem?.ToString() == "Agregar método de pago...")
+            if (cbMetodosPago.SelectedItem?.ToString() == "Agregar mï¿½todo de pago...")
             {
-                string nuevo = Interaction.InputBox("Ingrese el nuevo método de pago:", "Nuevo método", "");
+                string nuevo = Interaction.InputBox("Ingrese el nuevo mï¿½todo de pago:", "Nuevo mï¿½todo", "");
 
                 if (!string.IsNullOrWhiteSpace(nuevo))
                 {
@@ -1079,7 +1087,7 @@ namespace StockControl
                 metodosDePago.Add(new Domain.MetodoDePago { Descripcion = metodo });
             }
 
-            cbMetodosPago.Items.Add("Agregar método de pago...");
+            cbMetodosPago.Items.Add("Agregar mï¿½todo de pago...");
             cbMetodosPago.SelectedIndex = 0;
         }
 
@@ -1089,7 +1097,7 @@ namespace StockControl
             {
                 if (_carrito.Count == 0)
                 {
-                    MessageBox.Show("El carrito está vacío, no se puede seleccionar pago múltiple", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("El carrito estï¿½ vacï¿½o, no se puede seleccionar pago mï¿½ltiple", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     chkMultiPago.Checked = false;
                     return;
                 }
@@ -1129,7 +1137,7 @@ namespace StockControl
                 Nombre = "Producto",
                 Precio = 0,
                 Cantidad = 1,
-                IdProducto = Guid.NewGuid().GetHashCode()
+                IdProducto = Math.Abs(Guid.NewGuid().ToString().GetHashCode()) // Usar abs para garantizar positivo, aunque aÃºn sea no Ãºnico
             };
             _carrito.Add(itemSeleccionado);
 
@@ -1187,7 +1195,7 @@ namespace StockControl
                 {
                     var prod = prodGenericos.FirstOrDefault(x => x.IdProducto == item.IdProducto);
                     if (prod == null) continue;
-                    item.Precio = prod.Precio; // los genéricos no tienen costo, siempre precio
+                    item.Precio = prod.Precio; // los genï¿½ricos no tienen costo, siempre precio
                 }
                 else
                 {
@@ -1196,7 +1204,7 @@ namespace StockControl
                     item.Precio = usarCosto ? producto.Costo : producto.Precio;
                 }
 
-                // Después aplicamos el descuento si corresponde
+                // Despuï¿½s aplicamos el descuento si corresponde
                 if (chkDescuento.Checked &&
                     int.TryParse(txtDescuento.Text.Replace("%", "").Trim(), out int descuento) &&
                     descuento > 0)
@@ -1227,7 +1235,7 @@ namespace StockControl
             txtDescuento.SelectAll();
         }
 
-        // Solo permite dígitos y teclas de control
+        // Solo permite dï¿½gitos y teclas de control
         private void txtDescuento_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (!char.IsDigit(e.KeyChar) && !char.IsControl(e.KeyChar))
@@ -1244,7 +1252,7 @@ namespace StockControl
                 {
                     e.Handled = true;
                     MessageBox.Show("El descuento no puede superar 100%.",
-                                    "Valor inválido",
+                                    "Valor invï¿½lido",
                                     MessageBoxButtons.OK,
                                     MessageBoxIcon.Warning);
                 }

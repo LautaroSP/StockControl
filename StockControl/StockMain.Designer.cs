@@ -105,6 +105,7 @@ namespace StockControl
             // 
             // txtDescuento
             // 
+            txtDescuento.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             txtDescuento.Enabled = false;
             txtDescuento.Location = new Point(131, 574);
             txtDescuento.Name = "txtDescuento";
@@ -116,6 +117,7 @@ namespace StockControl
             // 
             // chkDescuento
             // 
+            chkDescuento.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             chkDescuento.AutoSize = true;
             chkDescuento.Location = new Point(20, 584);
             chkDescuento.Name = "chkDescuento";
@@ -127,6 +129,7 @@ namespace StockControl
             // 
             // chkCosto
             // 
+            chkCosto.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             chkCosto.AutoSize = true;
             chkCosto.Location = new Point(20, 569);
             chkCosto.Name = "chkCosto";

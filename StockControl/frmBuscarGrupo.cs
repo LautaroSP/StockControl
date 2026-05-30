@@ -49,9 +49,16 @@ namespace StockControl
 
             dataGridView1.Columns.Add(new DataGridViewTextBoxColumn
             {
-                DataPropertyName = "PrecioGrupo", // si existe, sino sacalo
-                HeaderText = "PrecioGrupo",
-                Width = 100
+                DataPropertyName = "PrecioGrupo",
+                HeaderText = "Precio",
+                Width = 80
+            });
+
+            dataGridView1.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = "Costo",
+                HeaderText = "Costo",
+                Width = 80
             });
 
             dataGridView1.ReadOnly = true;

@@ -2,7 +2,6 @@ using Microsoft.VisualBasic;
 using StockControl.Domain;
 using StockControl.Repository;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Drawing.Printing;
 using System.Globalization;
 
@@ -11,27 +10,28 @@ namespace StockControl
     public partial class StockMain : Form
     {
         private ProductoRepository _prodRepository = new ProductoRepository();
-        List<Producto> productos = new List<Producto>();
+        private List<Producto> _productos = new List<Producto>();
         private BindingList<ItemSeleccionado> _carrito;
         private InformeVentaRepository _informeVentaRepository = new InformeVentaRepository();
         private ConfiguracionRepository _configuracionRepository = new ConfiguracionRepository();
-        public static string nombreLocal;
-        public static string factorGanancia;
-        public static decimal _factorGanancia;
-        public static decimal _valorDolar = 1;
-        private string MetodoDePago = string.Empty;
-        private string cobrarEnPesos = string.Empty;
-        public static bool _cobrarEnPesos = false;
-        private Dictionary<int, decimal> preciosBase = new Dictionary<int, decimal>();
         private MetodoPagoRepository _metodoPagoRepository = new MetodoPagoRepository();
-        public static decimal IVA;
-        public static string factorIVA;
-        private List<MetodoDePago> metodosDePago = new List<MetodoDePago>();
-        private List<MetodoDePago> multiplesMetodos = new List<MetodoDePago>();
         private GrupoRepository _grupoRepository = new GrupoRepository();
-        private bool imprimirTicket = true;
-        private bool editandoProductoSector = false;
-        private List<ItemSeleccionado> prodGenericos = new();
+        
+        private string _metodoDePago = string.Empty;
+        private List<MetodoDePago> _metodosDePago = new List<MetodoDePago>();
+        private List<MetodoDePago> _multiplesMetodos = new List<MetodoDePago>();
+        private List<ItemSeleccionado> _preciosGenericos = new List<ItemSeleccionado>();
+        
+        private bool _imprimirTicket = true;
+
+        // Campos estáticos para compatibilidad con otros forms (deprecated - usar ConfiguracionRepository)
+        public static string nombreLocal = string.Empty;
+        public static string factorGanancia = string.Empty;
+        public static decimal _factorGanancia = 1;
+        public static decimal IVA = 1;
+        public static string factorIVA = string.Empty;
+        public static decimal _valorDolar = 1;
+        public static bool _cobrarEnPesos = false;
 
         public StockMain()
         {
@@ -41,104 +41,38 @@ namespace StockControl
             dataGridView2.AutoGenerateColumns = false;
             CrearDataGrid2();
             dataGridView2.DataSource = _carrito;
-            nombreLocal = _configuracionRepository.ObtenerPorClave("NombreLocal");
-            factorGanancia = _configuracionRepository.ObtenerPorClave("FactorGanancia");
-            cobrarEnPesos = _configuracionRepository.ObtenerPorClave("CobrarEnPesos");
-            factorIVA = _configuracionRepository.ObtenerPorClave("IVA");
             
-            if (nombreLocal == string.Empty)
-            {
-                Configuracion frmconfig = new Configuracion();
-                MessageBox.Show("Debe indicar el nombre del local antes de continuar", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                frmconfig.ShowDialog();
-                if (frmconfig.DialogResult != DialogResult.OK)
-                {
-                    MessageBox.Show("Debe indicar el nombre del local antes de continuar", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    frmconfig.ShowDialog();
-                }
-                nombreLocal = _configuracionRepository.ObtenerPorClave("NombreLocal");
-            }
-            if (factorGanancia == string.Empty)
-            {
-                _factorGanancia = 1;
-            }
-            else
-            {
-                if (TryParseDecimal(factorGanancia, out decimal result))
-                {
-                    _factorGanancia = result;
-                }
-            }
-            if (factorIVA == string.Empty)
-            {
-                IVA = 1;
-            }
-            else
-            {
-                if (TryParseDecimal(factorIVA, out decimal result))
-                {
-                    IVA = result;
-                }
-            }
-            if (cobrarEnPesos == string.Empty)
-            {
-                _cobrarEnPesos = false;
-            }
-            else
-            {
-                if (bool.TryParse(cobrarEnPesos, out bool result))
-                {
-                    _cobrarEnPesos = result;
-                }
-            }
             CargarMetodosPago();
-            CargarProductos();
+            ActualizarGridProductos();
+            
             Bitmap bmp = new Bitmap("Resources\\gear.png");
-
-            // Opcional: redimensionar si quer�s un tama�o fijo para el bot�n (ej: 32x32)
             Bitmap bmpRedimensionado = new Bitmap(bmp, new Size(20, 20));
-
-            // Asignar la imagen al bot�n
             btnConfiguracion.Image = bmpRedimensionado;
-            if (_cobrarEnPesos)
-            {
-                lblDolar.Visible = false;
-                chkCobroEnPesos.Visible = false;
-                txtValorDolar.Visible = false;
-            }
+            
             dataGridView2.CellEndEdit += dataGridView2_CellEndEdit;
-
         }
 
-        private void CargarProductos()
+        private void ActualizarGridProductos()
         {
-            productos = _prodRepository.Listar();
-            productos = productos.OrderBy(x => x.Nombre).ToList();
-            foreach (var prod in productos)
+            _productos = _prodRepository.Listar();
+            _productos = _productos.OrderBy(x => x.Nombre).ToList();
+            
+            foreach (var prod in _productos)
             {
-                if (prod.ProductoSector == 1)
-                {
-                    prod.Sector = "Si";
-                }
-                else
-                {
-                    prod.Sector = "No";
-                }
+                prod.Sector = prod.ProductoSector == 1 ? "Si" : "No";
+                
                 if (prod.IdGrupoProducto != 0)
                     prod.NombreGrupo = _grupoRepository.BuscarPorId(prod.IdGrupoProducto).NombreGrupo;
                 else
                     prod.NombreGrupo = "";
             }
-            dataGridView1.DataSource = productos;
+            
+            dataGridView1.DataSource = _productos;
             dataGridView1.Columns["Id"].Visible = false;
             dataGridView1.Columns["Codigo"].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
             dataGridView1.Columns["Nombre"].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
-            dataGridView1.Columns["fechaModificacion"].HeaderText = "Fecha de Modificaci�n";
+            dataGridView1.Columns["fechaModificacion"].HeaderText = "Fecha de Modificación";
             dataGridView1.Columns["fechaModificacion"].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
-            lblTotal.AutoSize = false;
-            lblTotal.MaximumSize = new Size(200, 0);
-            lblTotal.AutoEllipsis = false;
-            lblTotal.TextAlign = ContentAlignment.MiddleLeft;
             dataGridView1.ReadOnly = true;
             dataGridView1.Columns["ProductoSector"].Visible = false;
             dataGridView1.Columns["IdGrupoProducto"].Visible = false;
@@ -149,44 +83,37 @@ namespace StockControl
             dataGridView1.Columns["Costo"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
             dataGridView1.Columns["Precio"].DefaultCellStyle.Format = "C2";
             dataGridView1.Columns["Precio"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
-            int cantidad = dataGridView1.Rows.Count;
-            lblCantProd.Text = cantidad.ToString();
-
-            var prodFechaModif = productos.Where(p => p.fechaModificacion.Date == DateTime.Now.Date).ToList();
-            CargarFiltro();
+            
+            lblCantProd.Text = _productos.Count.ToString();
+            AplicarFiltro();
         }
 
-        private void CargarFiltro()
+        private void AplicarFiltro()
         {
             string filtro = txtBuscar.Text.ToLower();
-
-            var filtrados = productos.Where(p =>
+            var filtrados = _productos.Where(p =>
                 p.Codigo.ToLower().Contains(filtro) ||
                 p.Nombre.ToLower().Contains(filtro)
             ).ToList();
-
             dataGridView1.DataSource = filtrados;
         }
 
         private void CrearDataGrid2()
         {
             dataGridView2.AutoGenerateColumns = false;
-
             dataGridView2.Columns.Add(new DataGridViewTextBoxColumn
             {
                 DataPropertyName = "Codigo",
-                HeaderText = "C�digo",
+                HeaderText = "Código",
                 ReadOnly = true,
                 Visible = false
             });
-
             dataGridView2.Columns.Add(new DataGridViewTextBoxColumn
             {
                 DataPropertyName = "Nombre",
                 HeaderText = "Nombre",
                 ReadOnly = true
             });
-
             dataGridView2.Columns.Add(new DataGridViewTextBoxColumn
             {
                 DataPropertyName = "Cantidad",
@@ -195,7 +122,6 @@ namespace StockControl
                 ReadOnly = false,
                 Width = 50
             });
-
             dataGridView2.Columns.Add(new DataGridViewTextBoxColumn
             {
                 DataPropertyName = "Precio",
@@ -208,7 +134,6 @@ namespace StockControl
                     FormatProvider = new CultureInfo("es-AR")
                 }
             });
-
             dataGridView2.Columns.Add(new DataGridViewTextBoxColumn
             {
                 DataPropertyName = "Subtotal",
@@ -224,120 +149,97 @@ namespace StockControl
 
         private void btnAgregar_Click(object sender, EventArgs e)
         {
-            frmProducto frmProducto = new frmProducto(null, _prodRepository, _cobrarEnPesos);
-            frmProducto.FormClosed += (s, e) =>
+            frmProducto frmProducto = new frmProducto(null, _prodRepository);
+            frmProducto.FormClosed += (s, args) =>
             {
                 if (frmProducto.DialogResult == DialogResult.OK)
-                    Load();
+                    ActualizarGridProductos();
             };
-
             frmProducto.Show();
-        }
-        private void Load()
-        {
-            productos = _prodRepository.Listar();
-            productos = productos.OrderBy(x => x.Nombre).ToList();
-            foreach (var prod in productos)
-            {
-                if (prod.ProductoSector == 1)
-                {
-                    prod.Sector = "Si";
-                }
-                else
-                {
-                    prod.Sector = "No";
-                }
-            }
-            dataGridView1.DataSource = productos;
-            dataGridView1.Columns["Codigo"].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
-            dataGridView1.Columns["Nombre"].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
-
-            if (txtBuscar.Text != string.Empty)
-            {
-                string filtro = txtBuscar.Text.ToLower();
-
-                var filtrados = productos.Where(p =>
-                    p.Codigo.ToLower().Contains(filtro) ||
-                    p.Nombre.ToLower().Contains(filtro)
-                ).ToList();
-
-                dataGridView1.DataSource = filtrados;
-            }
         }
 
         private void textBox1_TextChanged(object sender, EventArgs e)
         {
-            CargarFiltro();
+            AplicarFiltro();
         }
+
         private void dataGridViewProductos_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
-            preciosBase.Clear();
-            if (e.RowIndex >= 0)
+            if (e.RowIndex < 0) return;
+            var producto = (Producto)dataGridView1.Rows[e.RowIndex].DataBoundItem;
+            AgregarAlCarrito(producto);
+        }
+
+        private void AgregarAlCarrito(Producto producto)
+        {
+            var existente = _carrito.FirstOrDefault(i => i.Codigo == producto.Codigo);
+            
+            if (existente == null)
             {
-                var producto = (Producto)dataGridView1.Rows[e.RowIndex].DataBoundItem;
-                var existente = _carrito.FirstOrDefault(i => i.Codigo == producto.Codigo);
-
-                if (existente == null)
+                var item = new ItemSeleccionado
                 {
-                    var item = new ItemSeleccionado
+                    Codigo = producto.Codigo,
+                    Nombre = producto.Nombre,
+                    Precio = producto.Precio,
+                    Cantidad = 1,
+                    IdProducto = producto.Id,
+                    PrecioEditado = false
+                };
+                _carrito.Add(item);
+            }
+            else
+            {
+                if (producto.ProductoSector != 1)
+                    existente.Cantidad += 1;
+            }
+            
+            dataGridView2.Refresh();
+            ActualizarPreciosCarrito();
+            CalcularTotal();
+            
+            if (producto.ProductoSector == 1)
+            {
+                SeleccionarPrecioProductoSector();
+            }
+        }
+
+        private void ActualizarPreciosCarrito()
+        {
+            for (int i = 0; i < _carrito.Count; i++)
+            {
+                var item = _carrito[i];
+                if (item.Codigo.Contains("GENERIC-"))
+                {
+                    var precioGenerico = _preciosGenericos.FirstOrDefault(x => x.IdProducto == item.IdProducto);
+                    if (precioGenerico != null && !item.PrecioEditado)
                     {
-                        Codigo = producto.Codigo,
-                        Nombre = producto.Nombre,
-                        Precio = producto.Precio,
-                        Cantidad = 1,
-                        IdProducto = producto.Id
-                    };
-
-                    _carrito.Add(item);
-
+                        item.Precio = precioGenerico.Precio;
+                    }
                 }
                 else
                 {
-                    if (producto.ProductoSector != 1)
-                        existente.Cantidad += 1;
-                }
-                int i = 0;
-                foreach (var p in _carrito)
-                {
-                    if (p.Codigo.Contains("GENERIC-"))
+                    var prod = _productos.FirstOrDefault(x => x.Id == item.IdProducto);
+                    if (prod != null && !item.PrecioEditado)
                     {
-                        preciosBase[i] = p.Precio;
+                        item.Precio = prod.Precio;
                     }
-                    else
-                    {
-                        var prod = _prodRepository.BuscarPorCodigo(p.Codigo);
-                        if (prod.ProductoSector != 1)
-                        {
-                            preciosBase[i] = prod.Precio;
-                        }
-                    }
-                    i++;
-                }
-                dataGridView2.Refresh();
-                CalcularPrecioEnDolar();
-                CalcularTotal();
-                if (producto.ProductoSector == 1)
-                {
-                    SeleccionarPrecioProductoSector(producto);
                 }
             }
         }
 
-        private void SeleccionarPrecioProductoSector(Producto producto)
+        private void SeleccionarPrecioProductoSector()
         {
             int lastRow = dataGridView2.Rows.Count - 1;
             int colPrecio = 3;
-
             dataGridView2.ClearSelection();
             dataGridView2.CurrentCell = dataGridView2.Rows[lastRow].Cells[colPrecio];
-
             dataGridView2.FirstDisplayedScrollingRowIndex = lastRow;
-
             this.BeginInvoke(new Action(() =>
             {
                 dataGridView2.BeginEdit(true);
             }));
         }
+
         private void dataGridView2_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
             dataGridView2.CommitEdit(DataGridViewDataErrorContexts.Commit);
@@ -355,17 +257,28 @@ namespace StockControl
             }
             else if (e.ColumnIndex == 3)
             {
-                CalcularTotal();
                 var itemSeleccionado = dataGridView2.Rows[row].DataBoundItem as ItemSeleccionado;
-                if (itemSeleccionado != null && itemSeleccionado.Codigo.Contains("GENERIC-"))
+                if (itemSeleccionado != null)
                 {
-                    var prodGenerico = new ItemSeleccionado
+                    itemSeleccionado.PrecioEditado = true;
+                    
+                    var productoSector = _productos.FirstOrDefault(x => x.Id == itemSeleccionado.IdProducto);
+                    if (productoSector != null && productoSector.ProductoSector == 1)
                     {
-                        IdProducto = itemSeleccionado.IdProducto,
-                        Precio = itemSeleccionado.Precio
-                    };
-                    prodGenericos.Add(prodGenerico);
+                        itemSeleccionado.PrecioOriginal = itemSeleccionado.Precio;
+                    }
+                    
+                    if (itemSeleccionado.Codigo.Contains("GENERIC-"))
+                    {
+                        var prodGenerico = new ItemSeleccionado
+                        {
+                            IdProducto = itemSeleccionado.IdProducto,
+                            Precio = itemSeleccionado.Precio
+                        };
+                        _preciosGenericos.Add(prodGenerico);
+                    }
                 }
+                CalcularTotal();
                 VolverAScanner();
             }
         }
@@ -382,36 +295,23 @@ namespace StockControl
                         dataGridView2.CurrentCell = dataGridView2.Rows[row].Cells[col];
                         dataGridView2.BeginEdit(true);
                     }
-                    catch
-                    {
-                        return;
-                    }
+                    catch { }
                 }));
             }
-            catch
-            {
-                return;
-            }
-
+            catch { }
         }
 
         private void dataGridViewCarrito_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex < 0)
-                return;
-
+            if (e.RowIndex < 0) return;
             var columnName = dataGridView2.Columns[e.ColumnIndex].DataPropertyName;
-
             if (columnName == "Cantidad" || columnName == "Precio")
             {
                 if (columnName == "Cantidad")
                 {
                     var cellValue = dataGridView2.Rows[e.RowIndex].Cells[e.ColumnIndex].Value;
-
-                    if (cellValue == null || string.IsNullOrWhiteSpace(cellValue.ToString()))
-                        return;
+                    if (cellValue == null || string.IsNullOrWhiteSpace(cellValue.ToString())) return;
                 }
-
                 if (columnName == "Precio")
                 {
                     var row = dataGridView2.Rows[e.RowIndex];
@@ -427,9 +327,7 @@ namespace StockControl
         private void dataGridViewCarrito_CurrentCellDirtyStateChanged(object sender, EventArgs e)
         {
             var cell = dataGridView2.CurrentCell;
-            if (cell == null)
-                return;
-
+            if (cell == null) return;
             if (cell.OwningColumn is DataGridViewCheckBoxColumn)
             {
                 if (dataGridView2.IsCurrentCellDirty)
@@ -441,7 +339,13 @@ namespace StockControl
 
         private void brnCancelar_Click(object sender, EventArgs e)
         {
+            LimpiarCarrito();
+        }
+
+        private void LimpiarCarrito()
+        {
             _carrito.Clear();
+            _preciosGenericos.Clear();
             dataGridView2.Refresh();
             CalcularTotal();
         }
@@ -450,17 +354,16 @@ namespace StockControl
         {
             if (dataGridView1.CurrentRow == null)
             {
-                MessageBox.Show($"Se debe seleccionar un producto a editar,", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Se debe seleccionar un producto a editar.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-
             var producto = (Producto)dataGridView1.CurrentRow.DataBoundItem;
-            using (var frmProducto = new frmProducto(producto, _prodRepository, _cobrarEnPesos))
+            using (var frmProducto = new frmProducto(producto, _prodRepository))
             {
                 frmProducto.ShowDialog();
                 if (frmProducto.DialogResult == DialogResult.OK)
                 {
-                    CargarProductos();
+                    ActualizarGridProductos();
                 }
             }
         }
@@ -469,38 +372,34 @@ namespace StockControl
         {
             if (dataGridView1.CurrentRow == null)
             {
-                MessageBox.Show($"Se debe seleccionar un producto a eliminar,", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Se debe seleccionar un producto a eliminar.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            var result = MessageBox.Show("�Est�s seguro desea eliminar este Producto?",
-                                "Confirmar eliminacion",
+            var result = MessageBox.Show("¿Está seguro desea eliminar este Producto?",
+                                "Confirmar eliminación",
                                 MessageBoxButtons.YesNo,
-                                MessageBoxIcon.Warning
-                            );
-
+                                MessageBoxIcon.Warning);
             if (result == DialogResult.Yes)
             {
                 var producto = (Producto)dataGridView1.CurrentRow.DataBoundItem;
                 _prodRepository.Eliminar(producto.Id);
-                Load();
+                ActualizarGridProductos();
             }
         }
+
         private void dataGridView1_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
-            // Verificamos que sea la columna "Cantidad"
             if (dataGridView1.Columns[e.ColumnIndex].Name == "Cantidad")
             {
                 if (e.Value != null && int.TryParse(e.Value.ToString(), out int cantidad))
                 {
                     if (cantidad < 5)
                     {
-                        // Cambiamos el color de toda la fila
                         dataGridView1.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightSalmon;
                         dataGridView1.Rows[e.RowIndex].DefaultCellStyle.ForeColor = Color.Black;
                     }
                     else
                     {
-                        // Restauramos color por defecto si no cumple la condici�n
                         dataGridView1.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.White;
                         dataGridView1.Rows[e.RowIndex].DefaultCellStyle.ForeColor = Color.Black;
                     }
@@ -512,97 +411,77 @@ namespace StockControl
         {
             try
             {
-                if (string.IsNullOrEmpty(MetodoDePago) &&
-                (!chkMultiPago.Checked || (chkMultiPago.Checked && multiplesMetodos.Count == 0)))
+                if (!ValidarMetodoPago()) return;
+                
+                if (_carrito.Count == 0) return;
+                
+                if (chkCosto.Checked)
                 {
-                    MessageBox.Show($"Debe seleccionar un Metodo de pago", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    var result = MessageBox.Show("Está a punto de cobrar el ticket utilizando el costo del producto, en lugar del precio. ¿Desea continuar?",
+                        "Confirmar",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
+                    if (result == DialogResult.No) return;
                 }
-                if (_carrito.Count > 0)
+
+                GenerarInformeVenta();
+                ActualizarStock();
+                ActualizarGridProductos();
+
+                if (_imprimirTicket)
                 {
-                    //var stockValido = VerificarStockDisponible();
-                    //if (stockValido != null)
-                    //{
-                    //    MessageBox.Show($"El producto {stockValido.Nombre} no tiene stock suficiente, por favor verificar", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    //    return;
-                    //}
-                    if (chkCosto.Checked)
-                    {
-                        var result = MessageBox.Show("Está a punto de cobrar el ticket utilizando el costo del producto, en lugar del precio. ¿Desea continuar?",
-                            "Confirmar",
-                            MessageBoxButtons.YesNo,
-                            MessageBoxIcon.Warning
-                        );
-                        if (result == DialogResult.No)
-                        {
-                            return;
-                        }
-                    }
-
-                    // Primero guardamos la venta en BD
-                    GenerarInformeDeVenta();
-
-                    // Solo después de guardar exitosamente, actualizamos el stock
-                    foreach (var item in _carrito)
-                    {
-                        if (!item.Codigo.Contains("GENERIC-"))
-                        {
-                            var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
-                            if (producto!.ProductoSector != 1)
-                            {
-                                producto.Cantidad = producto.Cantidad - item.Cantidad;
-
-                                if (producto.Cantidad <= 0)
-                                    producto.Cantidad = 0;
-
-                                _prodRepository.Actualizar(producto);
-                            }
-                        }
-                    }
-
-                    Load();
-
-                    // Imprimir ticket al final
-                    if (imprimirTicket)
-                    {
-                        ImprimirTicket();
-                    }
-                    
-                    // Limpiar carrito solo si todo fue exitoso
-                    _carrito.Clear();
-                    dataGridView2.Refresh();
-                    multiplesMetodos.Clear(); // Limpiar métodos múltiples locales
-                    chkMultiPago.Checked = false;
-                    lblItems.Text = "0";
-                    txtTotal.Text = "0";
-                    chkCosto.Checked = false;
-                    chkDescuento.Checked = false;
+                    ImprimirTicket();
                 }
+                
+                LimpiarCarrito();
+                LimpiarUIAfterVenta();
                 VolverAScanner();
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message, "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                // Carrito NO se limpia si hay error, permitiendo reintentar
-                return;
             }
+        }
 
+        private bool ValidarMetodoPago()
+        {
+            if (string.IsNullOrEmpty(_metodoDePago) &&
+                (!chkMultiPago.Checked || (chkMultiPago.Checked && _multiplesMetodos.Count == 0)))
+            {
+                MessageBox.Show("Debe seleccionar un Método de pago", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            return true;
+        }
+
+        private void ActualizarStock()
+        {
+            foreach (var item in _carrito)
+            {
+                if (item.Codigo.Contains("GENERIC-")) continue;
+                
+                var producto = _productos.FirstOrDefault(x => x.Id == item.IdProducto);
+                if (producto?.ProductoSector != 1)
+                {
+                    producto!.Cantidad = Math.Max(0, producto.Cantidad - item.Cantidad);
+                    _prodRepository.Actualizar(producto);
+                }
+            }
         }
 
         private void dataGridViewProductos_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
         {
             var prod = (ItemSeleccionado)dataGridView2.Rows[e.RowIndex].DataBoundItem;
-            if (prod.Codigo.Contains("GENERIC-") || prod == null)
+            if (prod == null || prod.Codigo.Contains("GENERIC-"))
             {
                 return;
             }
+            
             if (dataGridView2.Columns[e.ColumnIndex].Name == "Precio")
             {
                 var itemCarrito = (ItemSeleccionado)dataGridView2.Rows[e.RowIndex].DataBoundItem;
-
-                var producto = productos.FirstOrDefault(x => x.Id == itemCarrito.IdProducto);
-
-                if (producto.ProductoSector != 1)
+                var producto = _productos.FirstOrDefault(x => x.Id == itemCarrito.IdProducto);
+                if (producto?.ProductoSector != 1)
                 {
                     e.Cancel = true;
                 }
@@ -611,16 +490,13 @@ namespace StockControl
             if (dataGridView2.Columns[e.ColumnIndex].Name == "Cantidad")
             {
                 var itemCarrito = (ItemSeleccionado)dataGridView2.Rows[e.RowIndex].DataBoundItem;
-
-                var producto = productos.FirstOrDefault(x => x.Id == itemCarrito.IdProducto);
-
-                if (producto.ProductoSector == 1)
+                var producto = _productos.FirstOrDefault(x => x.Id == itemCarrito.IdProducto);
+                if (producto?.ProductoSector == 1)
                 {
                     e.Cancel = true;
                 }
             }
         }
-
 
         private void ImprimirTicket()
         {
@@ -636,39 +512,31 @@ namespace StockControl
             }
         }
 
-        private void GenerarInformeDeVenta()
+        private void GenerarInformeVenta()
         {
-            decimal total = _carrito
-                .Sum(i => i.Subtotal);
-            int idInformeVenta;
+            decimal total = _carrito.Sum(i => i.Subtotal);
             string descuentoStr = txtDescuento.Text.Trim().Replace("%", "");
             decimal descuento = 0;
-            string costo = string.Empty;
-            if(!chkDescuento.Checked)
+            
+            if (!chkDescuento.Checked)
             {
                 descuentoStr = "0";
             }
             if (!TryParseDecimal(descuentoStr, out descuento))
             {
-                MessageBox.Show("El descuento ingresado no es v�lido.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("El descuento ingresado no es válido.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-
-            if (chkCosto.Checked)
-            {
-                costo = "Si";
-            }
-            else
-                costo = "No";
             
+            string costo = chkCosto.Checked ? "Si" : "No";
             List<InformeVentaDetalle> informeDetalles = new();
 
-            if (chkMultiPago.Checked && multiplesMetodos.Count > 0)
+            if (chkMultiPago.Checked && _multiplesMetodos.Count > 0)
             {
                 bool detalleAsignado = false;
-                foreach (var metodo in multiplesMetodos)
+                foreach (var metodo in _multiplesMetodos)
                 {
-                    idInformeVenta = _informeVentaRepository.InsertarInformeVenta(metodo.Monto, metodo.Descripcion, true, !detalleAsignado, descuento, costo);
+                    int idInformeVenta = _informeVentaRepository.InsertarInformeVenta(metodo.Monto, metodo.Descripcion, true, !detalleAsignado, descuento, costo);
                     if (!detalleAsignado)
                     {
                         foreach (var item in _carrito)
@@ -677,12 +545,11 @@ namespace StockControl
                         }
                         detalleAsignado = true;
                     }
-
                 }
             }
             else
             {
-                idInformeVenta = _informeVentaRepository.InsertarInformeVenta(total, MetodoDePago, false, true, descuento, costo);
+                int idInformeVenta = _informeVentaRepository.InsertarInformeVenta(total, _metodoDePago, false, true, descuento, costo);
                 foreach (var item in _carrito)
                 {
                     informeDetalles.Add(new InformeVentaDetalle(item, idInformeVenta));
@@ -691,30 +558,6 @@ namespace StockControl
 
             foreach (var informe in informeDetalles)
                 _informeVentaRepository.InsertarInformeVentaDetalle(informe);
-
-        }
-
-        private Producto? VerificarStockDisponible()
-        {
-            foreach (var item in _carrito)
-            {
-                if (item.IdProducto == 0) continue;
-                var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
-                if (producto.ProductoSector == 1)
-                {
-                    continue;
-                }
-                if (producto != null)
-                {
-                    if (producto.Cantidad - item.Cantidad < 0)
-                        return producto;
-                }
-                else
-                {
-                    throw new Exception($"El producto {item.Nombre} no existe, por favor verificar");
-                }
-            }
-            return null;
         }
 
         private void btnVerInforme_Click(object sender, EventArgs e)
@@ -723,7 +566,7 @@ namespace StockControl
             frmInformeVentas.ShowDialog();
             if (frmInformeVentas.DialogResult == DialogResult.OK)
             {
-                Load();
+                ActualizarGridProductos();
             }
             if (frmInformeVentas.DialogResult == DialogResult.Yes)
             {
@@ -736,10 +579,10 @@ namespace StockControl
                 MessageBox.Show("Los items del ticket se cargaron en el carrito", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
+
         private void dataGridViewCarrito_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
         {
             var columnName = dataGridView2.CurrentCell.OwningColumn.DataPropertyName;
-
             if (columnName == "Cantidad" || columnName == "Precio")
             {
                 if (e.Control is TextBox tb)
@@ -768,133 +611,50 @@ namespace StockControl
                 }
             }
         }
+
         private bool TryParseDecimal(string input, out decimal value)
         {
-            input = input.Trim();
-
-            input = input.Replace(',', '.');
-
+            input = input.Trim().Replace(',', '.');
             return decimal.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out value);
         }
+
         private void txtScanner_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
             {
                 string codigo = txtScanner.Text.Trim();
                 txtScanner.Clear();
-                preciosBase.Clear();
                 if (!string.IsNullOrEmpty(codigo))
                 {
-                    var producto = productos.FirstOrDefault(p => p.Codigo == codigo);
-
+                    var producto = _productos.FirstOrDefault(p => p.Codigo == codigo);
                     if (producto != null)
                     {
-                        var itemExistente = _carrito.FirstOrDefault(c => c.Codigo == producto.Codigo);
-
-                        if (itemExistente != null && producto.ProductoSector != 1)
-                        {
-                            itemExistente.Cantidad++;
-                        }
-                        else if (producto.ProductoSector == 1 && itemExistente != null)
-                        {
-                            SeleccionarPrecioProductoSector(producto);
-                            return;
-                        }
-                        else
-                        {
-                            _carrito.Add(new ItemSeleccionado
-                            {
-                                Codigo = producto.Codigo,
-                                Nombre = producto.Nombre,
-                                Precio = producto.Precio,
-                                Cantidad = 1,
-                                IdProducto = producto.Id
-                            });
-                        }
-                        int i = 0;
-                        foreach (var p in _carrito)
-                        {
-                            var prod = _prodRepository.BuscarPorCodigo(p.Codigo);
-                            if (p.Codigo.Contains("GENERIC"))
-                                preciosBase[i] = p.Precio;
-                            else
-                                preciosBase[i] = prod.Precio;
-                            i++;
-                        }
-                        dataGridView2.DataSource = null;
-                        dataGridView2.DataSource = _carrito;
-                        if (producto.ProductoSector == 1)
-                        {
-                            SeleccionarPrecioProductoSector(producto);
-                        }
+                        AgregarProductoPorScanner(producto);
                     }
                     else
                     {
-                        var result = MessageBox.Show("El producto no existe. �Desea agregar uno nuevo con este c�digo?",
+                        var result = MessageBox.Show("El producto no existe. ¿Desea agregar uno nuevo con este código?",
                             "Producto no encontrado",
                             MessageBoxButtons.YesNo,
-                            MessageBoxIcon.Question
-                        );
+                            MessageBoxIcon.Question);
                         if (result == DialogResult.Yes)
                         {
-                            frmProducto frmProducto = new frmProducto(codigo, _prodRepository, _cobrarEnPesos, true);
+                            frmProducto frmProducto = new frmProducto(codigo, _prodRepository, true);
                             frmProducto.ShowDialog();
-
                             if (frmProducto.DialogResult == DialogResult.OK)
                             {
-                                Load();
-                                producto = productos.FirstOrDefault(p => p.Codigo == codigo);
-
+                                ActualizarGridProductos();
+                                producto = _productos.FirstOrDefault(p => p.Codigo == codigo);
                                 if (producto != null)
                                 {
-                                    var itemExistente = _carrito.FirstOrDefault(c => c.Codigo == producto.Codigo);
-
-                                    if (itemExistente != null && producto.ProductoSector != 1)
-                                    {
-                                        itemExistente.Cantidad++;
-                                    }
-                                    else if (producto.ProductoSector == 1 && itemExistente != null)
-                                    {
-                                        SeleccionarPrecioProductoSector(producto);
-                                        return;
-                                    }
-                                    else
-                                    {
-                                        _carrito.Add(new ItemSeleccionado
-                                        {
-                                            Codigo = producto.Codigo,
-                                            Nombre = producto.Nombre,
-                                            Precio = producto.Precio,
-                                            Cantidad = 1,
-                                            IdProducto = producto.Id
-                                        });
-                                    }
-                                    int i = 0;
-                                    foreach (var p in _carrito)
-                                    {
-                                        var prod = _prodRepository.BuscarPorCodigo(p.Codigo);
-                                        preciosBase[i] = prod.Precio;
-                                        i++;
-                                    }
-                                    dataGridView2.DataSource = null;
-                                    dataGridView2.DataSource = _carrito;
-                                    if (producto.ProductoSector == 1)
-                                    {
-                                        SeleccionarPrecioProductoSector(producto);
-                                    }
+                                    AgregarProductoPorScanner(producto);
                                 }
                             }
                         }
-
                     }
-
                 }
                 CalcularTotal();
-                if (!editandoProductoSector)
-                {
-                    VolverAScanner();
-                }
-
+                VolverAScanner();
             }
             else if (e.KeyCode == Keys.Add)
             {
@@ -903,13 +663,46 @@ namespace StockControl
             }
         }
 
+        private void AgregarProductoPorScanner(Producto producto)
+        {
+            var itemExistente = _carrito.FirstOrDefault(c => c.Codigo == producto.Codigo);
+            if (itemExistente != null && producto.ProductoSector != 1)
+            {
+                itemExistente.Cantidad++;
+            }
+            else if (producto.ProductoSector == 1 && itemExistente != null)
+            {
+                SeleccionarPrecioProductoSector();
+                return;
+            }
+            else
+            {
+                _carrito.Add(new ItemSeleccionado
+                {
+                    Codigo = producto.Codigo,
+                    Nombre = producto.Nombre,
+                    Precio = producto.Precio,
+                    Cantidad = 1,
+                    IdProducto = producto.Id,
+                    PrecioEditado = false
+                });
+            }
+            ActualizarPreciosCarrito();
+            dataGridView2.DataSource = null;
+            dataGridView2.DataSource = _carrito;
+            if (producto.ProductoSector == 1)
+            {
+                SeleccionarPrecioProductoSector();
+            }
+        }
+
         private void IrAMedioDePago()
         {
             cbMetodosPago.Focus();
             BeginInvoke(new Action(() =>
-           {
-               cbMetodosPago.DroppedDown = true;
-           }));
+            {
+                cbMetodosPago.DroppedDown = true;
+            }));
         }
 
         private void VolverAScanner()
@@ -919,101 +712,42 @@ namespace StockControl
 
         private void btnConfiguracion_Click(object sender, EventArgs e)
         {
-            Configuracion frmcofig = new Configuracion(nombreLocal, factorGanancia, _cobrarEnPesos, factorIVA);
+            Configuracion frmcofig = new Configuracion("", "", false, "");
             frmcofig.ShowDialog();
-            if (frmcofig.DialogResult == DialogResult.Yes)
-            {
-                lblDolar.Visible = !_cobrarEnPesos;
-                chkCobroEnPesos.Visible = !_cobrarEnPesos;
-                txtValorDolar.Visible = !_cobrarEnPesos;
-            }
-            Load();
+            ActualizarGridProductos();
         }
 
         private void btnCodeBar_Click(object sender, EventArgs e)
         {
             if (dataGridView1.CurrentRow == null)
             {
-                MessageBox.Show($"Se debe seleccionar un producto para generar el codigo de Barras", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Se debe seleccionar un producto para generar el código de Barras", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            var result = MessageBox.Show("Se va a generar e �mprimir el codigo de barras. �Desea continuar?",
+            var result = MessageBox.Show("Se va a generar e imprimir el código de barras. ¿Desea continuar?",
                                 "Confirmar",
                                 MessageBoxButtons.YesNo,
-                                MessageBoxIcon.Information
-                            );
+                                MessageBoxIcon.Information);
+            if (result != DialogResult.Yes) return;
 
-            if (result == DialogResult.Yes)
+            int cantidad = 1;
+            var result2 = MessageBox.Show("¿Desea imprimir más de un código de barra?",
+                "Confirmar",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Information);
+            if (result2 == DialogResult.Yes)
             {
-                int cantidad = 0;
-                var result2 = MessageBox.Show("�Desea imprimir m�s de un codigo de barra?",
-                    "Confirmar",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Information
-                );
-                if (result2 == DialogResult.Yes)
+                string input = Interaction.InputBox("Ingrese la cantidad de códigos a imprimir:", "Cantidad", "1");
+                if (!int.TryParse(input, out cantidad) || cantidad <= 0)
                 {
-                    string input = Interaction.InputBox("Ingrese la cantidad de c�digos a imprimir:", "Cantidad", "1");
-                    if (!int.TryParse(input, out cantidad) || cantidad <= 0)
-                    {
-                        MessageBox.Show("Cantidad inv�lida, se imprimir� 1 c�digo.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        cantidad = 1;
-                    }
-                }
-                else
+                    MessageBox.Show("Cantidad inválida, se imprimirá 1 código.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     cantidad = 1;
-                var producto = (Producto)dataGridView1.CurrentRow.DataBoundItem;
-                string impresoraPorDefecto = new PrinterSettings().PrinterName;
-                TicketPrinter ticketPrinter = new TicketPrinter();
-                ticketPrinter.PrintBarcode(impresoraPorDefecto, producto.Codigo, cantidad);
-            }
-        }
-
-        private void txtValorDolar_Leave(object sender, EventArgs e)
-        {
-            if (txtValorDolar.Text != string.Empty)
-            {
-                if (TryParseDecimal(txtValorDolar.Text, out decimal result))
-                {
-                    _valorDolar = result;
-                    CalcularPrecioEnDolar();
-                }
-                else
-                    MessageBox.Show("El valor del dolar debe ser un numero decimal", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-
-        }
-
-        private void chkCobroEnPesos_CheckedChanged(object sender, EventArgs e)
-        {
-            try
-            {
-                CalcularPrecioEnDolar();
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
-
-        }
-
-        private void CalcularPrecioEnDolar()
-        {
-            foreach (DataGridViewRow row in dataGridView2.Rows)
-            {
-                if (row.Index >= 0 && preciosBase.ContainsKey(row.Index))
-                {
-                    decimal precioBase = preciosBase[row.Index];
-                    if (chkCobroEnPesos.Checked)
-                        row.Cells["Precio"].Value = (precioBase * _valorDolar);
-
-                    else
-                        row.Cells["Precio"].Value = precioBase;
                 }
             }
-            dataGridView2.Refresh();
-            ActualizarTotal();
-            CalcularTotal();
+            var producto = (Producto)dataGridView1.CurrentRow.DataBoundItem;
+            string impresoraPorDefecto = new PrinterSettings().PrinterName;
+            TicketPrinter ticketPrinter = new TicketPrinter();
+            ticketPrinter.PrintBarcode(impresoraPorDefecto, producto.Codigo, cantidad);
         }
 
         private void ActualizarTotal()
@@ -1033,36 +767,29 @@ namespace StockControl
 
         private void dataGridView2_CellMouseDoubleClick(object sender, DataGridViewCellMouseEventArgs e)
         {
-            if (e.RowIndex < 0 || e.RowIndex >= dataGridView2.Rows.Count)
-                return;
-
+            if (e.RowIndex < 0 || e.RowIndex >= dataGridView2.Rows.Count) return;
             var row = dataGridView2.Rows[e.RowIndex];
             var itemAEliminar = row.DataBoundItem as ItemSeleccionado;
-
             if (itemAEliminar != null)
             {
                 _carrito.Remove(itemAEliminar);
-
                 ActualizarTotal();
                 CalcularTotal();
             }
-
             VolverAScanner();
         }
 
-
         private void cbMetodosPago_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (cbMetodosPago.SelectedItem?.ToString() == "Agregar m�todo de pago...")
+            if (cbMetodosPago.SelectedItem?.ToString() == "Agregar método de pago...")
             {
-                string nuevo = Interaction.InputBox("Ingrese el nuevo m�todo de pago:", "Nuevo m�todo", "");
-
+                string nuevo = Interaction.InputBox("Ingrese el nuevo método de pago:", "Nuevo método", "");
                 if (!string.IsNullOrWhiteSpace(nuevo))
                 {
                     _metodoPagoRepository.Insertar(nuevo);
                     CargarMetodosPago();
                     cbMetodosPago.SelectedItem = nuevo;
-                    metodosDePago.Add(new MetodoDePago { Descripcion = nuevo, Monto = 0 });
+                    _metodosDePago.Add(new MetodoDePago { Descripcion = nuevo, Monto = 0 });
                 }
                 else
                 {
@@ -1071,23 +798,22 @@ namespace StockControl
             }
             else
             {
-                MetodoDePago = cbMetodosPago.SelectedItem?.ToString();
+                _metodoDePago = cbMetodosPago.SelectedItem?.ToString();
             }
         }
 
         private void CargarMetodosPago()
         {
             cbMetodosPago.Items.Clear();
-
+            _metodosDePago.Clear();
+            
             var metodos = _metodoPagoRepository.ObtenerTodos();
-
             foreach (var metodo in metodos)
             {
                 cbMetodosPago.Items.Add(metodo);
-                metodosDePago.Add(new Domain.MetodoDePago { Descripcion = metodo });
+                _metodosDePago.Add(new Domain.MetodoDePago { Descripcion = metodo });
             }
-
-            cbMetodosPago.Items.Add("Agregar m�todo de pago...");
+            cbMetodosPago.Items.Add("Agregar método de pago...");
             cbMetodosPago.SelectedIndex = 0;
         }
 
@@ -1097,31 +823,33 @@ namespace StockControl
             {
                 if (_carrito.Count == 0)
                 {
-                    MessageBox.Show("El carrito est� vac�o, no se puede seleccionar pago m�ltiple", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("El carrito está vacío, no se puede seleccionar pago múltiple", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     chkMultiPago.Checked = false;
                     return;
                 }
-                frmMetodoPago frmMetodoPago = new frmMetodoPago(metodosDePago, _carrito.Sum(i => i.Subtotal));
+                frmMetodoPago frmMetodoPago = new frmMetodoPago(_metodosDePago, _carrito.Sum(i => i.Subtotal));
                 frmMetodoPago.ShowDialog();
                 if (frmMetodoPago.DialogResult == DialogResult.OK)
                 {
-                    multiplesMetodos = frmMetodoPago._metodosDePago;
+                    _multiplesMetodos = frmMetodoPago._metodosDePago;
                 }
                 else
+                {
                     chkMultiPago.Checked = false;
+                }
             }
         }
 
         private void btnGrupos_Click(object sender, EventArgs e)
         {
-            Grupo frmGrupo = new Grupo(_cobrarEnPesos);
-            frmGrupo.FormClosed += (s, args) => CargarProductos();
+            Grupo frmGrupo = new Grupo();
+            frmGrupo.FormClosed += (s, args) => ActualizarGridProductos();
             frmGrupo.Show();
         }
 
         private void chkImprimirTicket_CheckedChanged(object sender, EventArgs e)
         {
-            imprimirTicket = chkImprimirTicket.Checked;
+            _imprimirTicket = chkImprimirTicket.Checked;
         }
 
         private void btnGeneric_Click(object sender, EventArgs e)
@@ -1137,18 +865,17 @@ namespace StockControl
                 Nombre = "Producto",
                 Precio = 0,
                 Cantidad = 1,
-                IdProducto = Math.Abs(Guid.NewGuid().ToString().GetHashCode()) // Usar abs para garantizar positivo, aunque aún sea no único
+                IdProducto = Math.Abs(Guid.NewGuid().ToString().GetHashCode()),
+                PrecioEditado = false
             };
             _carrito.Add(itemSeleccionado);
-
             dataGridView2.DataSource = null;
             dataGridView2.DataSource = _carrito;
             int lastRow = dataGridView2.Rows.Count - 1;
             BeginInvoke(new Action(() =>
             {
-                var cell = dataGridView2.Rows[lastRow].Cells[1]; // Nombre
+                var cell = dataGridView2.Rows[lastRow].Cells[1];
                 cell.ReadOnly = false;
-
                 dataGridView2.CurrentCell = cell;
                 dataGridView2.BeginEdit(true);
             }));
@@ -1158,14 +885,9 @@ namespace StockControl
         {
             if (e.KeyCode == Keys.Add)
             {
-                IrACobrar();
+                btnCobrar.Focus();
                 e.SuppressKeyPress = true;
             }
-        }
-
-        private void IrACobrar()
-        {
-            btnCobrar.Focus();
         }
 
         private void chkDescuento_CheckedChanged(object sender, EventArgs e)
@@ -1174,7 +896,6 @@ namespace StockControl
             {
                 txtDescuento.Enabled = true;
                 txtDescuento.Focus();
-                
             }
             else
             {
@@ -1187,27 +908,38 @@ namespace StockControl
         private void AplicarDescuento()
         {
             bool usarCosto = chkCosto.Checked;
-
+            string descuentoStr = txtDescuento.Text.Replace("%", "").Trim();
+            int.TryParse(descuentoStr, out int descuento);
+            
             foreach (var item in _carrito)
             {
-                // Primero establecemos el precio base correcto
+                if (item.PrecioEditado)
+                {
+                    var productoSector = _productos.FirstOrDefault(x => x.Id == item.IdProducto);
+                    if (productoSector != null && productoSector.ProductoSector == 1)
+                    {
+                        item.Precio = item.PrecioOriginal;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+                
                 if (item.Codigo.Contains("GENERIC-"))
                 {
-                    var prod = prodGenericos.FirstOrDefault(x => x.IdProducto == item.IdProducto);
+                    var prod = _preciosGenericos.FirstOrDefault(x => x.IdProducto == item.IdProducto);
                     if (prod == null) continue;
-                    item.Precio = prod.Precio; // los gen�ricos no tienen costo, siempre precio
+                    item.Precio = prod.Precio;
                 }
                 else
                 {
-                    var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
+                    var producto = _productos.FirstOrDefault(x => x.Id == item.IdProducto);
                     if (producto == null) continue;
                     item.Precio = usarCosto ? producto.Costo : producto.Precio;
                 }
 
-                // Despu�s aplicamos el descuento si corresponde
-                if (chkDescuento.Checked &&
-                    int.TryParse(txtDescuento.Text.Replace("%", "").Trim(), out int descuento) &&
-                    descuento > 0)
+                if (chkDescuento.Checked && descuento > 0)
                 {
                     item.Precio = item.Precio - (item.Precio * descuento / 100m);
                 }
@@ -1216,18 +948,25 @@ namespace StockControl
 
         private void CalcularTotal()
         {
-            AplicarDescuento(); // Esto setea todos los precios correctamente
-
+            AplicarDescuento();
             decimal total = _carrito.Sum(i => i.Cantidad * i.Precio);
-
             dataGridView2.Refresh();
             txtTotal.Text = total.ToString("C2", new CultureInfo("es-AR"));
-
             decimal items = _carrito.Sum(i => i.Cantidad);
             lblItems.Text = items.ToString("0", new CultureInfo("es-AR"));
         }
 
-        // Al entrar al campo: sacamos el % para editar
+        private void LimpiarUIAfterVenta()
+        {
+            _multiplesMetodos.Clear();
+            chkMultiPago.Checked = false;
+            lblItems.Text = "0";
+            txtTotal.Text = "0";
+            chkCosto.Checked = false;
+            chkDescuento.Checked = false;
+            txtDescuento.Text = string.Empty;
+        }
+
         private void txtDescuento_Enter(object sender, EventArgs e)
         {
             string valor = txtDescuento.Text.Replace("%", "").Trim();
@@ -1235,7 +974,6 @@ namespace StockControl
             txtDescuento.SelectAll();
         }
 
-        // Solo permite d�gitos y teclas de control
         private void txtDescuento_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (!char.IsDigit(e.KeyChar) && !char.IsControl(e.KeyChar))
@@ -1243,8 +981,6 @@ namespace StockControl
                 e.Handled = true;
                 return;
             }
-
-            // Evita que supere 100 al tipear
             if (char.IsDigit(e.KeyChar))
             {
                 string futuro = txtDescuento.Text + e.KeyChar;
@@ -1252,19 +988,17 @@ namespace StockControl
                 {
                     e.Handled = true;
                     MessageBox.Show("El descuento no puede superar 100%.",
-                                    "Valor inv�lido",
+                                    "Valor inválido",
                                     MessageBoxButtons.OK,
                                     MessageBoxIcon.Warning);
                 }
             }
         }
 
-        // Al salir del campo: validamos y concatenamos el %
         private void txtDescuento_Leave(object sender, EventArgs e)
         {
             if (!int.TryParse(txtDescuento.Text.Replace("%", ""), out int valor))
                 valor = 0;
-
             valor = Math.Max(0, Math.Min(100, valor));
             txtDescuento.Text = valor + "%";
             CalcularTotal();
@@ -1277,4 +1011,3 @@ namespace StockControl
         }
     }
 }
-

@@ -7,64 +7,46 @@ namespace StockControl
     public partial class frmProducto : Form
     {
         private Producto _prod;
-        private bool esEdicion = false;
+        private bool _esEdicion = false;
         private ProductoRepository _prodRepository;
-        private decimal _dolar = 1;
         private GrupoRepository _grupoRepository = new GrupoRepository();
         private bool _actualizando = false;
         private bool _cargandoInfo = false;
 
-        public frmProducto(Producto? prod, ProductoRepository prodRep, bool cobrarEnPesos)
+        public frmProducto(Producto? prod, ProductoRepository prodRep)
         {
             InitializeComponent();
             this.Icon = new Icon("Resources\\stockIcon.ico");
             _prodRepository = prodRep;
-            txtValorDolar.Enabled = false;
-            txtValorDolar.Text = StockMain._valorDolar.ToString();
-            _dolar = StockMain._valorDolar;
             _cargandoInfo = true;
+
             if (prod != null)
             {
                 _prod = prod;
-                esEdicion = true;
+                _esEdicion = true;
                 txtCodigo.Enabled = false;
                 chkSector.Enabled = false;
                 CargarInformacionDelProducto();
             }
             else
-                _prod = new Producto();
-
-            if (cobrarEnPesos)
             {
-                chkDolar.Visible = false;
-                txtValorDolar.Visible = false;
-                lblDoalr.Visible = false;
+                _prod = new Producto();
+                txtIVA.Text = StockMain.IVA.ToString();
             }
-            txtGanancia.Enabled = false;
-            txtIVA.Enabled = false;
-            txtIVA.Text = StockMain.IVA.ToString();
+
             _cargandoInfo = false;
         }
-        public frmProducto(string codigo, ProductoRepository prodRep, bool cobrarEnPesos, bool nuevoCodigo)
+
+        public frmProducto(string codigo, ProductoRepository prodRep, bool nuevoCodigo)
         {
             InitializeComponent();
             this.Icon = new Icon("Resources\\stockIcon.ico");
             _prodRepository = prodRep;
-            txtValorDolar.Enabled = false;
-            txtValorDolar.Text = StockMain._valorDolar.ToString();
-            _dolar = StockMain._valorDolar;
             _prod = new Producto();
-            if (cobrarEnPesos)
-            {
-                chkDolar.Visible = false;
-                txtValorDolar.Visible = false;
-                lblDoalr.Visible = false;
-            }
-            txtGanancia.Enabled = false;
-            txtIVA.Enabled = false;
             txtIVA.Text = StockMain.IVA.ToString();
             txtCodigo.Text = codigo;
         }
+
         private void CargarInformacionDelProducto()
         {
             txtCodigo.Text = _prod.Codigo.ToString();
@@ -74,8 +56,11 @@ namespace StockControl
             txtCantidad.Text = _prod.Cantidad.ToString();
             chkSector.Checked = _prod.ProductoSector == 1;
             chkGananciaProd.Checked = _prod.GananciaIndividual == 1;
+            txtIVA.Text = StockMain.IVA.ToString();
+
             if (_prod.GananciaIndividual == 1)
                 txtGanancia.Text = _prod.ValorGanancia.ToString();
+
             if (_prod.IdGrupoProducto != 0)
             {
                 lblGrupoSel.Text = _prod.NombreGrupo;
@@ -97,128 +82,105 @@ namespace StockControl
             var result = MessageBox.Show("¿Estás seguro que querés salir?",
                                             "Salir",
                                             MessageBoxButtons.YesNo,
-                                            MessageBoxIcon.Warning
-                                        );
-
+                                            MessageBoxIcon.Warning);
             if (result == DialogResult.Yes)
             {
                 this.Close();
             }
         }
+
         private void brnGrabar_Click(object sender, EventArgs e)
         {
-            string mensaje = esEdicion ? "editar" : "crear";
-            bool productoEnPesos = false;
+            if (!ValidarCampos()) return;
+
+            string mensaje = _esEdicion ? "editar" : "crear";
             var result = MessageBox.Show($"Vas a {mensaje} este producto, ¿Desea Continuar?",
-                                            "Creacion o edicion de producto",
+                                            "Creación o edición de producto",
                                             MessageBoxButtons.YesNo,
                                             MessageBoxIcon.Information);
 
-            if (result == DialogResult.Yes)
+            if (result != DialogResult.Yes) return;
+
+            if (_esEdicion)
             {
-                if (chkDolar.Checked)
+                if (AsignarValoresAProd())
                 {
-                    var result2 = MessageBox.Show($"Esta marcado el producto en pesos, se va a dividir por el valor del dolar cargado. ¿Desea Continuar?",
-                "Confirmacion",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Information);
-
-                    if (result == DialogResult.Yes)
-                    {
-                        productoEnPesos = true;
-                    }
-                    else
-                    {
-                        return;
-                    }
+                    _prodRepository.Actualizar(_prod);
+                    this.DialogResult = DialogResult.OK;
+                    Close();
                 }
-
-                if (esEdicion)
+            }
+            else
+            {
+                var productoExistente = _prodRepository.BuscarPorCodigo(txtCodigo.Text);
+                if (productoExistente == null)
                 {
-                    if (AsignarValoresAProd(productoEnPesos))
+                    if (AsignarValoresAProd())
                     {
-                        _prodRepository.Actualizar(_prod);
+                        _prodRepository.Insertar(_prod);
                         this.DialogResult = DialogResult.OK;
                         Close();
                     }
                 }
                 else
                 {
-                    var productoExistente = _prodRepository.BuscarPorCodigo(txtCodigo.Text);
-                    if (productoExistente == null)
-                    {
-                        if (AsignarValoresAProd(productoEnPesos))
-                        {
-                            _prodRepository.Insertar(_prod);
-                            this.DialogResult = DialogResult.OK;
-                            Close();
-                        }
-                    }
-                    else
-                    {
-                        MessageBox.Show($"Existe un Producto con ese codigo, cambie el codigo o elimine el existente", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    }
+                    MessageBox.Show("Existe un Producto con ese código, cambie el código o elimine el existente", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
-            if (this.DialogResult == DialogResult.OK)
-                Close();
         }
 
-        private bool AsignarValoresAProd(bool productoEnPesos)
+        private bool ValidarCampos()
+        {
+            if (string.IsNullOrWhiteSpace(txtCodigo.Text))
+            {
+                MessageBox.Show("El código es obligatorio", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtCodigo.Focus();
+                return false;
+            }
+            if (string.IsNullOrWhiteSpace(txtNombre.Text))
+            {
+                MessageBox.Show("El nombre es obligatorio", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtNombre.Focus();
+                return false;
+            }
+            return true;
+        }
+
+        private bool AsignarValoresAProd()
         {
             _prod.Codigo = txtCodigo.Text;
-
             _prod.Nombre = txtNombre.Text;
-            decimal precio;
-            decimal cantidad;
-            decimal costo;
-            decimal ganancia;
 
-            if (TryParseDecimal(txtCosto.Text, out costo))
-            {
-                if (productoEnPesos)
-                    costo = costo / _dolar;
-
-                _prod.Costo = Math.Round(costo, 2);
-            }
-            else
+            if (!TryParseDecimal(txtCosto.Text, out decimal costo))
             {
                 MessageBox.Show("El costo debe ser un número decimal", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
+            _prod.Costo = Math.Round(costo, 2);
 
-            if (TryParseDecimal(txtPrecio.Text, out precio))
-            {
-                if (productoEnPesos)
-                    precio = precio / _dolar;
-
-                _prod.Precio = Math.Round(precio, 2);
-            }
-            else
+            if (!TryParseDecimal(txtPrecio.Text, out decimal precio))
             {
                 MessageBox.Show("El precio debe ser un número decimal", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
+            _prod.Precio = Math.Round(precio, 2);
 
-            if (TryParseDecimal(txtCantidad.Text, out cantidad))
-                _prod.Cantidad = cantidad;
-            else
+            if (!TryParseDecimal(txtCantidad.Text, out decimal cantidad))
             {
                 MessageBox.Show("La cantidad debe ser un número", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
+            _prod.Cantidad = cantidad;
+
             if (chkGananciaProd.Checked)
             {
-                if (TryParseDecimal(txtGanancia.Text, out ganancia))
-                {
-                    _prod.GananciaIndividual = 1;
-                    _prod.ValorGanancia = Math.Round(ganancia, 2);
-                }
-                else
+                if (!TryParseDecimal(txtGanancia.Text, out decimal ganancia))
                 {
                     MessageBox.Show("La ganancia debe ser un número decimal", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return false;
                 }
+                _prod.GananciaIndividual = 1;
+                _prod.ValorGanancia = Math.Round(ganancia, 2);
             }
             else
             {
@@ -229,14 +191,11 @@ namespace StockControl
             _prod.ProductoSector = chkSector.Checked ? 1 : 0;
             _prod.fechaModificacion = DateTime.Now;
             return true;
-
         }
+
         private bool TryParseDecimal(string input, out decimal value)
         {
-            input = input.Trim();
-
-            input = input.Replace(',', '.');
-
+            input = input.Trim().Replace(',', '.');
             return decimal.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out value);
         }
 
@@ -246,32 +205,12 @@ namespace StockControl
             CalcularCosto();
         }
 
-        private void chkDolar_CheckedChanged(object sender, EventArgs e)
-        {
-            txtValorDolar.Enabled = chkDolar.Checked;
-        }
-
-        private void txtValorDolar_Leave(object sender, EventArgs e)
-        {
-            if (txtValorDolar.Text != string.Empty)
-            {
-                if (TryParseDecimal(txtValorDolar.Text, out decimal result))
-                {
-                    _dolar = result;
-                }
-                else
-                    MessageBox.Show("El valor del dolar debe ser un numero decimal", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
         private void chkGananciaProd_CheckedChanged(object sender, EventArgs e)
         {
-
             if (chkGananciaProd.Checked)
             {
                 txtGanancia.Enabled = true;
                 txtIVA.Enabled = true;
-
                 if (_cargandoInfo) return;
                 CalcularCosto();
             }
@@ -279,7 +218,6 @@ namespace StockControl
             {
                 txtGanancia.Enabled = false;
                 txtIVA.Enabled = false;
-
                 if (_cargandoInfo) return;
                 CalcularCosto();
             }
@@ -290,37 +228,36 @@ namespace StockControl
             if (_actualizando || _cargandoInfo) return;
             CalcularCosto();
         }
+
         private void CalcularCosto()
         {
             try
             {
-                if (txtCosto.Text != string.Empty)
+                if (string.IsNullOrEmpty(txtCosto.Text)) return;
+                _actualizando = true;
+
+                if (!TryParseDecimal(txtCosto.Text, out decimal costo))
                 {
-                    _actualizando = true;
-                    if (TryParseDecimal(txtCosto.Text, out decimal value))
+                    _actualizando = false;
+                    return;
+                }
+
+                if (chkGananciaProd.Checked && !string.IsNullOrEmpty(txtGanancia.Text))
+                {
+                    if (TryParseDecimal(txtGanancia.Text, out decimal gananciaProd))
                     {
-                        if (chkGananciaProd.Checked && !string.IsNullOrEmpty(txtGanancia.Text))
-                        {
-                            if (TryParseDecimal(txtGanancia.Text, out decimal gananciaProd))
-                            {
-                                if (TryParseDecimal(txtIVA.Text, out decimal iva))
-                                    txtPrecio.Text = (value * (gananciaProd * iva)).ToString("0.##");
-                            }
-                        }
-                        else
-                            txtPrecio.Text = (value * (StockMain._factorGanancia * StockMain.IVA)).ToString("0.##");
+                        if (TryParseDecimal(txtIVA.Text, out decimal iva))
+                            txtPrecio.Text = (costo * (gananciaProd * iva)).ToString("0.##");
                     }
                 }
+                else
+                    txtPrecio.Text = (costo * (StockMain._factorGanancia * StockMain.IVA)).ToString("0.##");
             }
-            catch (Exception ex)
-            {
-
-            }
+            catch { }
             finally
             {
                 _actualizando = false;
             }
-
         }
 
         private void chkSector_CheckedChanged(object sender, EventArgs e)
@@ -333,9 +270,7 @@ namespace StockControl
                 txtPrecio.Enabled = false;
                 txtCosto.Text = "1";
                 txtCosto.Enabled = false;
-                txtValorDolar.Enabled = false;
                 txtGanancia.Enabled = false;
-                chkDolar.Enabled = false;
                 chkGananciaProd.Enabled = false;
                 btnBuscarGrupo.Enabled = false;
             }
@@ -347,13 +282,7 @@ namespace StockControl
                 txtPrecio.Enabled = true;
                 txtCosto.Text = "0";
                 txtCosto.Enabled = true;
-                chkDolar.Enabled = true;
                 chkGananciaProd.Enabled = true;
-                if (chkDolar.Checked)
-                    txtValorDolar.Enabled = true;
-                else
-                    txtValorDolar.Enabled = false;
-
                 btnBuscarGrupo.Enabled = true;
             }
         }
@@ -364,25 +293,20 @@ namespace StockControl
             CalcularCosto();
         }
 
-       
-
         private void txtPrecio_TextChanged(object sender, EventArgs e)
         {
             if (_actualizando || _cargandoInfo) return;
             CalcularGanancia();
         }
+
         private void CalcularGanancia()
         {
-            if (!TryParseDecimal(txtPrecio.Text, out decimal precio))
-                return;
-            if (!TryParseDecimal(txtCosto.Text, out decimal costo))
-                return;
-            if (!TryParseDecimal(txtIVA.Text, out decimal iva))
-                return;
-            if (costo == 0)
-                return;
+            if (!TryParseDecimal(txtPrecio.Text, out decimal precio)) return;
+            if (!TryParseDecimal(txtCosto.Text, out decimal costo)) return;
+            if (!TryParseDecimal(txtIVA.Text, out decimal iva)) return;
+            if (costo == 0 || iva == 0) return;
 
-            decimal ganancia = precio / costo / iva; // o el cálculo que uses
+            decimal ganancia = precio / costo / iva;
             _actualizando = true;
             try
             {
@@ -400,19 +324,10 @@ namespace StockControl
             var separator = System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator;
             var textBox = (TextBox)sender;
 
-            // Permitir control de teclas
-            if (char.IsControl(e.KeyChar))
-                return;
+            if (char.IsControl(e.KeyChar)) return;
+            if (char.IsDigit(e.KeyChar)) return;
+            if (e.KeyChar.ToString() == separator && !textBox.Text.Contains(separator)) return;
 
-            // Permitir dígitos
-            if (char.IsDigit(e.KeyChar))
-                return;
-
-            // Permitir separador decimal solo si no existe ya
-            if (e.KeyChar.ToString() == separator && !textBox.Text.Contains(separator))
-                return;
-
-            // Bloquear todo lo demás
             e.Handled = true;
         }
 
@@ -446,7 +361,6 @@ namespace StockControl
             chkGananciaProd.Enabled = true;
             lblGrupoSel.Text = "Sin Grupo";
             CalcularCosto();
-            return;
         }
     }
 }

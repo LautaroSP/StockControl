@@ -11,19 +11,16 @@ namespace StockControl
         private BindingList<ProductoDTO> _productos = new();
         private BindingList<GrupoProductos> _grupos = new();
         private BindingList<ProductoDTO> _productosFiltrados = new();
-        private int idGrupoSeleccioando = 0;
+        private int _idGrupoSeleccionado = 0;
 
-        private decimal _dolar = 1;
         private readonly ProductoRepository _rprod = new();
         private readonly GrupoRepository _rgrupo = new();
         private bool _actualizando = false;
-        private bool _cobrarEnPesos = false;
 
-        public Grupo(bool cobrarEnPesos)
+        public Grupo()
         {
             InitializeComponent();
             InicializarFormulario();
-            _cobrarEnPesos = cobrarEnPesos;
         }
 
         private void InicializarFormulario()
@@ -45,7 +42,8 @@ namespace StockControl
             txtGanancia.Enabled = false;
             txtIVA.Enabled = false;
             txtIVA.Text = StockMain.IVA.ToString();
-
+            txtCosto.KeyPress += txtCosto_KeyPress;
+            txtGanancia.KeyPress += txtGanancia_KeyPress;
         }
 
         private void CargarDatos()
@@ -99,36 +97,40 @@ namespace StockControl
         private void dgGrupos_RowEnter(object sender, DataGridViewCellEventArgs e)
         {
             int idGrupo = 0;
+            if (e.RowIndex < 0 || e.RowIndex >= dgGrupos.Rows.Count) return;
+            
             var fila = dgGrupos.Rows[e.RowIndex];
-            if (fila != null)
+            if (fila?.DataBoundItem == null) return;
+            
+            var grupo = (GrupoProductos)fila.DataBoundItem;
+            if (grupo == null) return;
+            
+            idGrupo = grupo.IdGrupoProducto;
+            txtNombreGrupo.Text = grupo.NombreGrupo;
+            txtPrecio.Text = grupo.PrecioGrupo.ToString();
+            txtCosto.Text = grupo.Costo.ToString();
+            if (grupo.GananciaIndividual == 1)
             {
-                var grupo = (GrupoProductos)fila.DataBoundItem;
-                idGrupo = grupo.IdGrupoProducto;
-                txtNombreGrupo.Text = grupo.NombreGrupo;
-                txtPrecio.Text = grupo.PrecioGrupo.ToString();
-                txtCosto.Text = grupo.Costo.ToString();
-                if (grupo.GananciaIndividual == 1)
-                {
-                    chkGananciaProd.Checked = true;
-                    txtGanancia.Text = grupo.Ganancia.ToString();
-                }
+                chkGananciaProd.Checked = true;
+                txtGanancia.Text = grupo.Ganancia.ToString();
+            }
+            else
+            {
+                chkGananciaProd.Checked = false;
+                txtGanancia.Text = string.Empty;
             }
 
             if (idGrupo == 0)
                 return;
 
-            idGrupoSeleccioando = idGrupo;
-            // Filtramos los productos del grupo
+            _idGrupoSeleccionado = idGrupo;
             var prodList = _productos.Where(x => x.IdGrupo == idGrupo).ToList();
 
-            // Marcamos los productos del grupo
             foreach (var p in _productos)
                 p.Seleccionado = prodList.Contains(p);
 
-            // Actualizamos lista filtrada
             _productosFiltrados = new BindingList<ProductoDTO>(prodList);
 
-            // Mostramos según checkbox
             dgProductos.DataSource = cbMostrarSeleccionados.Checked
                 ? _productosFiltrados
                 : _productos;
@@ -204,10 +206,9 @@ namespace StockControl
             }
         }
 
-        private void MarcarProdEnLista(ProductoDTO producto, bool agregar, GrupoProductos grupoSeleccionado)
+private void MarcarProdEnLista(ProductoDTO producto, bool agregar, GrupoProductos grupoSeleccionado)
         {
             ProductoDTO prod = _productos.First(x => x.IdProducto == producto.IdProducto);
-
 
             if (agregar)
             {
@@ -219,16 +220,12 @@ namespace StockControl
                 prod.IdGrupo = 0;
                 prod.NombreGrupo = string.Empty;
             }
-            // Filtramos los productos del grupo
-            var prodList = _productos.Where(x => x.IdGrupo == idGrupoSeleccioando).ToList();
+            var prodList = _productos.Where(x => x.IdGrupo == _idGrupoSeleccionado).ToList();
 
-            // Marcamos los productos del grupo
             foreach (var p in _productos)
                 p.Seleccionado = prodList.Contains(p);
 
-            // Actualizamos lista filtrada
             _productosFiltrados = new BindingList<ProductoDTO>(prodList);
-
         }
 
         private void ActualizarVistaProductos()
@@ -337,7 +334,7 @@ namespace StockControl
             try
             {
 
-                if (idGrupoSeleccioando == 0)
+                if (_idGrupoSeleccionado == 0)
                 {
                     MessageBox.Show($"Debe seleccionar un grupo a eliminar", "Info", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
@@ -355,7 +352,7 @@ namespace StockControl
                     {
                         _rprod.ActualizarGrupo(prod.IdProducto, 0);
                     }
-                    _rgrupo.Eliminar(idGrupoSeleccioando);
+                    _rgrupo.Eliminar(_idGrupoSeleccionado);
                     CargarDatos();
                 }
                 else
@@ -372,7 +369,7 @@ namespace StockControl
         {
             try
             {
-                if (idGrupoSeleccioando == 0)
+                if (_idGrupoSeleccionado == 0)
                 {
                     MessageBox.Show($"Debe seleccionar un grupo a editar", "Info", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
@@ -383,7 +380,7 @@ namespace StockControl
                 int tieneGanancia = chkGananciaProd.Checked ? 1 : 0;
                 if (txtNombreGrupo.Text == string.Empty)
                 {
-                    MessageBox.Show("Debe indicar el nombre del nuevo grupo", "Info", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Debe indicar el nombre del grupo", "Info", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
                 if (txtPrecio.Text == string.Empty)
@@ -431,7 +428,7 @@ namespace StockControl
                 {
                     gananciaGrupo = 1;
                 }
-                var grupo = _rgrupo.BuscarPorId(idGrupoSeleccioando);
+                var grupo = _rgrupo.BuscarPorId(_idGrupoSeleccionado);
                 grupo.NombreGrupo = txtNombreGrupo.Text;
                 grupo.PrecioGrupo = precioGrupo;
                 grupo.Costo = costoGrupo;
@@ -588,19 +585,34 @@ namespace StockControl
             var separator = System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator;
             var textBox = (TextBox)sender;
 
-            // Permitir control de teclas
-            if (char.IsControl(e.KeyChar))
-                return;
+            if (char.IsControl(e.KeyChar)) return;
+            if (char.IsDigit(e.KeyChar)) return;
+            if (e.KeyChar.ToString() == separator && !textBox.Text.Contains(separator)) return;
 
-            // Permitir dígitos
-            if (char.IsDigit(e.KeyChar))
-                return;
+            e.Handled = true;
+        }
 
-            // Permitir separador decimal solo si no existe ya
-            if (e.KeyChar.ToString() == separator && !textBox.Text.Contains(separator))
-                return;
+        private void txtCosto_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            var separator = System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator;
+            var textBox = (TextBox)sender;
 
-            // Bloquear todo lo demás
+            if (char.IsControl(e.KeyChar)) return;
+            if (char.IsDigit(e.KeyChar)) return;
+            if (e.KeyChar.ToString() == separator && !textBox.Text.Contains(separator)) return;
+
+            e.Handled = true;
+        }
+
+        private void txtGanancia_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            var separator = System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator;
+            var textBox = (TextBox)sender;
+
+            if (char.IsControl(e.KeyChar)) return;
+            if (char.IsDigit(e.KeyChar)) return;
+            if (e.KeyChar.ToString() == separator && !textBox.Text.Contains(separator)) return;
+
             e.Handled = true;
         }
 

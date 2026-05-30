@@ -7,8 +7,8 @@
         public decimal Precio { get; set; }
         public decimal Cantidad { get; set; }
         public decimal Subtotal => Cantidad * Precio;
-
         public int IdProducto { get; set; }
-
+        public bool PrecioEditado { get; set; }
+        public decimal PrecioOriginal { get; set; }
     }
 }

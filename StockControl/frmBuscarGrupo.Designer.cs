@@ -47,6 +47,7 @@
             // 
             txtBuscar.Location = new Point(12, 12);
             txtBuscar.Name = "txtBuscar";
+            txtBuscar.PlaceholderText = "Buscar por nombre";
             txtBuscar.Size = new Size(192, 23);
             txtBuscar.TabIndex = 1;
             // 

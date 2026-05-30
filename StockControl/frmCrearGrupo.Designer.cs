@@ -103,6 +103,7 @@
             txtGanancia.Size = new Size(100, 23);
             txtGanancia.TabIndex = 35;
             txtGanancia.TextChanged += txtGanancia_TextChanged;
+            txtGanancia.KeyPress += txtGanancia_KeyPress;
             // 
             // Ganancia
             // 
@@ -132,6 +133,7 @@
             txtCosto.Size = new Size(58, 23);
             txtCosto.TabIndex = 32;
             txtCosto.TextChanged += txtCosto_TextChanged;
+            txtCosto.KeyPress += txtCosto_KeyPress;
             // 
             // Costo
             // 
@@ -168,6 +170,7 @@
             txtPrecio.Size = new Size(58, 23);
             txtPrecio.TabIndex = 27;
             txtPrecio.TextChanged += txtPrecio_TextChanged;
+            txtPrecio.KeyPress += txtPrecio_KeyPress;
             // 
             // txtNombre
             // 

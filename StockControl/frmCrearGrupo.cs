@@ -22,6 +22,7 @@ namespace StockControl
         public frmCrearGrupo()
         {
             InitializeComponent();
+            txtIVA.Text = StockMain.IVA.ToString();
         }
 
         private void btnAceptar_Click(object sender, EventArgs e)
@@ -144,6 +145,42 @@ namespace StockControl
                 txtIVA.Enabled = false;
                 CalcularCosto();
             }
+        }
+
+        private void txtCosto_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            var separator = System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator;
+            var textBox = (TextBox)sender;
+
+            if (char.IsControl(e.KeyChar)) return;
+            if (char.IsDigit(e.KeyChar)) return;
+            if (e.KeyChar.ToString() == separator && !textBox.Text.Contains(separator)) return;
+
+            e.Handled = true;
+        }
+
+        private void txtGanancia_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            var separator = System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator;
+            var textBox = (TextBox)sender;
+
+            if (char.IsControl(e.KeyChar)) return;
+            if (char.IsDigit(e.KeyChar)) return;
+            if (e.KeyChar.ToString() == separator && !textBox.Text.Contains(separator)) return;
+
+            e.Handled = true;
+        }
+
+        private void txtPrecio_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            var separator = System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator;
+            var textBox = (TextBox)sender;
+
+            if (char.IsControl(e.KeyChar)) return;
+            if (char.IsDigit(e.KeyChar)) return;
+            if (e.KeyChar.ToString() == separator && !textBox.Text.Contains(separator)) return;
+
+            e.Handled = true;
         }
         private void CalcularCosto()
         {

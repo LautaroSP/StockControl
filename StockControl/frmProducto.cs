@@ -174,30 +174,44 @@ namespace StockControl
             decimal costo;
             decimal ganancia;
 
-            if (TryParseDecimal(txtCosto.Text, out costo))
+            // Si el producto tiene grupo asignado, forzar precio/costo desde el grupo
+            // para evitar que el formato de los TextBox introduzca decimales espurios.
+            if (_prod.IdGrupoProducto > 0)
             {
-                if (productoEnPesos)
-                    costo = costo / _dolar;
-
-                _prod.Costo = Math.Round(costo, 2);
+                var grupo = _grupoRepository.BuscarPorId(_prod.IdGrupoProducto);
+                if (grupo != null)
+                {
+                    _prod.Costo = Math.Round(grupo.Costo, 2);
+                    _prod.Precio = Math.Round(grupo.PrecioGrupo, 2);
+                }
             }
             else
             {
-                MessageBox.Show("El costo debe ser un número decimal", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return false;
-            }
+                if (TryParseDecimal(txtCosto.Text, out costo))
+                {
+                    if (productoEnPesos)
+                        costo = costo / _dolar;
 
-            if (TryParseDecimal(txtPrecio.Text, out precio))
-            {
-                if (productoEnPesos)
-                    precio = precio / _dolar;
+                    _prod.Costo = Math.Round(costo, 2);
+                }
+                else
+                {
+                    MessageBox.Show("El costo debe ser un número decimal", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return false;
+                }
 
-                _prod.Precio = Math.Round(precio, 2);
-            }
-            else
-            {
-                MessageBox.Show("El precio debe ser un número decimal", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return false;
+                if (TryParseDecimal(txtPrecio.Text, out precio))
+                {
+                    if (productoEnPesos)
+                        precio = precio / _dolar;
+
+                    _prod.Precio = Math.Round(precio, 2);
+                }
+                else
+                {
+                    MessageBox.Show("El precio debe ser un número decimal", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return false;
+                }
             }
 
             if (TryParseDecimal(txtCantidad.Text, out cantidad))

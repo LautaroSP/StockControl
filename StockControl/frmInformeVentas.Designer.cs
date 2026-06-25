@@ -37,15 +37,24 @@ namespace StockControl
             tabPage1 = new TabPage();
             btnCerrarCajaAnterior = new Button();
             btnCopiarTicket = new Button();
+            btnImprimirTicket = new Button();
             btnCerrarCaja = new Button();
             tabPage2 = new TabPage();
             chkTodos = new CheckBox();
             dtCajas = new DataGridView();
             label2 = new Label();
+            tabPage3 = new TabPage();
+            label3 = new Label();
+            dtpMes = new DateTimePicker();
+            btnGenerarResumen = new Button();
+            dtResumen = new DataGridView();
+            lblTotalMes = new Label();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dtResumen).BeginInit();
             tabInformes.SuspendLayout();
             tabPage1.SuspendLayout();
             tabPage2.SuspendLayout();
+            tabPage3.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dtCajas).BeginInit();
             SuspendLayout();
             // 
@@ -98,6 +107,7 @@ namespace StockControl
             tabInformes.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             tabInformes.Controls.Add(tabPage1);
             tabInformes.Controls.Add(tabPage2);
+            tabInformes.Controls.Add(tabPage3);
             tabInformes.Location = new Point(7, 12);
             tabInformes.Name = "tabInformes";
             tabInformes.SelectedIndex = 0;
@@ -108,6 +118,7 @@ namespace StockControl
             // 
             tabPage1.Controls.Add(btnCerrarCajaAnterior);
             tabPage1.Controls.Add(btnCopiarTicket);
+            tabPage1.Controls.Add(btnImprimirTicket);
             tabPage1.Controls.Add(btnCerrarCaja);
             tabPage1.Controls.Add(label1);
             tabPage1.Controls.Add(btnSalir);
@@ -124,7 +135,7 @@ namespace StockControl
             // btnCerrarCajaAnterior
             // 
             btnCerrarCajaAnterior.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnCerrarCajaAnterior.Location = new Point(457, 369);
+            btnCerrarCajaAnterior.Location = new Point(350, 369);
             btnCerrarCajaAnterior.Name = "btnCerrarCajaAnterior";
             btnCerrarCajaAnterior.Size = new Size(123, 23);
             btnCerrarCajaAnterior.TabIndex = 6;
@@ -135,18 +146,29 @@ namespace StockControl
             // btnCopiarTicket
             // 
             btnCopiarTicket.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnCopiarTicket.Location = new Point(586, 369);
+            btnCopiarTicket.Location = new Point(485, 369);
             btnCopiarTicket.Name = "btnCopiarTicket";
-            btnCopiarTicket.Size = new Size(95, 23);
+            btnCopiarTicket.Size = new Size(85, 23);
             btnCopiarTicket.TabIndex = 5;
             btnCopiarTicket.Text = "Copiar ticket";
             btnCopiarTicket.UseVisualStyleBackColor = true;
             btnCopiarTicket.Click += btnCopiarTicket_Click;
             // 
+            // btnImprimirTicket
+            // 
+            btnImprimirTicket.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnImprimirTicket.Location = new Point(580, 369);
+            btnImprimirTicket.Name = "btnImprimirTicket";
+            btnImprimirTicket.Size = new Size(85, 23);
+            btnImprimirTicket.TabIndex = 7;
+            btnImprimirTicket.Text = "Imprimir ticket";
+            btnImprimirTicket.UseVisualStyleBackColor = true;
+            btnImprimirTicket.Click += btnImprimirTicket_Click;
+            // 
             // btnCerrarCaja
             // 
             btnCerrarCaja.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnCerrarCaja.Location = new Point(687, 369);
+            btnCerrarCaja.Location = new Point(675, 369);
             btnCerrarCaja.Name = "btnCerrarCaja";
             btnCerrarCaja.Size = new Size(75, 23);
             btnCerrarCaja.TabIndex = 4;
@@ -199,6 +221,71 @@ namespace StockControl
             label2.TabIndex = 2;
             label2.Text = "Caja cerrada";
             // 
+            // tabPage3
+            // 
+            tabPage3.Controls.Add(lblTotalMes);
+            tabPage3.Controls.Add(btnGenerarResumen);
+            tabPage3.Controls.Add(dtResumen);
+            tabPage3.Controls.Add(dtpMes);
+            tabPage3.Controls.Add(label3);
+            tabPage3.Location = new Point(4, 24);
+            tabPage3.Name = "tabPage3";
+            tabPage3.Padding = new Padding(3);
+            tabPage3.Size = new Size(768, 398);
+            tabPage3.TabIndex = 2;
+            tabPage3.Text = "Resumen Mensual";
+            tabPage3.UseVisualStyleBackColor = true;
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Location = new Point(6, 8);
+            label3.Name = "label3";
+            label3.Size = new Size(32, 15);
+            label3.TabIndex = 0;
+            label3.Text = "Mes:";
+            // 
+            // dtpMes
+            // 
+            dtpMes.Format = DateTimePickerFormat.Custom;
+            dtpMes.CustomFormat = "MM/yyyy";
+            dtpMes.Location = new Point(44, 4);
+            dtpMes.Name = "dtpMes";
+            dtpMes.ShowUpDown = true;
+            dtpMes.Size = new Size(90, 23);
+            dtpMes.TabIndex = 1;
+            // 
+            // btnGenerarResumen
+            // 
+            btnGenerarResumen.Location = new Point(140, 4);
+            btnGenerarResumen.Name = "btnGenerarResumen";
+            btnGenerarResumen.Size = new Size(110, 23);
+            btnGenerarResumen.TabIndex = 2;
+            btnGenerarResumen.Text = "Generar resumen";
+            btnGenerarResumen.UseVisualStyleBackColor = true;
+            btnGenerarResumen.Click += btnGenerarResumen_Click;
+            // 
+            // dtResumen
+            // 
+            dtResumen.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            dtResumen.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dtResumen.Location = new Point(6, 36);
+            dtResumen.Name = "dtResumen";
+            dtResumen.ReadOnly = true;
+            dtResumen.Size = new Size(756, 300);
+            dtResumen.TabIndex = 3;
+            // 
+            // lblTotalMes
+            // 
+            lblTotalMes.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            lblTotalMes.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            lblTotalMes.Location = new Point(6, 342);
+            lblTotalMes.Name = "lblTotalMes";
+            lblTotalMes.Size = new Size(756, 23);
+            lblTotalMes.TabIndex = 4;
+            lblTotalMes.Text = "Total del mes: $0,00";
+            lblTotalMes.TextAlign = ContentAlignment.MiddleLeft;
+            // 
             // frmInformeVentas
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -213,7 +300,10 @@ namespace StockControl
             tabPage1.PerformLayout();
             tabPage2.ResumeLayout(false);
             tabPage2.PerformLayout();
+            tabPage3.ResumeLayout(false);
+            tabPage3.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)dtCajas).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dtResumen).EndInit();
             ResumeLayout(false);
         }
 
@@ -231,6 +321,13 @@ namespace StockControl
         private DataGridView dtCajas;
         private Label label2;
         private Button btnCopiarTicket;
+        private Button btnImprimirTicket;
         private Button btnCerrarCajaAnterior;
+        private TabPage tabPage3;
+        private Label label3;
+        private DateTimePicker dtpMes;
+        private Button btnGenerarResumen;
+        private DataGridView dtResumen;
+        private Label lblTotalMes;
     }
 }

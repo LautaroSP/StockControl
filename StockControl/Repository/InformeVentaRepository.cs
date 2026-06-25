@@ -82,5 +82,15 @@ namespace StockControl.Repository
             using var con = GetConnection();
             return con.Query<Caja>("SELECT * FROM Cajas").ToList();
         }
+
+        public List<Caja> ListarCajasPorRango(DateTime desde, DateTime hasta)
+        {
+            using var con = GetConnection();
+            return con.Query<Caja>(
+                @"SELECT * FROM Cajas 
+                  WHERE Fecha >= @desde AND Fecha < @hasta",
+                new { desde, hasta }
+            ).ToList();
+        }
     }
 }

@@ -479,8 +479,10 @@ namespace StockControl
             Controls.Add(groupBox1);
             Controls.Add(btnAgregar);
             Controls.Add(dataGridView1);
+            KeyPreview = true;
             Name = "StockMain";
             Text = "StockMain";
+            KeyDown += StockMain_KeyDown;
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             groupBox1.ResumeLayout(false);
             groupBox1.PerformLayout();

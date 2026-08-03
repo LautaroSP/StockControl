@@ -1275,6 +1275,17 @@ namespace StockControl
         {
             CalcularTotal();
         }
+
+        private void StockMain_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.Control && e.KeyCode == Keys.P)
+            {
+                e.SuppressKeyPress = true;
+                e.Handled = true;
+                using var frm = new frmImprimirCarteles();
+                frm.ShowDialog(this);
+            }
+        }
     }
 }
 

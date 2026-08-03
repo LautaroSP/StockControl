@@ -169,31 +169,66 @@ namespace StockControl
                 string nombre = item.Nombre ?? string.Empty;
                 string precio = item.Precio.ToString("C2", culture);
 
-                float nameFontSize = Math.Max(10f, Math.Min(textH * 0.28f, textW * 0.14f));
-                float priceFontSize = Math.Max(14f, Math.Min(textH * 0.40f, textW * 0.22f));
+                float nameBand = textH * 0.40f;
+                float priceBand = textH * 0.48f;
+                var nameRect = new RectangleF(2, textH * 0.02f, textW - 4, nameBand);
+                var priceRect = new RectangleF(2, textH * 0.50f, textW - 4, priceBand);
+
+                float nameFontSize = Math.Max(9f, Math.Min(textH * 0.26f, textW * 0.12f));
+                // Precio más chico; se reduce hasta que entre completo (sin "..."),
+                // contemplando montos largos tipo $99.999,99
+                float priceFontSize = FitFontSize(
+                    tg, precio, "Segoe UI", FontStyle.Bold,
+                    priceRect.Width * 0.96f, priceRect.Height * 0.90f,
+                    maxSize: Math.Min(textH * 0.22f, textW * 0.09f),
+                    minSize: 6f);
 
                 using var nameFont = new Font("Segoe UI", nameFontSize, FontStyle.Bold, GraphicsUnit.Pixel);
                 using var priceFont = new Font("Segoe UI", priceFontSize, FontStyle.Bold, GraphicsUnit.Pixel);
                 using var brush = new SolidBrush(Color.FromArgb(30, 30, 30));
-                using var sf = new StringFormat
+                using var sfName = new StringFormat
                 {
                     Alignment = StringAlignment.Center,
                     LineAlignment = StringAlignment.Center,
                     Trimming = StringTrimming.EllipsisCharacter
                 };
+                using var sfPrecio = new StringFormat
+                {
+                    Alignment = StringAlignment.Center,
+                    LineAlignment = StringAlignment.Center,
+                    FormatFlags = StringFormatFlags.NoWrap,
+                    Trimming = StringTrimming.None
+                };
 
-                float nameBand = textH * 0.42f;
-                float priceBand = textH * 0.50f;
-                var nameRect = new RectangleF(0, textH * 0.02f, textW, nameBand);
-                var priceRect = new RectangleF(0, textH * 0.48f, textW, priceBand);
-
-                tg.DrawString(nombre, nameFont, brush, nameRect, sf);
-                tg.DrawString(precio, priceFont, brush, priceRect, sf);
+                tg.DrawString(nombre, nameFont, brush, nameRect, sfName);
+                tg.DrawString(precio, priceFont, brush, priceRect, sfPrecio);
             }
 
             textBmp.RotateFlip(RotateFlipType.Rotate270FlipNone);
             // Tras Rotate270: queda areaW x areaH y el texto lee de abajo hacia arriba
             g.DrawImage(textBmp, areaX, areaY, areaW, areaH);
+        }
+
+        private static float FitFontSize(
+            Graphics g,
+            string text,
+            string fontFamily,
+            FontStyle style,
+            float maxWidth,
+            float maxHeight,
+            float maxSize,
+            float minSize)
+        {
+            float size = Math.Max(minSize, maxSize);
+            while (size > minSize)
+            {
+                using var font = new Font(fontFamily, size, style, GraphicsUnit.Pixel);
+                var measured = g.MeasureString(text, font);
+                if (measured.Width <= maxWidth && measured.Height <= maxHeight)
+                    return size;
+                size -= 0.5f;
+            }
+            return minSize;
         }
 
         private static int MmToPx(float mm) => (int)Math.Round(mm / 25.4f * Dpi);

@@ -142,67 +142,58 @@ namespace StockControl
         {
             g.DrawImage(plantilla, x, y, w, h);
 
-            // La marca "Don Sabio" va rotada -90° (de abajo hacia arriba).
-            // Nombre y precio van en la misma orientación para leerse horizontal
-            // al girar el cartel (marca abajo).
-            float leftPad = w * 0.06f;
-            float rightPad = w * 0.30f; // franja de la marca
-            float topPad = h * 0.08f;
-            float bottomPad = h * 0.08f;
+            // Área de contenido (se puede pisar un poco la marca si hace falta)
+            float leftPad = w * 0.07f;
+            float rightPad = w * 0.18f;
+            float topPad = h * 0.07f;
+            float bottomPad = h * 0.07f;
 
-            float areaLeft = x + leftPad;
-            float areaTop = y + topPad;
-            float areaWidth = w - leftPad - rightPad;
-            float areaHeight = h - topPad - bottomPad;
+            int areaX = (int)(x + leftPad);
+            int areaY = (int)(y + topPad);
+            int areaW = Math.Max(8, (int)(w - leftPad - rightPad));
+            int areaH = Math.Max(8, (int)(h - topPad - bottomPad));
 
-            float cx = areaLeft + areaWidth / 2f;
-            float cy = areaTop + areaHeight / 2f;
+            // Bitmap en orientación de lectura (horizontal): nombre arriba, precio abajo.
+            // Luego se rota -90° para alinearlo con la marca del cartel.
+            int textW = areaH; // largo del texto = alto del área en el cartel
+            int textH = areaW; // apilado nombre/precio = ancho del área
 
-            // Tras rotar -90°: eje local X = alto del cartel, eje local Y = hacia la marca
-            float textRunLength = areaHeight;
-            float textStackWidth = areaWidth;
-
-            float nameFontSize = Math.Max(8f, Math.Min(textRunLength * 0.12f, textStackWidth * 0.35f));
-            float priceFontSize = Math.Max(12f, Math.Min(textRunLength * 0.18f, textStackWidth * 0.50f));
-
-            using var nameFont = new Font("Segoe UI", nameFontSize, FontStyle.Bold, GraphicsUnit.Pixel);
-            using var priceFont = new Font("Segoe UI", priceFontSize, FontStyle.Bold, GraphicsUnit.Pixel);
-            using var brush = new SolidBrush(Color.FromArgb(40, 40, 40));
-            using var sf = new StringFormat
+            using var textBmp = new Bitmap(textW, textH, PixelFormat.Format32bppArgb);
+            using (var tg = Graphics.FromImage(textBmp))
             {
-                Alignment = StringAlignment.Center,
-                LineAlignment = StringAlignment.Center,
-                Trimming = StringTrimming.EllipsisCharacter,
-                FormatFlags = StringFormatFlags.LineLimit
-            };
+                tg.Clear(Color.Transparent);
+                tg.SmoothingMode = SmoothingMode.HighQuality;
+                tg.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
+                tg.InterpolationMode = InterpolationMode.HighQualityBicubic;
 
-            string nombre = item.Nombre ?? string.Empty;
-            string precio = item.Precio.ToString("C2", culture);
+                string nombre = item.Nombre ?? string.Empty;
+                string precio = item.Precio.ToString("C2", culture);
 
-            var state = g.Save();
-            try
-            {
-                g.TranslateTransform(cx, cy);
-                g.RotateTransform(-90f);
+                float nameFontSize = Math.Max(10f, Math.Min(textH * 0.28f, textW * 0.14f));
+                float priceFontSize = Math.Max(14f, Math.Min(textH * 0.40f, textW * 0.22f));
 
-                // Coords locales tras -90°: X = largo (alto del cartel), Y = hacia la marca.
-                // Nombre (lejos de marca) y precio (cerca) centrados en el área blanca.
-                float gap = textStackWidth * 0.06f;
-                float nameBand = textStackWidth * 0.36f;
-                float priceBand = textStackWidth * 0.42f;
-                float blockHeight = nameBand + gap + priceBand;
-                float startY = -blockHeight / 2f;
+                using var nameFont = new Font("Segoe UI", nameFontSize, FontStyle.Bold, GraphicsUnit.Pixel);
+                using var priceFont = new Font("Segoe UI", priceFontSize, FontStyle.Bold, GraphicsUnit.Pixel);
+                using var brush = new SolidBrush(Color.FromArgb(30, 30, 30));
+                using var sf = new StringFormat
+                {
+                    Alignment = StringAlignment.Center,
+                    LineAlignment = StringAlignment.Center,
+                    Trimming = StringTrimming.EllipsisCharacter
+                };
 
-                var nameRect = new RectangleF(-textRunLength / 2f, startY, textRunLength, nameBand);
-                var priceRect = new RectangleF(-textRunLength / 2f, startY + nameBand + gap, textRunLength, priceBand);
+                float nameBand = textH * 0.42f;
+                float priceBand = textH * 0.50f;
+                var nameRect = new RectangleF(0, textH * 0.02f, textW, nameBand);
+                var priceRect = new RectangleF(0, textH * 0.48f, textW, priceBand);
 
-                g.DrawString(nombre, nameFont, brush, nameRect, sf);
-                g.DrawString(precio, priceFont, brush, priceRect, sf);
+                tg.DrawString(nombre, nameFont, brush, nameRect, sf);
+                tg.DrawString(precio, priceFont, brush, priceRect, sf);
             }
-            finally
-            {
-                g.Restore(state);
-            }
+
+            textBmp.RotateFlip(RotateFlipType.Rotate270FlipNone);
+            // Tras Rotate270: queda areaW x areaH y el texto lee de abajo hacia arriba
+            g.DrawImage(textBmp, areaX, areaY, areaW, areaH);
         }
 
         private static int MmToPx(float mm) => (int)Math.Round(mm / 25.4f * Dpi);

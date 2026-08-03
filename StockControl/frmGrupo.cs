@@ -183,6 +183,7 @@ namespace StockControl
                         var prod = _rprod.BuscarPorCodigo(producto.CodigoProducto);
                         prod.Precio = grupoSeleccionado.PrecioGrupo;
                         prod.Costo = grupoSeleccionado.Costo;
+                        prod.fechaModificacion = DateTime.Now;
                         _rprod.Actualizar(prod);
                     }
                     else

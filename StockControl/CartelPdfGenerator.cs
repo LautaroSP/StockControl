@@ -142,27 +142,32 @@ namespace StockControl
         {
             g.DrawImage(plantilla, x, y, w, h);
 
-            // Área de texto: parte inferior del blanco, dejando margen para la marca lateral derecha
-            float leftPad = w * 0.08f;
-            float rightPad = w * 0.28f;
-            float textTop = y + h * 0.55f;
-            float textBottom = y + h * 0.92f;
-            float textWidth = w - leftPad - rightPad;
-            float textLeft = x + leftPad;
-            float textHeight = textBottom - textTop;
+            // La marca "Don Sabio" va rotada -90° (de abajo hacia arriba).
+            // Nombre y precio van en la misma orientación para leerse horizontal
+            // al girar el cartel (marca abajo).
+            float leftPad = w * 0.06f;
+            float rightPad = w * 0.30f; // franja de la marca
+            float topPad = h * 0.08f;
+            float bottomPad = h * 0.08f;
 
-            float nameHeight = textHeight * 0.42f;
-            float priceHeight = textHeight * 0.48f;
-            float nameFontSize = Math.Max(7f, h * 0.055f);
-            float priceFontSize = Math.Max(10f, h * 0.11f);
+            float areaLeft = x + leftPad;
+            float areaTop = y + topPad;
+            float areaWidth = w - leftPad - rightPad;
+            float areaHeight = h - topPad - bottomPad;
+
+            float cx = areaLeft + areaWidth / 2f;
+            float cy = areaTop + areaHeight / 2f;
+
+            // Tras rotar -90°: eje local X = alto del cartel, eje local Y = hacia la marca
+            float textRunLength = areaHeight;
+            float textStackWidth = areaWidth;
+
+            float nameFontSize = Math.Max(8f, Math.Min(textRunLength * 0.12f, textStackWidth * 0.35f));
+            float priceFontSize = Math.Max(12f, Math.Min(textRunLength * 0.18f, textStackWidth * 0.50f));
 
             using var nameFont = new Font("Segoe UI", nameFontSize, FontStyle.Bold, GraphicsUnit.Pixel);
             using var priceFont = new Font("Segoe UI", priceFontSize, FontStyle.Bold, GraphicsUnit.Pixel);
             using var brush = new SolidBrush(Color.FromArgb(40, 40, 40));
-
-            var nameRect = new RectangleF(textLeft, textTop, textWidth, nameHeight);
-            var priceRect = new RectangleF(textLeft, textTop + nameHeight, textWidth, priceHeight);
-
             using var sf = new StringFormat
             {
                 Alignment = StringAlignment.Center,
@@ -171,10 +176,30 @@ namespace StockControl
                 FormatFlags = StringFormatFlags.LineLimit
             };
 
-            g.DrawString(item.Nombre ?? string.Empty, nameFont, brush, nameRect, sf);
-
+            string nombre = item.Nombre ?? string.Empty;
             string precio = item.Precio.ToString("C2", culture);
-            g.DrawString(precio, priceFont, brush, priceRect, sf);
+
+            var state = g.Save();
+            try
+            {
+                g.TranslateTransform(cx, cy);
+                g.RotateTransform(-90f);
+
+                // En coords locales: X a lo largo del cartel, Y hacia la marca (derecha en portrait).
+                // Nombre más lejos de la marca; precio más cerca — al girar el cartel
+                // (marca abajo) se leen nombre arriba y precio abajo.
+                float nameBand = textStackWidth * 0.42f;
+                float priceBand = textStackWidth * 0.50f;
+                var nameRect = new RectangleF(-textRunLength / 2f, -textStackWidth * 0.42f, textRunLength, nameBand);
+                var priceRect = new RectangleF(-textRunLength / 2f, textStackWidth * 0.02f, textRunLength, priceBand);
+
+                g.DrawString(nombre, nameFont, brush, nameRect, sf);
+                g.DrawString(precio, priceFont, brush, priceRect, sf);
+            }
+            finally
+            {
+                g.Restore(state);
+            }
         }
 
         private static int MmToPx(float mm) => (int)Math.Round(mm / 25.4f * Dpi);

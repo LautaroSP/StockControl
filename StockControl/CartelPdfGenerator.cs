@@ -185,13 +185,16 @@ namespace StockControl
                 g.TranslateTransform(cx, cy);
                 g.RotateTransform(-90f);
 
-                // En coords locales: X a lo largo del cartel, Y hacia la marca (derecha en portrait).
-                // Nombre más lejos de la marca; precio más cerca — al girar el cartel
-                // (marca abajo) se leen nombre arriba y precio abajo.
-                float nameBand = textStackWidth * 0.42f;
-                float priceBand = textStackWidth * 0.50f;
-                var nameRect = new RectangleF(-textRunLength / 2f, -textStackWidth * 0.42f, textRunLength, nameBand);
-                var priceRect = new RectangleF(-textRunLength / 2f, textStackWidth * 0.02f, textRunLength, priceBand);
+                // Coords locales tras -90°: X = largo (alto del cartel), Y = hacia la marca.
+                // Nombre (lejos de marca) y precio (cerca) centrados en el área blanca.
+                float gap = textStackWidth * 0.06f;
+                float nameBand = textStackWidth * 0.36f;
+                float priceBand = textStackWidth * 0.42f;
+                float blockHeight = nameBand + gap + priceBand;
+                float startY = -blockHeight / 2f;
+
+                var nameRect = new RectangleF(-textRunLength / 2f, startY, textRunLength, nameBand);
+                var priceRect = new RectangleF(-textRunLength / 2f, startY + nameBand + gap, textRunLength, priceBand);
 
                 g.DrawString(nombre, nameFont, brush, nameRect, sf);
                 g.DrawString(precio, priceFont, brush, priceRect, sf);

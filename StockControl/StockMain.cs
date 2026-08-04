@@ -1227,6 +1227,8 @@ namespace StockControl
             lblItems.Text = items.ToString("0", new CultureInfo("es-AR"));
         }
 
+        private bool _descuentoPorEnter;
+
         // Al entrar al campo: sacamos el % para editar
         private void txtDescuento_Enter(object sender, EventArgs e)
         {
@@ -1235,7 +1237,18 @@ namespace StockControl
             txtDescuento.SelectAll();
         }
 
-        // Solo permite d�gitos y teclas de control
+        private void txtDescuento_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter) return;
+
+            e.SuppressKeyPress = true;
+            e.Handled = true;
+            _descuentoPorEnter = true;
+            ConfirmarDescuento();
+            VolverAScanner();
+        }
+
+        // Solo permite dígitos y teclas de control
         private void txtDescuento_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (!char.IsDigit(e.KeyChar) && !char.IsControl(e.KeyChar))
@@ -1252,7 +1265,7 @@ namespace StockControl
                 {
                     e.Handled = true;
                     MessageBox.Show("El descuento no puede superar 100%.",
-                                    "Valor inv�lido",
+                                    "Valor inválido",
                                     MessageBoxButtons.OK,
                                     MessageBoxIcon.Warning);
                 }
@@ -1262,13 +1275,26 @@ namespace StockControl
         // Al salir del campo: validamos y concatenamos el %
         private void txtDescuento_Leave(object sender, EventArgs e)
         {
+            if (!_descuentoPorEnter)
+                ConfirmarDescuento();
+
+            if (_descuentoPorEnter)
+            {
+                _descuentoPorEnter = false;
+                return;
+            }
+
+            IrAMedioDePago();
+        }
+
+        private void ConfirmarDescuento()
+        {
             if (!int.TryParse(txtDescuento.Text.Replace("%", ""), out int valor))
                 valor = 0;
 
             valor = Math.Max(0, Math.Min(100, valor));
             txtDescuento.Text = valor + "%";
             CalcularTotal();
-            IrAMedioDePago();
         }
 
         private void chkCosto_CheckedChanged(object sender, EventArgs e)

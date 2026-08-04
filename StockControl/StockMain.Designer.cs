@@ -112,6 +112,7 @@ namespace StockControl
             txtDescuento.Size = new Size(45, 23);
             txtDescuento.TabIndex = 18;
             txtDescuento.Enter += txtDescuento_Enter;
+            txtDescuento.KeyDown += txtDescuento_KeyDown;
             txtDescuento.KeyPress += txtDescuento_KeyPress;
             txtDescuento.Leave += txtDescuento_Leave;
             // 

@@ -169,14 +169,33 @@ namespace StockControl
                 string nombre = item.Nombre ?? string.Empty;
                 string precio = item.Precio.ToString("C2", culture);
 
-                float nameBand = textH * 0.40f;
-                float priceBand = textH * 0.48f;
+                // Más alto para el nombre (2 renglones); precio debajo
+                float nameBand = textH * 0.48f;
+                float priceBand = textH * 0.42f;
                 var nameRect = new RectangleF(2, textH * 0.02f, textW - 4, nameBand);
-                var priceRect = new RectangleF(2, textH * 0.50f, textW - 4, priceBand);
+                var priceRect = new RectangleF(2, textH * 0.54f, textW - 4, priceBand);
 
-                float nameFontSize = Math.Max(9f, Math.Min(textH * 0.26f, textW * 0.12f));
-                // Precio más chico; se reduce hasta que entre completo (sin "..."),
-                // contemplando montos largos tipo $99.999,99
+                using var sfName = new StringFormat
+                {
+                    Alignment = StringAlignment.Center,
+                    LineAlignment = StringAlignment.Center,
+                    FormatFlags = StringFormatFlags.LineLimit,
+                    Trimming = StringTrimming.None
+                };
+                using var sfPrecio = new StringFormat
+                {
+                    Alignment = StringAlignment.Center,
+                    LineAlignment = StringAlignment.Center,
+                    FormatFlags = StringFormatFlags.NoWrap,
+                    Trimming = StringTrimming.None
+                };
+
+                float nameFontSize = FitFontSizeWrapped(
+                    tg, nombre, "Segoe UI", FontStyle.Bold,
+                    nameRect.Width, nameRect.Height,
+                    maxSize: Math.Min(textH * 0.22f, textW * 0.11f),
+                    minSize: 7f,
+                    sfName);
                 float priceFontSize = FitFontSize(
                     tg, precio, "Segoe UI", FontStyle.Bold,
                     priceRect.Width * 0.96f, priceRect.Height * 0.90f,
@@ -186,19 +205,6 @@ namespace StockControl
                 using var nameFont = new Font("Segoe UI", nameFontSize, FontStyle.Bold, GraphicsUnit.Pixel);
                 using var priceFont = new Font("Segoe UI", priceFontSize, FontStyle.Bold, GraphicsUnit.Pixel);
                 using var brush = new SolidBrush(Color.FromArgb(30, 30, 30));
-                using var sfName = new StringFormat
-                {
-                    Alignment = StringAlignment.Center,
-                    LineAlignment = StringAlignment.Center,
-                    Trimming = StringTrimming.EllipsisCharacter
-                };
-                using var sfPrecio = new StringFormat
-                {
-                    Alignment = StringAlignment.Center,
-                    LineAlignment = StringAlignment.Center,
-                    FormatFlags = StringFormatFlags.NoWrap,
-                    Trimming = StringTrimming.None
-                };
 
                 tg.DrawString(nombre, nameFont, brush, nameRect, sfName);
                 tg.DrawString(precio, priceFont, brush, priceRect, sfPrecio);
@@ -225,6 +231,34 @@ namespace StockControl
                 using var font = new Font(fontFamily, size, style, GraphicsUnit.Pixel);
                 var measured = g.MeasureString(text, font);
                 if (measured.Width <= maxWidth && measured.Height <= maxHeight)
+                    return size;
+                size -= 0.5f;
+            }
+            return minSize;
+        }
+
+        private static float FitFontSizeWrapped(
+            Graphics g,
+            string text,
+            string fontFamily,
+            FontStyle style,
+            float maxWidth,
+            float maxHeight,
+            float maxSize,
+            float minSize,
+            StringFormat sf)
+        {
+            float size = Math.Max(minSize, maxSize);
+            var layout = new SizeF(maxWidth, maxHeight);
+            while (size > minSize)
+            {
+                using var font = new Font(fontFamily, size, style, GraphicsUnit.Pixel);
+                var measured = g.MeasureString(text, font, layout, sf, out int charsFitted, out int linesFilled);
+                bool fitsWidth = measured.Width <= maxWidth + 0.5f;
+                bool fitsHeight = measured.Height <= maxHeight + 0.5f;
+                bool allChars = charsFitted >= text.Length;
+                bool maxTwoLines = linesFilled <= 2;
+                if (fitsWidth && fitsHeight && allChars && maxTwoLines)
                     return size;
                 size -= 0.5f;
             }

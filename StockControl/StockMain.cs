@@ -205,6 +205,7 @@ namespace StockControl
                 Width = 50,
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
+                    Format = "N2",
                     FormatProvider = new CultureInfo("es-AR")
                 }
             });
@@ -1204,12 +1205,15 @@ namespace StockControl
                     item.Precio = usarCosto ? producto.Costo : producto.Precio;
                 }
 
-                // Despu�s aplicamos el descuento si corresponde
+                // Después aplicamos el descuento si corresponde
                 if (chkDescuento.Checked &&
                     int.TryParse(txtDescuento.Text.Replace("%", "").Trim(), out int descuento) &&
                     descuento > 0)
                 {
-                    item.Precio = item.Precio - (item.Precio * descuento / 100m);
+                    item.Precio = Math.Round(
+                        item.Precio - (item.Precio * descuento / 100m),
+                        2,
+                        MidpointRounding.AwayFromZero);
                 }
             }
         }
@@ -1218,7 +1222,10 @@ namespace StockControl
         {
             AplicarDescuento(); // Esto setea todos los precios correctamente
 
-            decimal total = _carrito.Sum(i => i.Cantidad * i.Precio);
+            decimal total = Math.Round(
+                _carrito.Sum(i => i.Cantidad * i.Precio),
+                2,
+                MidpointRounding.AwayFromZero);
 
             dataGridView2.Refresh();
             txtTotal.Text = total.ToString("C2", new CultureInfo("es-AR"));

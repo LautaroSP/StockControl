@@ -1191,27 +1191,37 @@ namespace StockControl
 
             foreach (var item in _carrito)
             {
-                // Primero establecemos el precio base correcto
+                // Genéricos y sector: el precio lo setea el cajero; no se toca ni se descuenta.
                 if (item.Codigo.Contains("GENERIC-"))
+                    continue;
+
+                var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
+                if (producto == null)
+                    continue;
+
+                if (producto.ProductoSector == 1)
+                    continue;
+
+                decimal precioLista = producto.Precio;
+                decimal costo = producto.Costo;
+
+                if (usarCosto)
                 {
-                    var prod = prodGenericos.FirstOrDefault(x => x.IdProducto == item.IdProducto);
-                    if (prod == null) continue;
-                    item.Precio = prod.Precio; // los gen�ricos no tienen costo, siempre precio
-                }
-                else
-                {
-                    var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
-                    if (producto == null) continue;
-                    item.Precio = usarCosto ? producto.Costo : producto.Precio;
+                    item.Precio = costo;
+                    continue;
                 }
 
-                // Después aplicamos el descuento si corresponde
+                item.Precio = precioLista;
+
+                // Descuento sobre el margen (Precio - Costo), no sobre el precio entero.
+                // Ej: 1500 - 1000 = 500; 50% → 1500 - 250 = 1250
                 if (chkDescuento.Checked &&
                     int.TryParse(txtDescuento.Text.Replace("%", "").Trim(), out int descuento) &&
                     descuento > 0)
                 {
+                    decimal margen = Math.Max(0, precioLista - costo);
                     item.Precio = Math.Round(
-                        item.Precio - (item.Precio * descuento / 100m),
+                        precioLista - (margen * descuento / 100m),
                         2,
                         MidpointRounding.AwayFromZero);
                 }

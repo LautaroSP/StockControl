@@ -167,13 +167,14 @@ namespace StockControl
                 tg.InterpolationMode = InterpolationMode.HighQualityBicubic;
 
                 string nombre = item.Nombre ?? string.Empty;
-                string precio = item.Precio.ToString("C2", culture);
+                // Sin decimales: 800,00 y 800,12 → $800
+                string precio = Math.Truncate(item.Precio).ToString("C0", culture);
 
                 // Más alto para el nombre (2 renglones); precio debajo
-                float nameBand = textH * 0.48f;
-                float priceBand = textH * 0.42f;
+                float nameBand = textH * 0.44f;
+                float priceBand = textH * 0.48f;
                 var nameRect = new RectangleF(2, textH * 0.02f, textW - 4, nameBand);
-                var priceRect = new RectangleF(2, textH * 0.54f, textW - 4, priceBand);
+                var priceRect = new RectangleF(2, textH * 0.48f, textW - 4, priceBand);
 
                 using var sfName = new StringFormat
                 {
@@ -198,9 +199,9 @@ namespace StockControl
                     sfName);
                 float priceFontSize = FitFontSize(
                     tg, precio, "Segoe UI", FontStyle.Bold,
-                    priceRect.Width * 0.96f, priceRect.Height * 0.90f,
-                    maxSize: Math.Min(textH * 0.22f, textW * 0.09f),
-                    minSize: 6f);
+                    priceRect.Width * 0.96f, priceRect.Height * 0.92f,
+                    maxSize: Math.Min(textH * 0.28f, textW * 0.13f) + 3f,
+                    minSize: 9f);
 
                 using var nameFont = new Font("Segoe UI", nameFontSize, FontStyle.Bold, GraphicsUnit.Pixel);
                 using var priceFont = new Font("Segoe UI", priceFontSize, FontStyle.Bold, GraphicsUnit.Pixel);

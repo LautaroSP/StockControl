@@ -17,11 +17,11 @@ namespace StockControl
             var init = new DbInitializer();
             init.Initialize();
 
-            if (LicenciaHelper.LicenciaInstaladaYValida())
-            {
+            //if (LicenciaHelper.LicenciaInstaladaYValida())
+            //{
                 Application.Run(new StockMain());
                 return;
-            }
+            //}
 
 
             // Si no, abrimos el formulario de activación

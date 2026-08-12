@@ -127,6 +127,7 @@ namespace StockControl
             chkDescuento.Text = "Descuento";
             chkDescuento.UseVisualStyleBackColor = true;
             chkDescuento.CheckedChanged += chkDescuento_CheckedChanged;
+            chkDescuento.MouseDown += chkDescuento_MouseDown;
             // 
             // chkCosto
             // 

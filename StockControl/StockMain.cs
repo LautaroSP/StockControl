@@ -32,6 +32,8 @@ namespace StockControl
         private bool imprimirTicket = true;
         private bool editandoProductoSector = false;
         private List<ItemSeleccionado> prodGenericos = new();
+        private int _medioPagoToken;
+        private bool _clickEnCheckDescuento;
 
         public StockMain()
         {
@@ -906,15 +908,19 @@ namespace StockControl
 
         private void IrAMedioDePago()
         {
+            int token = ++_medioPagoToken;
             cbMetodosPago.Focus();
             BeginInvoke(new Action(() =>
            {
+               if (token != _medioPagoToken) return;
                cbMetodosPago.DroppedDown = true;
            }));
         }
 
         private void VolverAScanner()
         {
+            _medioPagoToken++; // cancela un DroppedDown pendiente
+            cbMetodosPago.DroppedDown = false;
             txtScanner.Focus();
         }
 
@@ -1169,19 +1175,27 @@ namespace StockControl
             btnCobrar.Focus();
         }
 
+        private void chkDescuento_MouseDown(object? sender, MouseEventArgs e)
+        {
+            // MouseDown del check ocurre antes del Leave del textbox
+            _clickEnCheckDescuento = true;
+        }
+
         private void chkDescuento_CheckedChanged(object sender, EventArgs e)
         {
             if (chkDescuento.Checked)
             {
+                _clickEnCheckDescuento = false;
                 txtDescuento.Enabled = true;
                 txtDescuento.Focus();
-                
             }
             else
             {
+                _clickEnCheckDescuento = false;
                 txtDescuento.Enabled = false;
                 txtDescuento.Text = string.Empty;
                 CalcularTotal();
+                VolverAScanner();
             }
         }
 
@@ -1292,8 +1306,14 @@ namespace StockControl
         // Al salir del campo: validamos y concatenamos el %
         private void txtDescuento_Leave(object sender, EventArgs e)
         {
-            // Al desmarcar el check se deshabilita el textbox y dispara Leave;
-            // no hay que abrir medios de pago en ese caso.
+            // Click en el check: Leave corre antes de CheckedChanged
+            if (_clickEnCheckDescuento || ActiveControl == chkDescuento || chkDescuento.Focused)
+            {
+                _clickEnCheckDescuento = false;
+                _descuentoPorEnter = false;
+                return;
+            }
+
             if (!chkDescuento.Checked)
             {
                 _descuentoPorEnter = false;

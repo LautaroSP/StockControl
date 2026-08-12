@@ -2,14 +2,15 @@
 using Microsoft.Data.Sqlite;
 using Dapper;
 using System.Collections.Generic;
+using StockControl.Infrastructure;
 
 namespace StockControl.Repository
 {
     public class ProductoRepository
     {
-        private readonly string _connectionString = "Data Source=stock.db";
+        private string ConnectionString => DbPath.ConnectionString;
 
-        private SqliteConnection GetConnection() => new SqliteConnection(_connectionString);
+        private SqliteConnection GetConnection() => new SqliteConnection(ConnectionString);
 
         public void Insertar(Producto p)
         {

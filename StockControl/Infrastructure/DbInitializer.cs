@@ -5,7 +5,7 @@ namespace StockControl.Infrastructure
 {
     public class DbInitializer
     {
-        private readonly string _connectionString = "Data Source=stock.db";
+        private readonly string _connectionString = DbPath.ConnectionString;
         public void Initialize()
         {
 

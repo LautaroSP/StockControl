@@ -1292,6 +1292,14 @@ namespace StockControl
         // Al salir del campo: validamos y concatenamos el %
         private void txtDescuento_Leave(object sender, EventArgs e)
         {
+            // Al desmarcar el check se deshabilita el textbox y dispara Leave;
+            // no hay que abrir medios de pago en ese caso.
+            if (!chkDescuento.Checked)
+            {
+                _descuentoPorEnter = false;
+                return;
+            }
+
             if (!_descuentoPorEnter)
                 ConfirmarDescuento();
 

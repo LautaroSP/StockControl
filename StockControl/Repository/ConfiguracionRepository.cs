@@ -1,6 +1,7 @@
 ﻿using Dapper;
 using Microsoft.Data.Sqlite;
 using StockControl.Domain;
+using StockControl.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -12,9 +13,9 @@ namespace StockControl.Repository
 {
     public class ConfiguracionRepository
     {
-        private readonly string _connectionString = "Data Source=stock.db";
+        private string ConnectionString => DbPath.ConnectionString;
 
-        private SqliteConnection GetConnection() => new SqliteConnection(_connectionString);
+        private SqliteConnection GetConnection() => new SqliteConnection(ConnectionString);
 
         public void Insertar(string clave, string valor)
         {

@@ -12,5 +12,6 @@ namespace StockControl.Domain
         public DateTime Fecha { get; set; } = DateTime.Now;
         public decimal Total { get; set; }
         public string MetodoPago { get; set; }
+        public int CantidadVentas { get; set; }
     }
 }

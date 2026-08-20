@@ -183,7 +183,8 @@ namespace StockControl
                                            .Select(g => new Caja
                                            {
                                                MetodoPago = g.Key,
-                                               Total = g.Sum(i => i.Total)
+                                               Total = g.Sum(i => i.Total),
+                                               CantidadVentas = g.Count()
                                            }).ToList();
 
             var informeTotalDia = informeCajaCerrada.Sum(i => i.Total);
@@ -198,7 +199,8 @@ namespace StockControl
             informeCajaCerrada.Add(new Caja
             {
                 MetodoPago = "Total",
-                Total = informeTotalDia
+                Total = informeTotalDia,
+                CantidadVentas = informesDelDia.Count
             });
             _informeVentaRepository.InsertarCajaCerradaPorLista(informeCajaCerrada);
 
@@ -222,7 +224,7 @@ namespace StockControl
             foreach (DataGridViewColumn column in dtCajas.Columns)
                 column.SortMode = DataGridViewColumnSortMode.Programmatic;
 
-            dtCajas.Columns["IdCaja"].Visible = false;
+            ConfigurarColumnasCajas(dtCajas);
 
             // Asociar el evento (por si no lo hiciste en el diseñador)
             dtCajas.ColumnHeaderMouseClick -= dtCajas_ColumnHeaderMouseClick;
@@ -277,7 +279,20 @@ namespace StockControl
 
             lastSortColumnCajas = propName;
             lastSortAscCajas = asc;
-            dtCajas.Columns["IdCaja"].Visible = false;
+            ConfigurarColumnasCajas(dtCajas);
+        }
+
+        private void ConfigurarColumnasCajas(DataGridView grid)
+        {
+            if (grid.Columns["IdCaja"] != null)
+                grid.Columns["IdCaja"].Visible = false;
+            if (grid.Columns["CantidadVentas"] != null)
+                grid.Columns["CantidadVentas"].HeaderText = "Cantidad de ventas";
+            if (grid.Columns["Total"] != null)
+            {
+                grid.Columns["Total"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
+                grid.Columns["Total"].DefaultCellStyle.Format = "C2";
+            }
         }
 
         private void chkTodos_CheckedChanged(object sender, EventArgs e)
@@ -289,6 +304,7 @@ namespace StockControl
             else
                 dtCajas.DataSource = cajasFiltradas;
 
+            ConfigurarColumnasCajas(dtCajas);
             dtCajas.Refresh();
         }
 
@@ -423,7 +439,8 @@ namespace StockControl
                         {
                             Fecha = fechaSeleccionada,
                             MetodoPago = g.Key,
-                            Total = g.Sum(i => i.Total)
+                            Total = g.Sum(i => i.Total),
+                            CantidadVentas = g.Count()
                         }).ToList();
 
                     var informeTotalDia = informeCajaCerrada.Sum(i => i.Total);
@@ -432,7 +449,8 @@ namespace StockControl
                     {
                         Fecha = fechaSeleccionada,
                         MetodoPago = "Total",
-                        Total = informeTotalDia
+                        Total = informeTotalDia,
+                        CantidadVentas = informesDelDia.Count
                     });
 
                     _informeVentaRepository.InsertarCajaCerradaPorLista(informeCajaCerrada);
@@ -459,16 +477,19 @@ namespace StockControl
                 .Select(g => new Caja
                 {
                     MetodoPago = g.Key,
-                    Total = g.Sum(c => c.Total)
+                    Total = g.Sum(c => c.Total),
+                    CantidadVentas = g.Sum(c => c.CantidadVentas)
                 })
                 .OrderBy(c => c.MetodoPago)
                 .ToList();
 
             decimal totalMes = resumen.Sum(c => c.Total);
+            int cantidadVentasMes = resumen.Sum(c => c.CantidadVentas);
             resumen.Add(new Caja
             {
                 MetodoPago = "Total",
-                Total = totalMes
+                Total = totalMes,
+                CantidadVentas = cantidadVentasMes
             });
 
             dtResumen.DataSource = null;
@@ -477,6 +498,7 @@ namespace StockControl
             dtResumen.Columns["IdCaja"].Visible = false;
             dtResumen.Columns["Fecha"].Visible = false;
             dtResumen.Columns["MetodoPago"].HeaderText = "Método de Pago";
+            dtResumen.Columns["CantidadVentas"].HeaderText = "Cantidad de ventas";
             dtResumen.Columns["Total"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
             dtResumen.Columns["Total"].DefaultCellStyle.Format = "C2";
 

@@ -74,7 +74,7 @@ namespace StockControl.Repository
             using var con = GetConnection();
             foreach (var caja in informeCajaCerrada)
             {
-                con.Execute("INSERT INTO Cajas (Fecha, Total, MetodoPago) VALUES (@Fecha, @Total, @MetodoPago)", caja);
+                con.Execute("INSERT INTO Cajas (Fecha, Total, MetodoPago, CantidadVentas) VALUES (@Fecha, @Total, @MetodoPago, @CantidadVentas)", caja);
             }
         }
 

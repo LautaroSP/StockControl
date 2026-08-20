@@ -9,8 +9,6 @@ namespace StockControl
         private ConfiguracionRepository _configuracionRepository = new();
         private bool _CambioLocal = false;
         private bool _CambioGanancia = false;
-        private bool _ValorMoneda = false;
-        private bool _CambioMoneda = false;
         private bool _CambioIVA = false;
         private bool _CambioBdd = false;
         private string _rutaBddPendiente = string.Empty;
@@ -21,12 +19,11 @@ namespace StockControl
             InitializeComponent();
             CargarRutaBdd();
         }
-        public Configuracion(string nombreLocal, string factorGanancia, bool cobrarEnDolar, string IVA)
+        public Configuracion(string nombreLocal, string factorGanancia, string IVA)
         {
             InitializeComponent();
             txtNombreLocal.Text = nombreLocal;
             txtFactorGanancia.Text = factorGanancia;
-            chkValorMoneda.Checked = cobrarEnDolar;
             txtIVA.Text = IVA;
             CargarRutaBdd();
         }
@@ -122,12 +119,6 @@ namespace StockControl
                 }
                 else
                     MessageBox.Show("El Factor de Ganancia debe ser un numero decimal", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            if (_CambioMoneda)
-            {
-                _configuracionRepository.Insertar("CobrarEnPesos", _ValorMoneda.ToString());
-                StockMain._cobrarEnPesos = chkValorMoneda.Checked;
-                this.DialogResult = DialogResult.Yes;
             }
             if (_CambioIVA)
             {
@@ -229,12 +220,6 @@ namespace StockControl
             input = input.Replace(',', '.');
 
             return decimal.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out value);
-        }
-
-        private void chkValorMoneda_CheckedChanged(object sender, EventArgs e)
-        {
-            _CambioMoneda = true;
-            _ValorMoneda = chkValorMoneda.Checked;
         }
 
         private void txtIVA_TextChanged(object sender, EventArgs e)

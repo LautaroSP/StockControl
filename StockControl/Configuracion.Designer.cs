@@ -36,7 +36,6 @@ namespace StockControl
             lblObliLocal = new Label();
             label2 = new Label();
             txtFactorGanancia = new TextBox();
-            chkValorMoneda = new CheckBox();
             label3 = new Label();
             txtIVA = new TextBox();
             lblBaseDatos = new Label();
@@ -114,18 +113,6 @@ namespace StockControl
             txtFactorGanancia.TextAlignChanged += txtFactorGanancia_TextAlignChanged;
             txtFactorGanancia.TextChanged += txtFactorGanancia_TextChanged;
             // 
-            // chkValorMoneda
-            // 
-            chkValorMoneda.AutoSize = true;
-            chkValorMoneda.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            chkValorMoneda.Location = new Point(187, 12);
-            chkValorMoneda.Name = "chkValorMoneda";
-            chkValorMoneda.Size = new Size(113, 19);
-            chkValorMoneda.TabIndex = 7;
-            chkValorMoneda.Text = "Valores en Pesos";
-            chkValorMoneda.UseVisualStyleBackColor = true;
-            chkValorMoneda.CheckedChanged += chkValorMoneda_CheckedChanged;
-            // 
             // label3
             // 
             label3.AutoSize = true;
@@ -193,7 +180,6 @@ namespace StockControl
             Controls.Add(lblBaseDatos);
             Controls.Add(txtIVA);
             Controls.Add(label3);
-            Controls.Add(chkValorMoneda);
             Controls.Add(txtFactorGanancia);
             Controls.Add(label2);
             Controls.Add(lblObliLocal);
@@ -218,7 +204,6 @@ namespace StockControl
         private Label lblObliLocal;
         private Label label2;
         private TextBox txtFactorGanancia;
-        private CheckBox chkValorMoneda;
         private Label label3;
         private TextBox txtIVA;
         private Label lblBaseDatos;

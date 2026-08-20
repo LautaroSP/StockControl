@@ -40,7 +40,6 @@ namespace StockControl
             chkImprimirTicket = new CheckBox();
             chkMultiPago = new CheckBox();
             cbMetodosPago = new ComboBox();
-            chkCobroEnPesos = new CheckBox();
             txtTotal = new Label();
             lblTotal = new Label();
             dataGridView2 = new DataGridView();
@@ -57,8 +56,6 @@ namespace StockControl
             label1 = new Label();
             txtScanner = new TextBox();
             btnConfiguracion = new Button();
-            lblDolar = new Label();
-            txtValorDolar = new TextBox();
             btnGrupos = new Button();
             label4 = new Label();
             lblCantProd = new Label();
@@ -90,7 +87,6 @@ namespace StockControl
             groupBox1.Controls.Add(chkImprimirTicket);
             groupBox1.Controls.Add(chkMultiPago);
             groupBox1.Controls.Add(cbMetodosPago);
-            groupBox1.Controls.Add(chkCobroEnPesos);
             groupBox1.Controls.Add(txtTotal);
             groupBox1.Controls.Add(lblTotal);
             groupBox1.Controls.Add(dataGridView2);
@@ -199,18 +195,6 @@ namespace StockControl
             cbMetodosPago.TabIndex = 10;
             cbMetodosPago.SelectedIndexChanged += cbMetodosPago_SelectedIndexChanged;
             cbMetodosPago.KeyDown += cbMetodosPago_KeyDown;
-            // 
-            // chkCobroEnPesos
-            // 
-            chkCobroEnPesos.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            chkCobroEnPesos.AutoSize = true;
-            chkCobroEnPesos.Location = new Point(250, 505);
-            chkCobroEnPesos.Name = "chkCobroEnPesos";
-            chkCobroEnPesos.Size = new Size(111, 19);
-            chkCobroEnPesos.TabIndex = 9;
-            chkCobroEnPesos.Text = "Cobrar en pesos";
-            chkCobroEnPesos.UseVisualStyleBackColor = true;
-            chkCobroEnPesos.CheckedChanged += chkCobroEnPesos_CheckedChanged;
             // 
             // txtTotal
             // 
@@ -396,25 +380,6 @@ namespace StockControl
             btnConfiguracion.UseVisualStyleBackColor = true;
             btnConfiguracion.Click += btnConfiguracion_Click;
             // 
-            // lblDolar
-            // 
-            lblDolar.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            lblDolar.AutoSize = true;
-            lblDolar.Location = new Point(552, 625);
-            lblDolar.Name = "lblDolar";
-            lblDolar.Size = new Size(64, 15);
-            lblDolar.TabIndex = 9;
-            lblDolar.Text = "Valor Dolar";
-            // 
-            // txtValorDolar
-            // 
-            txtValorDolar.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            txtValorDolar.Location = new Point(622, 617);
-            txtValorDolar.Name = "txtValorDolar";
-            txtValorDolar.Size = new Size(100, 23);
-            txtValorDolar.TabIndex = 10;
-            txtValorDolar.Leave += txtValorDolar_Leave;
-            // 
             // btnGrupos
             // 
             btnGrupos.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
@@ -466,8 +431,6 @@ namespace StockControl
             Controls.Add(lblCantProd);
             Controls.Add(label4);
             Controls.Add(btnGrupos);
-            Controls.Add(txtValorDolar);
-            Controls.Add(lblDolar);
             Controls.Add(btnConfiguracion);
             Controls.Add(btnCodeBar);
             Controls.Add(txtScanner);
@@ -513,9 +476,6 @@ namespace StockControl
         private TextBox txtScanner;
         private Button btnConfiguracion;
         private Button btnCodeBar;
-        private CheckBox chkCobroEnPesos;
-        private Label lblDolar;
-        private TextBox txtValorDolar;
         private ComboBox cbMetodosPago;
         private CheckBox chkMultiPago;
         private Button btnGrupos;

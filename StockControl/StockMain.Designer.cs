@@ -32,6 +32,9 @@ namespace StockControl
         {
             dataGridView1 = new DataGridView();
             groupBox1 = new GroupBox();
+            tabCarritos = new TabControl();
+            btnAgregarCarrito = new Button();
+            btnCerrarCarrito = new Button();
             txtDescuento = new TextBox();
             chkDescuento = new CheckBox();
             chkCosto = new CheckBox();
@@ -79,6 +82,9 @@ namespace StockControl
             // groupBox1
             // 
             groupBox1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
+            groupBox1.Controls.Add(tabCarritos);
+            groupBox1.Controls.Add(btnAgregarCarrito);
+            groupBox1.Controls.Add(btnCerrarCarrito);
             groupBox1.Controls.Add(txtDescuento);
             groupBox1.Controls.Add(chkDescuento);
             groupBox1.Controls.Add(chkCosto);
@@ -98,6 +104,42 @@ namespace StockControl
             groupBox1.TabIndex = 1;
             groupBox1.TabStop = false;
             groupBox1.Text = "Opciones";
+            // 
+            // tabCarritos
+            // 
+            tabCarritos.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            tabCarritos.Location = new Point(20, 462);
+            tabCarritos.Name = "tabCarritos";
+            tabCarritos.SelectedIndex = 0;
+            tabCarritos.Size = new Size(247, 28);
+            tabCarritos.TabIndex = 19;
+            tabCarritos.SelectedIndexChanged += tabCarritos_SelectedIndexChanged;
+            // 
+            // btnAgregarCarrito
+            // 
+            btnAgregarCarrito.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnAgregarCarrito.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnAgregarCarrito.Location = new Point(270, 462);
+            btnAgregarCarrito.Name = "btnAgregarCarrito";
+            btnAgregarCarrito.Size = new Size(36, 28);
+            btnAgregarCarrito.TabIndex = 20;
+            btnAgregarCarrito.Text = "+";
+            btnAgregarCarrito.UseVisualStyleBackColor = true;
+            btnAgregarCarrito.Click += btnAgregarCarrito_Click;
+            // 
+            // btnCerrarCarrito
+            // 
+            btnCerrarCarrito.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnCerrarCarrito.Enabled = false;
+            btnCerrarCarrito.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnCerrarCarrito.ForeColor = Color.Maroon;
+            btnCerrarCarrito.Location = new Point(309, 462);
+            btnCerrarCarrito.Name = "btnCerrarCarrito";
+            btnCerrarCarrito.Size = new Size(36, 28);
+            btnCerrarCarrito.TabIndex = 21;
+            btnCerrarCarrito.Text = "X";
+            btnCerrarCarrito.UseVisualStyleBackColor = true;
+            btnCerrarCarrito.Click += btnCerrarCarrito_Click;
             // 
             // txtDescuento
             // 
@@ -224,7 +266,7 @@ namespace StockControl
             dataGridView2.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridView2.Location = new Point(20, 22);
             dataGridView2.Name = "dataGridView2";
-            dataGridView2.Size = new Size(341, 466);
+            dataGridView2.Size = new Size(341, 436);
             dataGridView2.TabIndex = 5;
             dataGridView2.CellBeginEdit += dataGridViewProductos_CellBeginEdit;
             dataGridView2.CellMouseDoubleClick += dataGridView2_CellMouseDoubleClick;
@@ -488,5 +530,8 @@ namespace StockControl
         private TextBox txtDescuento;
         private CheckBox chkDescuento;
         private CheckBox chkCosto;
+        private TabControl tabCarritos;
+        private Button btnAgregarCarrito;
+        private Button btnCerrarCarrito;
     }
 }

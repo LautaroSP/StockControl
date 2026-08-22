@@ -12,30 +12,49 @@ namespace StockControl
     {
         private ProductoRepository _prodRepository = new ProductoRepository();
         List<Producto> productos = new List<Producto>();
-        private BindingList<ItemSeleccionado> _carrito;
+        private readonly List<CarritoSesion> _sesiones = new();
+        private CarritoSesion _sesionActual = null!;
+        private bool _cambiandoPestaña;
         private InformeVentaRepository _informeVentaRepository = new InformeVentaRepository();
         private ConfiguracionRepository _configuracionRepository = new ConfiguracionRepository();
         public static string nombreLocal;
         public static string factorGanancia;
         public static decimal _factorGanancia;
-        private string MetodoDePago = string.Empty;
         private MetodoPagoRepository _metodoPagoRepository = new MetodoPagoRepository();
         public static decimal IVA;
         public static string factorIVA;
         private List<MetodoDePago> metodosDePago = new List<MetodoDePago>();
-        private List<MetodoDePago> multiplesMetodos = new List<MetodoDePago>();
         private GrupoRepository _grupoRepository = new GrupoRepository();
-        private bool imprimirTicket = true;
         private bool editandoProductoSector = false;
         private List<ItemSeleccionado> prodGenericos = new();
         private int _medioPagoToken;
         private bool _clickEnCheckDescuento;
 
+        private BindingList<ItemSeleccionado> _carrito => _sesionActual.Items;
+
+        private string MetodoDePago
+        {
+            get => _sesionActual.MetodoPago;
+            set => _sesionActual.MetodoPago = value ?? string.Empty;
+        }
+
+        private List<MetodoDePago> multiplesMetodos
+        {
+            get => _sesionActual.MultiplesMetodos;
+            set => _sesionActual.MultiplesMetodos = value ?? new List<MetodoDePago>();
+        }
+
+        private bool imprimirTicket
+        {
+            get => _sesionActual.ImprimirTicket;
+            set => _sesionActual.ImprimirTicket = value;
+        }
+
         public StockMain()
         {
             InitializeComponent();
             this.Icon = new Icon("Resources\\stockIcon.ico");
-            _carrito = new BindingList<ItemSeleccionado>();
+            InicializarCarritos();
             dataGridView2.AutoGenerateColumns = false;
             CrearDataGrid2();
             dataGridView2.DataSource = _carrito;
@@ -404,6 +423,21 @@ namespace StockControl
         private void brnCancelar_Click(object sender, EventArgs e)
         {
             _carrito.Clear();
+            _cambiandoPestaña = true;
+            try
+            {
+                chkCosto.Checked = false;
+                chkDescuento.Checked = false;
+                txtDescuento.Text = string.Empty;
+                txtDescuento.Enabled = false;
+            }
+            finally
+            {
+                _cambiandoPestaña = false;
+            }
+            _sesionActual.CobrarAlCosto = false;
+            _sesionActual.DescuentoActivo = false;
+            _sesionActual.DescuentoTexto = string.Empty;
             dataGridView2.Refresh();
             CalcularTotal();
         }
@@ -529,16 +563,8 @@ namespace StockControl
                     {
                         ImprimirTicket();
                     }
-                    
-                    // Limpiar carrito solo si todo fue exitoso
-                    _carrito.Clear();
-                    dataGridView2.Refresh();
-                    multiplesMetodos.Clear(); // Limpiar métodos múltiples locales
-                    chkMultiPago.Checked = false;
-                    lblItems.Text = "0";
-                    txtTotal.Text = "0";
-                    chkCosto.Checked = false;
-                    chkDescuento.Checked = false;
+
+                    CerrarSesionActual(confirmarSiTieneItems: false);
                 }
                 VolverAScanner();
             }
@@ -689,8 +715,7 @@ namespace StockControl
             }
             if (frmInformeVentas.DialogResult == DialogResult.Yes)
             {
-                _carrito.Clear();
-                _carrito = new BindingList<ItemSeleccionado>(frmInformeVentas.ticket);
+                _sesionActual.Items = new BindingList<ItemSeleccionado>(frmInformeVentas.ticket);
                 dataGridView2.DataSource = null;
                 dataGridView2.DataSource = _carrito;
                 ActualizarTotal();
@@ -948,6 +973,13 @@ namespace StockControl
 
         private void cbMetodosPago_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (_cambiandoPestaña)
+            {
+                if (cbMetodosPago.SelectedItem?.ToString() != "Agregar m�todo de pago...")
+                    MetodoDePago = cbMetodosPago.SelectedItem?.ToString();
+                return;
+            }
+
             if (cbMetodosPago.SelectedItem?.ToString() == "Agregar m�todo de pago...")
             {
                 string nuevo = Interaction.InputBox("Ingrese el nuevo m�todo de pago:", "Nuevo m�todo", "");
@@ -988,6 +1020,9 @@ namespace StockControl
 
         private void chkMultiPago_CheckedChanged(object sender, EventArgs e)
         {
+            if (_cambiandoPestaña)
+                return;
+
             if (chkMultiPago.Checked)
             {
                 if (_carrito.Count == 0)
@@ -1001,9 +1036,14 @@ namespace StockControl
                 if (frmMetodoPago.DialogResult == DialogResult.OK)
                 {
                     multiplesMetodos = frmMetodoPago._metodosDePago;
+                    _sesionActual.PagoMultiple = true;
                 }
                 else
                     chkMultiPago.Checked = false;
+            }
+            else
+            {
+                _sesionActual.PagoMultiple = false;
             }
         }
 
@@ -1071,6 +1111,12 @@ namespace StockControl
 
         private void chkDescuento_CheckedChanged(object sender, EventArgs e)
         {
+            if (_cambiandoPestaña)
+            {
+                txtDescuento.Enabled = chkDescuento.Checked;
+                return;
+            }
+
             if (chkDescuento.Checked)
             {
                 _clickEnCheckDescuento = false;
@@ -1232,11 +1278,205 @@ namespace StockControl
 
         private void chkCosto_CheckedChanged(object sender, EventArgs e)
         {
+            if (_cambiandoPestaña)
+                return;
             CalcularTotal();
+        }
+
+        private void InicializarCarritos()
+        {
+            _sesiones.Clear();
+            tabCarritos.TabPages.Clear();
+            AgregarSesion(seleccionar: true);
+        }
+
+        private CarritoSesion AgregarSesion(bool seleccionar)
+        {
+            var sesion = new CarritoSesion();
+            _sesiones.Add(sesion);
+            tabCarritos.TabPages.Add(new TabPage());
+            ActualizarTitulosPestañas();
+            if (seleccionar)
+            {
+                _sesionActual = sesion;
+                _cambiandoPestaña = true;
+                try
+                {
+                    tabCarritos.SelectedIndex = _sesiones.Count - 1;
+                }
+                finally
+                {
+                    _cambiandoPestaña = false;
+                }
+            }
+            btnCerrarCarrito.Enabled = _sesiones.Count > 1;
+            return sesion;
+        }
+
+        private void ActualizarTitulosPestañas()
+        {
+            for (int i = 0; i < tabCarritos.TabPages.Count; i++)
+            {
+                string titulo = (i + 1).ToString();
+                if (i < 4)
+                    titulo += $" F{i + 1}";
+                tabCarritos.TabPages[i].Text = titulo;
+            }
+        }
+
+        private void GuardarEstadoSesion()
+        {
+            if (_sesionActual == null || _cambiandoPestaña)
+                return;
+
+            _sesionActual.CobrarAlCosto = chkCosto.Checked;
+            _sesionActual.DescuentoActivo = chkDescuento.Checked;
+            _sesionActual.DescuentoTexto = txtDescuento.Text;
+            _sesionActual.PagoMultiple = chkMultiPago.Checked;
+            _sesionActual.ImprimirTicket = chkImprimirTicket.Checked;
+
+            var seleccionado = cbMetodosPago.SelectedItem?.ToString();
+            if (!string.IsNullOrEmpty(seleccionado) && seleccionado != "Agregar m�todo de pago...")
+                _sesionActual.MetodoPago = seleccionado;
+        }
+
+        private void RestaurarEstadoSesion()
+        {
+            if (_sesionActual == null)
+                return;
+
+            _cambiandoPestaña = true;
+            try
+            {
+                dataGridView2.DataSource = null;
+                dataGridView2.DataSource = _carrito;
+
+                chkCosto.Checked = _sesionActual.CobrarAlCosto;
+                txtDescuento.Text = _sesionActual.DescuentoTexto;
+                chkDescuento.Checked = _sesionActual.DescuentoActivo;
+                txtDescuento.Enabled = _sesionActual.DescuentoActivo;
+
+                chkImprimirTicket.Checked = _sesionActual.ImprimirTicket;
+                chkMultiPago.Checked = _sesionActual.PagoMultiple;
+
+                int indicePago = -1;
+                if (!string.IsNullOrEmpty(_sesionActual.MetodoPago))
+                {
+                    for (int i = 0; i < cbMetodosPago.Items.Count; i++)
+                    {
+                        if (cbMetodosPago.Items[i]?.ToString() == _sesionActual.MetodoPago)
+                        {
+                            indicePago = i;
+                            break;
+                        }
+                    }
+                }
+                if (indicePago >= 0)
+                    cbMetodosPago.SelectedIndex = indicePago;
+                else if (string.IsNullOrEmpty(_sesionActual.MetodoPago) && cbMetodosPago.Items.Count > 1)
+                    cbMetodosPago.SelectedIndex = 0;
+
+                btnCerrarCarrito.Enabled = _sesiones.Count > 1;
+            }
+            finally
+            {
+                _cambiandoPestaña = false;
+            }
+
+            CalcularTotal();
+        }
+
+        private void CerrarSesionActual(bool confirmarSiTieneItems)
+        {
+            if (_sesiones.Count == 0)
+                return;
+
+            if (confirmarSiTieneItems && _carrito.Count > 0)
+            {
+                var result = MessageBox.Show(
+                    "Este carrito tiene productos. ¿Desea cerrarlo?",
+                    "Cerrar carrito",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+                if (result != DialogResult.Yes)
+                    return;
+            }
+
+            int indice = _sesiones.IndexOf(_sesionActual);
+            if (indice < 0)
+                indice = tabCarritos.SelectedIndex;
+            if (indice < 0)
+                indice = 0;
+
+            _sesiones.RemoveAt(indice);
+            tabCarritos.TabPages.RemoveAt(indice);
+
+            if (_sesiones.Count == 0)
+            {
+                AgregarSesion(seleccionar: true);
+                RestaurarEstadoSesion();
+                return;
+            }
+
+            int nuevoIndice = Math.Min(indice, _sesiones.Count - 1);
+            _sesionActual = _sesiones[nuevoIndice];
+            ActualizarTitulosPestañas();
+            _cambiandoPestaña = true;
+            try
+            {
+                tabCarritos.SelectedIndex = nuevoIndice;
+            }
+            finally
+            {
+                _cambiandoPestaña = false;
+            }
+            RestaurarEstadoSesion();
+        }
+
+        private void tabCarritos_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_cambiandoPestaña || tabCarritos.SelectedIndex < 0)
+                return;
+            if (tabCarritos.SelectedIndex >= _sesiones.Count)
+                return;
+            if (_sesiones[tabCarritos.SelectedIndex] == _sesionActual)
+                return;
+
+            GuardarEstadoSesion();
+            _sesionActual = _sesiones[tabCarritos.SelectedIndex];
+            RestaurarEstadoSesion();
+        }
+
+        private void btnAgregarCarrito_Click(object sender, EventArgs e)
+        {
+            GuardarEstadoSesion();
+            AgregarSesion(seleccionar: true);
+            RestaurarEstadoSesion();
+            VolverAScanner();
+        }
+
+        private void btnCerrarCarrito_Click(object sender, EventArgs e)
+        {
+            if (_sesiones.Count <= 1)
+                return;
+            CerrarSesionActual(confirmarSiTieneItems: true);
+            VolverAScanner();
         }
 
         private void StockMain_KeyDown(object? sender, KeyEventArgs e)
         {
+            if (e.KeyCode is Keys.F1 or Keys.F2 or Keys.F3 or Keys.F4)
+            {
+                int indice = e.KeyCode - Keys.F1;
+                if (indice < _sesiones.Count)
+                {
+                    tabCarritos.SelectedIndex = indice;
+                }
+                e.SuppressKeyPress = true;
+                e.Handled = true;
+                return;
+            }
+
             if (e.Control && e.KeyCode == Keys.P)
             {
                 e.SuppressKeyPress = true;

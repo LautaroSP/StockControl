@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grupos — StockControl</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body data-min="dueno">
+  <div class="app">
+    <aside data-shell data-active="grupos"></aside>
+    <main class="main">
+      <div data-banner></div>
+      <div class="topbar">
+        <h1>Grupos de precio</h1>
+        <button class="btn btn-primary" type="button">Nuevo grupo</button>
+      </div>
+      <div class="split">
+        <section class="panel">
+          <table class="data">
+            <thead><tr><th>Grupo</th><th class="num">Costo</th><th class="num">Precio</th><th class="num">SKU</th></tr></thead>
+            <tbody>
+              <tr class="selected"><td>Gaseosas 500</td><td class="num">$ 1.400</td><td class="num">$ 2.500</td><td class="num">8</td></tr>
+              <tr><td>Aguas</td><td class="num">$ 900</td><td class="num">$ 1.600</td><td class="num">5</td></tr>
+              <tr><td>Lácteos</td><td class="num">$ 980</td><td class="num">$ 1.450</td><td class="num">11</td></tr>
+            </tbody>
+          </table>
+        </section>
+        <section class="panel pad">
+          <p class="meta" style="margin-top:0">Gaseosas 500 — al guardar, se actualiza el precio de todos.</p>
+          <label class="check"><input type="checkbox" checked /> Coca Cola 500ml</label><br />
+          <label class="check"><input type="checkbox" checked /> Sprite 500ml</label><br />
+          <label class="check"><input type="checkbox" /> Pepsi 500ml</label>
+          <p class="hint">Los productos sector no entran a un grupo. El empleado no ve esta pantalla.</p>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script src="js/shell.js"></script>
+</body>
+</html>

@@ -282,9 +282,9 @@ namespace StockControl
             {
                 txtCantidad.Text = "1";
                 txtCantidad.Enabled = false;
-                txtPrecio.Text = "1";
+                txtPrecio.Text = "0";
                 txtPrecio.Enabled = false;
-                txtCosto.Text = "1";
+                txtCosto.Text = "0";
                 txtCosto.Enabled = false;
                 txtGanancia.Enabled = false;
                 chkGananciaProd.Enabled = false;

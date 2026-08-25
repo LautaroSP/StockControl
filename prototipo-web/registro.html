@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crear cuenta — StockControl</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body>
+  <div class="auth">
+    <form class="panel auth-card" action="plan.html" onsubmit="sessionStorage.setItem('sc_rol','dueno'); sessionStorage.setItem('sc_local','almagro');">
+      <div class="brand" style="border:0;padding:0 0 8px">
+        <strong>StockControl</strong>
+        <span>Solo Argentina</span>
+      </div>
+      <h1>Tu local</h1>
+      <p class="meta">Después elegís trial 7 días o pagar $ 9.999 y queda activo.</p>
+      <div class="field">
+        <label>Tu nombre</label>
+        <input class="wide" type="text" value="Jorge Pérez" />
+      </div>
+      <div class="field">
+        <label>Usuario</label>
+        <input class="wide" type="text" value="jorge" />
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input class="wide" type="password" value="••••••" />
+      </div>
+      <div class="field">
+        <label>Nombre del local</label>
+        <input class="wide" type="text" value="Lo de Pepe" />
+      </div>
+      <button class="btn btn-primary wide" type="submit">Continuar al pago / trial</button>
+      <p class="meta" style="margin-top:14px"><a href="login.html">Ya tengo cuenta</a></p>
+    </form>
+  </div>
+</body>
+</html>

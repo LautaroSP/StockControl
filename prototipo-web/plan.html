@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plan y pago — StockControl</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body data-min="dueno">
+  <div class="app">
+    <aside data-shell data-active="plan"></aside>
+    <main class="main">
+      <div data-banner></div>
+      <div class="topbar">
+        <h1>Plan y pago</h1>
+        <span class="meta">Esto te paga a vos · no es el QR de la caja</span>
+      </div>
+      <div class="split">
+        <section class="panel">
+          <div class="qr-wrap">
+            <p class="meta" style="margin:0">Activar / renovar este local</p>
+            <div class="n" style="font-size:28px;font-weight:700">$ 9.999</div>
+            <div class="qr" id="qrPago"></div>
+            <p class="meta">Escaneá con Mercado Pago. Pim: pagás y queda 30 días al día.</p>
+            <button class="btn btn-primary" type="button" id="btnSimular">Simular pago OK</button>
+          </div>
+          <div class="pad phone-cta">
+            ¿No tenés Mercado Pago?
+            <strong>Contactá a ventas</strong>
+            <div>WhatsApp · 11 5555-0101</div>
+            <p class="hint">Un número tuyo. Lo cobrás como sea y en admin marcás “pago recibido”.</p>
+          </div>
+        </section>
+        <section class="panel pad">
+          <h2 style="margin-top:0;font-size:16px">Este dueño</h2>
+          <table class="data">
+            <thead><tr><th>Local</th><th>Estado</th><th>Vence</th></tr></thead>
+            <tbody>
+              <tr><td>Almagro</td><td><span class="badge">Al día</span></td><td>12 sep</td></tr>
+              <tr><td>Caballito</td><td><span class="badge">Al día</span></td><td>12 sep</td></tr>
+              <tr><td>Flores</td><td><span class="badge wait">Trial</span></td><td>31 ago</td></tr>
+            </tbody>
+          </table>
+          <p class="meta" style="margin-top:12px">Un segundo o tercer local = otro QR de $ 9.999. Los empleados no suman.</p>
+          <p class="meta">Trial: 7 días, un local, caja y productos. Sin contratar otro. Sin factura en v1.</p>
+        </section>
+      </div>
+    </main>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="js/shell.js"></script>
+  <script>
+    document.getElementById("btnSimular").onclick = () => {
+      sessionStorage.removeItem("sc_trial");
+      const t = document.getElementById("toast");
+      t.textContent = "Pago acreditado · local al día 30 días (prototipo)";
+      t.classList.add("show");
+      setTimeout(() => location.href = "caja.html", 900);
+    };
+  </script>
+</body>
+</html>

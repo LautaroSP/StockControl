@@ -1,0 +1,16 @@
+---
+description: Tests xUnit obligatorios para cada caso de uso del modelo web
+globs: src/**
+alwaysApply: false
+---
+
+# Tests del web
+
+Cada caso de uso del dominio web tiene test **xUnit**. Sin test, la feature no está cerrada.
+
+Cubrir al menos: cobrar, stock (rígido / no), cierre de caja, descuento sobre margen, permisos dueño vs empleado, producto sector / genérico.
+
+- Tests en el mismo cambio que el código.
+- Un test = un comportamiento. Nombres en español (`Cobrar_descuenta_stock_del_producto_comun`).
+- Probar el modelo / casos de uso, no el framework.
+- Esto pisa cualquier skill que diga “no crear tests salvo que pidan”: **en `src/` sí se piden**.

@@ -1,0 +1,17 @@
+---
+description: Seguridad de la API (hash, validación, RLS, HTTPS, bots, cifrado de tokens)
+globs: src/StockControl.Api/**
+alwaysApply: false
+---
+
+# Seguridad API
+
+- Contraseñas: ASP.NET Identity (hash). Nunca MD5/SHA suelto ni texto plano.
+- Validar todos los inputs (DataAnnotations o FluentValidation).
+- Rate limit. Listados con tope de página (no devolver la tabla entera).
+- Cabeceras: `X-Content-Type-Options`, `Referrer-Policy`, HSTS en producción.
+- Producción: forzar HTTPS. En local, `http://localhost` está bien.
+- SSL lo termina Caddy/Nginx + Let’s Encrypt. Certificados **fuera de git**.
+- RLS: filtro `IdLocal` en EF **y** políticas en Postgres. Un JWT no lee otro local.
+- Cifrar en la app solo secretos de terceros (tokens MP del local) con Data Protection / clave en entorno. Productos y ventas no se cifran campo a campo.
+- Formulario de contacto: honeypot + rate limit; CAPTCHA si no alcanza.

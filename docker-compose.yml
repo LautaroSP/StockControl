@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: stockcontrol
+      POSTGRES_PASSWORD: stockcontrol
+      POSTGRES_DB: stockcontrol
+    volumes:
+      - stockcontrol_pg:/var/lib/postgresql/data
+
+volumes:
+  stockcontrol_pg:

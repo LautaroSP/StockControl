@@ -106,6 +106,8 @@ namespace StockControl
             // Asignar la imagen al bot�n
             btnConfiguracion.Image = bmpRedimensionado;
             dataGridView2.CellEndEdit += dataGridView2_CellEndEdit;
+            dataGridView2.CellParsing += dataGridView2_CellParsing;
+            dataGridView2.DataError += dataGridView2_DataError;
 
         }
 
@@ -282,7 +284,7 @@ namespace StockControl
                     {
                         Codigo = producto.Codigo,
                         Nombre = producto.Nombre,
-                        Precio = producto.Precio,
+                        Precio = producto.ProductoSector == 1 ? 0 : producto.Precio,
                         Cantidad = 1,
                         IdProducto = producto.Id
                     };
@@ -306,6 +308,10 @@ namespace StockControl
 
         private void SeleccionarPrecioProductoSector(Producto producto)
         {
+            if (dataGridView2.Rows.Count == 0)
+                return;
+
+            editandoProductoSector = true;
             int lastRow = dataGridView2.Rows.Count - 1;
             int colPrecio = 3;
 
@@ -347,8 +353,40 @@ namespace StockControl
                     };
                     prodGenericos.Add(prodGenerico);
                 }
+                editandoProductoSector = false;
                 VolverAScanner();
             }
+        }
+
+        private void dataGridView2_CellParsing(object sender, DataGridViewCellParsingEventArgs e)
+        {
+            if (e.RowIndex < 0)
+                return;
+            if (dataGridView2.Columns[e.ColumnIndex].Name != "Precio")
+                return;
+
+            var text = e.Value?.ToString()?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(text) || !TryParseDecimal(text, out decimal value))
+            {
+                e.Value = 0m;
+                e.ParsingApplied = true;
+                return;
+            }
+
+            e.Value = value;
+            e.ParsingApplied = true;
+        }
+
+        private void dataGridView2_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            if (e.RowIndex < 0)
+                return;
+            if (dataGridView2.Columns[e.ColumnIndex].Name != "Precio")
+                return;
+
+            e.ThrowException = false;
+            e.Cancel = false;
+            dataGridView2.Rows[e.RowIndex].Cells[e.ColumnIndex].Value = 0m;
         }
 
         private void IrACelda(int row, int col)
@@ -792,7 +830,7 @@ namespace StockControl
                             {
                                 Codigo = producto.Codigo,
                                 Nombre = producto.Nombre,
-                                Precio = producto.Precio,
+                                Precio = producto.ProductoSector == 1 ? 0 : producto.Precio,
                                 Cantidad = 1,
                                 IdProducto = producto.Id
                             });
@@ -840,7 +878,7 @@ namespace StockControl
                                         {
                                             Codigo = producto.Codigo,
                                             Nombre = producto.Nombre,
-                                            Precio = producto.Precio,
+                                            Precio = producto.ProductoSector == 1 ? 0 : producto.Precio,
                                             Cantidad = 1,
                                             IdProducto = producto.Id
                                         });

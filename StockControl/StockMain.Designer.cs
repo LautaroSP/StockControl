@@ -204,8 +204,8 @@ namespace StockControl
             // 
             chkImprimirTicket.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             chkImprimirTicket.AutoSize = true;
-            chkImprimirTicket.Checked = true;
-            chkImprimirTicket.CheckState = CheckState.Checked;
+            chkImprimirTicket.Checked = false;
+            chkImprimirTicket.CheckState = CheckState.Unchecked;
             chkImprimirTicket.Location = new Point(182, 567);
             chkImprimirTicket.Name = "chkImprimirTicket";
             chkImprimirTicket.Size = new Size(107, 19);

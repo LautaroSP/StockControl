@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Empleados — StockControl</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body data-min="dueno">
+  <div class="app">
+    <aside data-shell data-active="empleados"></aside>
+    <main class="main">
+      <div data-banner></div>
+      <div class="topbar">
+        <h1>Empleados</h1>
+        <span class="meta">Ilimitados · no cambian el abono</span>
+      </div>
+      <div class="split">
+        <section class="panel">
+          <table class="data">
+            <thead>
+              <tr><th>Nombre</th><th>Usuario</th><th>Locales</th><th>Estado</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Ana López</td><td>ana</td><td>Almagro</td><td><span class="badge">Activa</span></td></tr>
+              <tr><td>Pedro Ruiz</td><td>pedro</td><td>Almagro, Caballito</td><td><span class="badge">Activo</span></td></tr>
+              <tr><td>Lucía</td><td>lucia</td><td>Flores</td><td><span class="badge off">Desactivada</span></td></tr>
+            </tbody>
+          </table>
+        </section>
+        <section class="panel">
+          <div class="form-grid">
+            <div class="field wide">
+              <label>Nombre</label>
+              <input class="wide" type="text" placeholder="Nombre" />
+            </div>
+            <div class="field">
+              <label>Usuario</label>
+              <input class="wide" type="text" placeholder="usuario" />
+            </div>
+            <div class="field">
+              <label>Contraseña</label>
+              <input class="wide" type="password" placeholder="••••••" />
+            </div>
+            <div class="field wide">
+              <label>Locales</label>
+              <label class="check"><input type="checkbox" checked /> Almagro</label>
+              <label class="check"><input type="checkbox" /> Caballito</label>
+              <label class="check"><input type="checkbox" /> Flores</label>
+            </div>
+            <div class="wide">
+              <button class="btn btn-primary" type="button">Guardar empleado</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script src="js/shell.js"></script>
+</body>
+</html>

@@ -11,6 +11,6 @@ namespace StockControl.Domain
         public string MetodoPago { get; set; } = string.Empty;
         public bool PagoMultiple { get; set; }
         public List<MetodoDePago> MultiplesMetodos { get; set; } = new();
-        public bool ImprimirTicket { get; set; } = true;
+        public bool ImprimirTicket { get; set; } = false;
     }
 }

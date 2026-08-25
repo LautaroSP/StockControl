@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Informes — StockControl</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body>
+  <div class="app">
+    <aside data-shell data-active="informes"></aside>
+    <main class="main">
+      <div data-banner></div>
+      <div class="topbar">
+        <h1>Informes</h1>
+        <div class="row">
+          <button class="btn btn-primary" type="button" id="btnCerrar">Cerrar caja de hoy</button>
+          <button class="btn" type="button">Cerrar caja anterior</button>
+        </div>
+      </div>
+      <div class="kpis">
+        <div class="panel kpi"><div class="n">$ 186.400</div><div class="l">Ventas de hoy (sin cerrar)</div></div>
+        <div class="panel kpi"><div class="n">47</div><div class="l">Tickets</div></div>
+        <div class="panel kpi"><div class="n">14</div><div class="l">Próximo nro de caja</div></div>
+        <div class="panel kpi"><div class="n">Ana</div><div class="l">Puede cerrar (empleado)</div></div>
+      </div>
+      <section class="panel" id="cierre" style="display:none;margin-bottom:16px">
+        <div class="toolbar" style="padding:12px 12px 0">
+          <strong style="font-size:14px">Caja nro 14 · 24 ago 2026 · cerró Ana</strong>
+        </div>
+        <table class="data">
+          <thead>
+            <tr><th>Nro caja</th><th>Medio de pago</th><th class="num">Cant. ventas</th><th class="num">Total</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>14</td><td>Efectivo</td><td class="num">22</td><td class="num">$ 92.100</td></tr>
+            <tr><td>14</td><td>Mercado Pago</td><td class="num">18</td><td class="num">$ 94.300</td></tr>
+            <tr><td>14</td><td>Transferencia</td><td class="num">7</td><td class="num">$ 12.000</td></tr>
+            <tr><td>14</td><td><strong>Total</strong></td><td class="num">47</td><td class="num"><strong>$ 198.400</strong></td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="panel">
+        <div class="toolbar" style="padding:12px 12px 0">
+          <strong style="font-size:14px">Ventas de hoy</strong>
+          <span class="meta" data-dueno-only>Dueño puede borrar y devolver stock. Empleado reimprime / copia al carrito.</span>
+          <span class="meta" data-empleado-only>Podés reimprimir. No podés borrar una venta.</span>
+        </div>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th class="num">Total</th>
+              <th>Método</th>
+              <th>Notas</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>21:14</td><td class="num">$ 4.900</td><td>Efectivo</td><td></td></tr>
+            <tr><td>20:51</td><td class="num">$ 12.300</td><td>Múltiple</td><td>Efectivo + MP</td></tr>
+            <tr><td>20:22</td><td class="num">$ 1.800</td><td>Transferencia</td><td>Al costo</td></tr>
+            <tr><td>19:40</td><td class="num">$ 8.750</td><td>Mercado Pago</td><td>Desc. 10%</td></tr>
+            <tr><td>18:05</td><td class="num">$ 2.500</td><td>Efectivo</td><td></td></tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+  <script src="js/shell.js"></script>
+  <script>
+    document.getElementById("btnCerrar").onclick = () => {
+      document.getElementById("cierre").style.display = "block";
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Alta de local — Admin</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body>
+  <div class="app">
+    <aside data-shell="admin" data-active="alta"></aside>
+    <main class="main">
+      <div class="topbar">
+        <h1>Alta de local</h1>
+        <a class="btn" href="admin.html">Volver al listado</a>
+      </div>
+      <section class="panel">
+        <div class="form-grid">
+          <div class="field">
+            <label>Dueño (existente o nuevo)</label>
+            <input class="wide" type="text" value="Jorge Pérez" />
+          </div>
+          <div class="field">
+            <label>Usuario dueño</label>
+            <input class="wide" type="text" value="jorge" />
+          </div>
+          <div class="field">
+            <label>Nombre del local</label>
+            <input class="wide" type="text" placeholder="Ej. Lo de Pepe — Villa Crespo" />
+          </div>
+          <div class="field">
+            <label>Barrio / ciudad</label>
+            <input class="wide" type="text" placeholder="Villa Crespo" />
+          </div>
+          <div class="field">
+            <label>Estado inicial</label>
+            <select class="wide">
+              <option>Al día (30 días)</option>
+              <option>Trial 7 días</option>
+              <option>Pago recibido (marcar a mano)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Vence</label>
+            <input class="wide" type="text" value="23 sep 2026" />
+          </div>
+          <div class="field wide">
+            <label>Teléfono de ventas (lo ve el dueño si no tiene MP)</label>
+            <input class="wide" type="text" value="11 5555-0101" />
+          </div>
+          <div class="wide">
+            <button class="btn btn-primary" type="button">Crear local</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="js/shell.js"></script>
+</body>
+</html>

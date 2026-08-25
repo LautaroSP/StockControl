@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Printing;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -182,7 +183,8 @@ namespace StockControl
                                            .Select(g => new Caja
                                            {
                                                MetodoPago = g.Key,
-                                               Total = g.Sum(i => i.Total)
+                                               Total = g.Sum(i => i.Total),
+                                               CantidadVentas = g.Count()
                                            }).ToList();
 
             var informeTotalDia = informeCajaCerrada.Sum(i => i.Total);
@@ -197,7 +199,8 @@ namespace StockControl
             informeCajaCerrada.Add(new Caja
             {
                 MetodoPago = "Total",
-                Total = informeTotalDia
+                Total = informeTotalDia,
+                CantidadVentas = informesDelDia.Count
             });
             _informeVentaRepository.InsertarCajaCerradaPorLista(informeCajaCerrada);
 
@@ -221,7 +224,7 @@ namespace StockControl
             foreach (DataGridViewColumn column in dtCajas.Columns)
                 column.SortMode = DataGridViewColumnSortMode.Programmatic;
 
-            dtCajas.Columns["IdCaja"].Visible = false;
+            ConfigurarColumnasCajas(dtCajas);
 
             // Asociar el evento (por si no lo hiciste en el diseñador)
             dtCajas.ColumnHeaderMouseClick -= dtCajas_ColumnHeaderMouseClick;
@@ -276,7 +279,20 @@ namespace StockControl
 
             lastSortColumnCajas = propName;
             lastSortAscCajas = asc;
-            dtCajas.Columns["IdCaja"].Visible = false;
+            ConfigurarColumnasCajas(dtCajas);
+        }
+
+        private void ConfigurarColumnasCajas(DataGridView grid)
+        {
+            if (grid.Columns["IdCaja"] != null)
+                grid.Columns["IdCaja"].Visible = false;
+            if (grid.Columns["CantidadVentas"] != null)
+                grid.Columns["CantidadVentas"].HeaderText = "Cantidad de ventas";
+            if (grid.Columns["Total"] != null)
+            {
+                grid.Columns["Total"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
+                grid.Columns["Total"].DefaultCellStyle.Format = "C2";
+            }
         }
 
         private void chkTodos_CheckedChanged(object sender, EventArgs e)
@@ -288,6 +304,7 @@ namespace StockControl
             else
                 dtCajas.DataSource = cajasFiltradas;
 
+            ConfigurarColumnasCajas(dtCajas);
             dtCajas.Refresh();
         }
 
@@ -346,6 +363,49 @@ namespace StockControl
             DialogResult = DialogResult.Yes;
             this.Close();
         }
+        private void btnImprimirTicket_Click(object sender, EventArgs e)
+        {
+            var row = dataGridView1.CurrentRow;
+            if (row == null)
+            {
+                MessageBox.Show("No hay ninguna fila seleccionada.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var informe = (InformeVenta)dataGridView1.CurrentRow.DataBoundItem;
+            var informeDetalle = _informeVentaRepository.ListarInformeVentaDetalle(informe.IdInformeVenta);
+
+            if (informeDetalle.Count == 0)
+            {
+                MessageBox.Show("El informe seleccionado no tiene detalles para imprimir.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            List<ItemSeleccionado> items = new();
+            foreach (var item in informeDetalle)
+            {
+                items.Add(new ItemSeleccionado
+                {
+                    Codigo = item.Codigo,
+                    Nombre = item.Nombre,
+                    Cantidad = item.Cantidad,
+                    Precio = item.Precio,
+                    IdProducto = 0
+                });
+            }
+
+            try
+            {
+                TicketPrinter ticketPrinter = new TicketPrinter(items);
+                string impresoraPorDefecto = new PrinterSettings().PrinterName;
+                ticketPrinter.PrintTicketFinal(impresoraPorDefecto);
+                MessageBox.Show("Ticket impreso correctamente.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al imprimir el ticket: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
         private void btnCerrarCajaAnterior_Click(object sender, EventArgs e)
         {
             using (var form = new FrmCerrarCajaAnterior())
@@ -379,7 +439,8 @@ namespace StockControl
                         {
                             Fecha = fechaSeleccionada,
                             MetodoPago = g.Key,
-                            Total = g.Sum(i => i.Total)
+                            Total = g.Sum(i => i.Total),
+                            CantidadVentas = g.Count()
                         }).ToList();
 
                     var informeTotalDia = informeCajaCerrada.Sum(i => i.Total);
@@ -388,7 +449,8 @@ namespace StockControl
                     {
                         Fecha = fechaSeleccionada,
                         MetodoPago = "Total",
-                        Total = informeTotalDia
+                        Total = informeTotalDia,
+                        CantidadVentas = informesDelDia.Count
                     });
 
                     _informeVentaRepository.InsertarCajaCerradaPorLista(informeCajaCerrada);
@@ -399,6 +461,52 @@ namespace StockControl
                     MessageBox.Show("Caja cerrada correctamente.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     tabInformes.SelectedTab = tabPage2;
                 }
+            }
+        }
+        private void btnGenerarResumen_Click(object sender, EventArgs e)
+        {
+            DateTime fechaSeleccionada = dtpMes.Value;
+            DateTime desde = new DateTime(fechaSeleccionada.Year, fechaSeleccionada.Month, 1);
+            DateTime hasta = desde.AddMonths(1);
+
+            var cajasDelMes = _informeVentaRepository.ListarCajasPorRango(desde, hasta);
+
+            var resumen = cajasDelMes
+                .Where(c => c.MetodoPago != "Total")
+                .GroupBy(c => c.MetodoPago)
+                .Select(g => new Caja
+                {
+                    MetodoPago = g.Key,
+                    Total = g.Sum(c => c.Total),
+                    CantidadVentas = g.Sum(c => c.CantidadVentas)
+                })
+                .OrderBy(c => c.MetodoPago)
+                .ToList();
+
+            decimal totalMes = resumen.Sum(c => c.Total);
+            int cantidadVentasMes = resumen.Sum(c => c.CantidadVentas);
+            resumen.Add(new Caja
+            {
+                MetodoPago = "Total",
+                Total = totalMes,
+                CantidadVentas = cantidadVentasMes
+            });
+
+            dtResumen.DataSource = null;
+            dtResumen.DataSource = resumen;
+
+            dtResumen.Columns["IdCaja"].Visible = false;
+            dtResumen.Columns["Fecha"].Visible = false;
+            dtResumen.Columns["MetodoPago"].HeaderText = "Método de Pago";
+            dtResumen.Columns["CantidadVentas"].HeaderText = "Cantidad de ventas";
+            dtResumen.Columns["Total"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
+            dtResumen.Columns["Total"].DefaultCellStyle.Format = "C2";
+
+            lblTotalMes.Text = $"Total del mes: {totalMes.ToString("C2", new CultureInfo("es-AR"))}";
+
+            if (resumen.Count == 1)
+            {
+                MessageBox.Show("No hay cajas cerradas para el mes seleccionado.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 

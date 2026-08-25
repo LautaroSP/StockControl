@@ -36,9 +36,12 @@ namespace StockControl
             lblObliLocal = new Label();
             label2 = new Label();
             txtFactorGanancia = new TextBox();
-            chkValorMoneda = new CheckBox();
             label3 = new Label();
             txtIVA = new TextBox();
+            lblBaseDatos = new Label();
+            txtRutaBdd = new TextBox();
+            btnExaminarBdd = new Button();
+            btnUsarRaizBdd = new Button();
             SuspendLayout();
             // 
             // label1
@@ -61,7 +64,7 @@ namespace StockControl
             // 
             // btnGuardar
             // 
-            btnGuardar.Location = new Point(12, 237);
+            btnGuardar.Location = new Point(12, 310);
             btnGuardar.Name = "btnGuardar";
             btnGuardar.Size = new Size(75, 23);
             btnGuardar.TabIndex = 2;
@@ -71,7 +74,7 @@ namespace StockControl
             // 
             // btnSalir
             // 
-            btnSalir.Location = new Point(93, 237);
+            btnSalir.Location = new Point(93, 310);
             btnSalir.Name = "btnSalir";
             btnSalir.Size = new Size(75, 23);
             btnSalir.TabIndex = 3;
@@ -110,18 +113,6 @@ namespace StockControl
             txtFactorGanancia.TextAlignChanged += txtFactorGanancia_TextAlignChanged;
             txtFactorGanancia.TextChanged += txtFactorGanancia_TextChanged;
             // 
-            // chkValorMoneda
-            // 
-            chkValorMoneda.AutoSize = true;
-            chkValorMoneda.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            chkValorMoneda.Location = new Point(187, 12);
-            chkValorMoneda.Name = "chkValorMoneda";
-            chkValorMoneda.Size = new Size(113, 19);
-            chkValorMoneda.TabIndex = 7;
-            chkValorMoneda.Text = "Valores en Pesos";
-            chkValorMoneda.UseVisualStyleBackColor = true;
-            chkValorMoneda.CheckedChanged += chkValorMoneda_CheckedChanged;
-            // 
             // label3
             // 
             label3.AutoSize = true;
@@ -140,14 +131,55 @@ namespace StockControl
             txtIVA.TabIndex = 9;
             txtIVA.TextChanged += txtIVA_TextChanged;
             // 
+            // lblBaseDatos
+            // 
+            lblBaseDatos.AutoSize = true;
+            lblBaseDatos.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold | FontStyle.Italic);
+            lblBaseDatos.Location = new Point(13, 180);
+            lblBaseDatos.Name = "lblBaseDatos";
+            lblBaseDatos.Size = new Size(105, 20);
+            lblBaseDatos.TabIndex = 10;
+            lblBaseDatos.Text = "Base de datos";
+            // 
+            // txtRutaBdd
+            // 
+            txtRutaBdd.Location = new Point(13, 203);
+            txtRutaBdd.Name = "txtRutaBdd";
+            txtRutaBdd.ReadOnly = true;
+            txtRutaBdd.Size = new Size(289, 23);
+            txtRutaBdd.TabIndex = 11;
+            // 
+            // btnExaminarBdd
+            // 
+            btnExaminarBdd.Location = new Point(13, 232);
+            btnExaminarBdd.Name = "btnExaminarBdd";
+            btnExaminarBdd.Size = new Size(90, 25);
+            btnExaminarBdd.TabIndex = 12;
+            btnExaminarBdd.Text = "Examinar...";
+            btnExaminarBdd.UseVisualStyleBackColor = true;
+            btnExaminarBdd.Click += btnExaminarBdd_Click;
+            // 
+            // btnUsarRaizBdd
+            // 
+            btnUsarRaizBdd.Location = new Point(109, 232);
+            btnUsarRaizBdd.Name = "btnUsarRaizBdd";
+            btnUsarRaizBdd.Size = new Size(90, 25);
+            btnUsarRaizBdd.TabIndex = 13;
+            btnUsarRaizBdd.Text = "Usar raíz";
+            btnUsarRaizBdd.UseVisualStyleBackColor = true;
+            btnUsarRaizBdd.Click += btnUsarRaizBdd_Click;
+            // 
             // Configuracion
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(314, 272);
+            ClientSize = new Size(314, 345);
+            Controls.Add(btnUsarRaizBdd);
+            Controls.Add(btnExaminarBdd);
+            Controls.Add(txtRutaBdd);
+            Controls.Add(lblBaseDatos);
             Controls.Add(txtIVA);
             Controls.Add(label3);
-            Controls.Add(chkValorMoneda);
             Controls.Add(txtFactorGanancia);
             Controls.Add(label2);
             Controls.Add(lblObliLocal);
@@ -172,8 +204,11 @@ namespace StockControl
         private Label lblObliLocal;
         private Label label2;
         private TextBox txtFactorGanancia;
-        private CheckBox chkValorMoneda;
         private Label label3;
         private TextBox txtIVA;
+        private Label lblBaseDatos;
+        private TextBox txtRutaBdd;
+        private Button btnExaminarBdd;
+        private Button btnUsarRaizBdd;
     }
 }

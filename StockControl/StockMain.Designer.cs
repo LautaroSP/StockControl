@@ -32,6 +32,9 @@ namespace StockControl
         {
             dataGridView1 = new DataGridView();
             groupBox1 = new GroupBox();
+            tabCarritos = new TabControl();
+            btnAgregarCarrito = new Button();
+            btnCerrarCarrito = new Button();
             txtDescuento = new TextBox();
             chkDescuento = new CheckBox();
             chkCosto = new CheckBox();
@@ -40,7 +43,6 @@ namespace StockControl
             chkImprimirTicket = new CheckBox();
             chkMultiPago = new CheckBox();
             cbMetodosPago = new ComboBox();
-            chkCobroEnPesos = new CheckBox();
             txtTotal = new Label();
             lblTotal = new Label();
             dataGridView2 = new DataGridView();
@@ -57,8 +59,6 @@ namespace StockControl
             label1 = new Label();
             txtScanner = new TextBox();
             btnConfiguracion = new Button();
-            lblDolar = new Label();
-            txtValorDolar = new TextBox();
             btnGrupos = new Button();
             label4 = new Label();
             lblCantProd = new Label();
@@ -82,6 +82,9 @@ namespace StockControl
             // groupBox1
             // 
             groupBox1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
+            groupBox1.Controls.Add(tabCarritos);
+            groupBox1.Controls.Add(btnAgregarCarrito);
+            groupBox1.Controls.Add(btnCerrarCarrito);
             groupBox1.Controls.Add(txtDescuento);
             groupBox1.Controls.Add(chkDescuento);
             groupBox1.Controls.Add(chkCosto);
@@ -90,7 +93,6 @@ namespace StockControl
             groupBox1.Controls.Add(chkImprimirTicket);
             groupBox1.Controls.Add(chkMultiPago);
             groupBox1.Controls.Add(cbMetodosPago);
-            groupBox1.Controls.Add(chkCobroEnPesos);
             groupBox1.Controls.Add(txtTotal);
             groupBox1.Controls.Add(lblTotal);
             groupBox1.Controls.Add(dataGridView2);
@@ -103,6 +105,42 @@ namespace StockControl
             groupBox1.TabStop = false;
             groupBox1.Text = "Opciones";
             // 
+            // tabCarritos
+            // 
+            tabCarritos.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            tabCarritos.Location = new Point(20, 462);
+            tabCarritos.Name = "tabCarritos";
+            tabCarritos.SelectedIndex = 0;
+            tabCarritos.Size = new Size(247, 28);
+            tabCarritos.TabIndex = 19;
+            tabCarritos.SelectedIndexChanged += tabCarritos_SelectedIndexChanged;
+            // 
+            // btnAgregarCarrito
+            // 
+            btnAgregarCarrito.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnAgregarCarrito.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnAgregarCarrito.Location = new Point(270, 462);
+            btnAgregarCarrito.Name = "btnAgregarCarrito";
+            btnAgregarCarrito.Size = new Size(36, 28);
+            btnAgregarCarrito.TabIndex = 20;
+            btnAgregarCarrito.Text = "+";
+            btnAgregarCarrito.UseVisualStyleBackColor = true;
+            btnAgregarCarrito.Click += btnAgregarCarrito_Click;
+            // 
+            // btnCerrarCarrito
+            // 
+            btnCerrarCarrito.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnCerrarCarrito.Enabled = false;
+            btnCerrarCarrito.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnCerrarCarrito.ForeColor = Color.Maroon;
+            btnCerrarCarrito.Location = new Point(309, 462);
+            btnCerrarCarrito.Name = "btnCerrarCarrito";
+            btnCerrarCarrito.Size = new Size(36, 28);
+            btnCerrarCarrito.TabIndex = 21;
+            btnCerrarCarrito.Text = "X";
+            btnCerrarCarrito.UseVisualStyleBackColor = true;
+            btnCerrarCarrito.Click += btnCerrarCarrito_Click;
+            // 
             // txtDescuento
             // 
             txtDescuento.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
@@ -112,6 +150,7 @@ namespace StockControl
             txtDescuento.Size = new Size(45, 23);
             txtDescuento.TabIndex = 18;
             txtDescuento.Enter += txtDescuento_Enter;
+            txtDescuento.KeyDown += txtDescuento_KeyDown;
             txtDescuento.KeyPress += txtDescuento_KeyPress;
             txtDescuento.Leave += txtDescuento_Leave;
             // 
@@ -126,6 +165,7 @@ namespace StockControl
             chkDescuento.Text = "Descuento";
             chkDescuento.UseVisualStyleBackColor = true;
             chkDescuento.CheckedChanged += chkDescuento_CheckedChanged;
+            chkDescuento.MouseDown += chkDescuento_MouseDown;
             // 
             // chkCosto
             // 
@@ -164,8 +204,8 @@ namespace StockControl
             // 
             chkImprimirTicket.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             chkImprimirTicket.AutoSize = true;
-            chkImprimirTicket.Checked = true;
-            chkImprimirTicket.CheckState = CheckState.Checked;
+            chkImprimirTicket.Checked = false;
+            chkImprimirTicket.CheckState = CheckState.Unchecked;
             chkImprimirTicket.Location = new Point(182, 567);
             chkImprimirTicket.Name = "chkImprimirTicket";
             chkImprimirTicket.Size = new Size(107, 19);
@@ -198,18 +238,6 @@ namespace StockControl
             cbMetodosPago.SelectedIndexChanged += cbMetodosPago_SelectedIndexChanged;
             cbMetodosPago.KeyDown += cbMetodosPago_KeyDown;
             // 
-            // chkCobroEnPesos
-            // 
-            chkCobroEnPesos.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            chkCobroEnPesos.AutoSize = true;
-            chkCobroEnPesos.Location = new Point(250, 505);
-            chkCobroEnPesos.Name = "chkCobroEnPesos";
-            chkCobroEnPesos.Size = new Size(111, 19);
-            chkCobroEnPesos.TabIndex = 9;
-            chkCobroEnPesos.Text = "Cobrar en pesos";
-            chkCobroEnPesos.UseVisualStyleBackColor = true;
-            chkCobroEnPesos.CheckedChanged += chkCobroEnPesos_CheckedChanged;
-            // 
             // txtTotal
             // 
             txtTotal.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
@@ -238,7 +266,7 @@ namespace StockControl
             dataGridView2.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridView2.Location = new Point(20, 22);
             dataGridView2.Name = "dataGridView2";
-            dataGridView2.Size = new Size(341, 466);
+            dataGridView2.Size = new Size(341, 436);
             dataGridView2.TabIndex = 5;
             dataGridView2.CellBeginEdit += dataGridViewProductos_CellBeginEdit;
             dataGridView2.CellMouseDoubleClick += dataGridView2_CellMouseDoubleClick;
@@ -394,25 +422,6 @@ namespace StockControl
             btnConfiguracion.UseVisualStyleBackColor = true;
             btnConfiguracion.Click += btnConfiguracion_Click;
             // 
-            // lblDolar
-            // 
-            lblDolar.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            lblDolar.AutoSize = true;
-            lblDolar.Location = new Point(552, 625);
-            lblDolar.Name = "lblDolar";
-            lblDolar.Size = new Size(64, 15);
-            lblDolar.TabIndex = 9;
-            lblDolar.Text = "Valor Dolar";
-            // 
-            // txtValorDolar
-            // 
-            txtValorDolar.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            txtValorDolar.Location = new Point(622, 617);
-            txtValorDolar.Name = "txtValorDolar";
-            txtValorDolar.Size = new Size(100, 23);
-            txtValorDolar.TabIndex = 10;
-            txtValorDolar.Leave += txtValorDolar_Leave;
-            // 
             // btnGrupos
             // 
             btnGrupos.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
@@ -464,8 +473,6 @@ namespace StockControl
             Controls.Add(lblCantProd);
             Controls.Add(label4);
             Controls.Add(btnGrupos);
-            Controls.Add(txtValorDolar);
-            Controls.Add(lblDolar);
             Controls.Add(btnConfiguracion);
             Controls.Add(btnCodeBar);
             Controls.Add(txtScanner);
@@ -479,8 +486,10 @@ namespace StockControl
             Controls.Add(groupBox1);
             Controls.Add(btnAgregar);
             Controls.Add(dataGridView1);
+            KeyPreview = true;
             Name = "StockMain";
             Text = "StockMain";
+            KeyDown += StockMain_KeyDown;
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             groupBox1.ResumeLayout(false);
             groupBox1.PerformLayout();
@@ -509,9 +518,6 @@ namespace StockControl
         private TextBox txtScanner;
         private Button btnConfiguracion;
         private Button btnCodeBar;
-        private CheckBox chkCobroEnPesos;
-        private Label lblDolar;
-        private TextBox txtValorDolar;
         private ComboBox cbMetodosPago;
         private CheckBox chkMultiPago;
         private Button btnGrupos;
@@ -524,5 +530,8 @@ namespace StockControl
         private TextBox txtDescuento;
         private CheckBox chkDescuento;
         private CheckBox chkCosto;
+        private TabControl tabCarritos;
+        private Button btnAgregarCarrito;
+        private Button btnCerrarCarrito;
     }
 }

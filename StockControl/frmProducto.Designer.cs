@@ -42,9 +42,6 @@ namespace StockControl
             txtCosto = new TextBox();
             txtPrecio = new TextBox();
             txtCantidad = new TextBox();
-            txtValorDolar = new TextBox();
-            chkDolar = new CheckBox();
-            lblDoalr = new Label();
             chkGananciaProd = new CheckBox();
             Ganancia = new Label();
             txtGanancia = new TextBox();
@@ -160,34 +157,6 @@ namespace StockControl
             txtCantidad.Name = "txtCantidad";
             txtCantidad.Size = new Size(75, 23);
             txtCantidad.TabIndex = 11;
-            // 
-            // txtValorDolar
-            // 
-            txtValorDolar.Location = new Point(326, 107);
-            txtValorDolar.Name = "txtValorDolar";
-            txtValorDolar.Size = new Size(100, 23);
-            txtValorDolar.TabIndex = 12;
-            txtValorDolar.Leave += txtValorDolar_Leave;
-            // 
-            // chkDolar
-            // 
-            chkDolar.AutoSize = true;
-            chkDolar.Location = new Point(256, 88);
-            chkDolar.Name = "chkDolar";
-            chkDolar.Size = new Size(124, 19);
-            chkDolar.TabIndex = 13;
-            chkDolar.Text = "Producto en Pesos";
-            chkDolar.UseVisualStyleBackColor = true;
-            chkDolar.CheckedChanged += chkDolar_CheckedChanged;
-            // 
-            // lblDoalr
-            // 
-            lblDoalr.AutoSize = true;
-            lblDoalr.Location = new Point(256, 110);
-            lblDoalr.Name = "lblDoalr";
-            lblDoalr.Size = new Size(64, 15);
-            lblDoalr.TabIndex = 14;
-            lblDoalr.Text = "Valor Dolar";
             // 
             // chkGananciaProd
             // 
@@ -315,9 +284,6 @@ namespace StockControl
             Controls.Add(txtGanancia);
             Controls.Add(Ganancia);
             Controls.Add(chkGananciaProd);
-            Controls.Add(lblDoalr);
-            Controls.Add(chkDolar);
-            Controls.Add(txtValorDolar);
             Controls.Add(txtCantidad);
             Controls.Add(txtPrecio);
             Controls.Add(txtCosto);
@@ -350,9 +316,6 @@ namespace StockControl
         private TextBox txtCosto;
         private TextBox txtPrecio;
         private TextBox txtCantidad;
-        private TextBox txtValorDolar;
-        private CheckBox chkDolar;
-        private Label lblDoalr;
         private CheckBox chkGananciaProd;
         private Label Ganancia;
         private TextBox txtGanancia;

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Estadísticas — StockControl</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body data-min="dueno">
+  <div class="app">
+    <aside data-shell data-active="estadisticas"></aside>
+    <main class="main">
+      <div data-banner></div>
+      <div class="topbar">
+        <h1>Estadísticas</h1>
+        <div class="row">
+          <select>
+            <option>Agosto 2026</option>
+            <option>Julio 2026</option>
+          </select>
+          <select>
+            <option>Este local</option>
+            <option>Todos mis locales</option>
+          </select>
+        </div>
+      </div>
+      <div class="kpis">
+        <div class="panel kpi"><div class="n">$ 3.359.600</div><div class="l">Vendido en el mes</div></div>
+        <div class="panel kpi"><div class="n">1.842</div><div class="l">Tickets</div></div>
+        <div class="panel kpi"><div class="n">$ 1.825</div><div class="l">Ticket promedio</div></div>
+        <div class="panel kpi"><div class="n">$ 980.000</div><div class="l">Margen (precio − costo)</div></div>
+      </div>
+      <div class="split">
+        <section class="panel pad">
+          <strong>Más vendidos (unidades)</strong>
+          <table class="data" style="margin-top:8px">
+            <thead><tr><th>Producto</th><th class="num">Unid.</th><th class="num">$</th></tr></thead>
+            <tbody>
+              <tr><td>Coca Cola 500ml</td><td class="num">420</td><td class="num">$ 1.050.000</td></tr>
+              <tr><td>Yerba Playadito 1kg</td><td class="num">188</td><td class="num">$ 789.600</td></tr>
+              <tr><td>Pan lacteal</td><td class="num">156</td><td class="num">$ 280.800</td></tr>
+              <tr><td>Fiambre (sector)</td><td class="num">—</td><td class="num">$ 210.400</td></tr>
+            </tbody>
+          </table>
+        </section>
+        <section class="panel pad">
+          <strong>Mix de pagos</strong>
+          <div class="bar-row"><span>Efectivo</span><div class="bar"><b style="width:55%"></b></div><span class="num">$ 1.842.000</span></div>
+          <div class="bar-row"><span>Mercado Pago</span><div class="bar"><b style="width:33%"></b></div><span class="num">$ 1.105.400</span></div>
+          <div class="bar-row"><span>Transferencia</span><div class="bar"><b style="width:12%"></b></div><span class="num">$ 412.200</span></div>
+          <p class="meta" style="margin:16px 0 8px">Comparar sucursales (mismo mes)</p>
+          <table class="data">
+            <thead><tr><th>Local</th><th class="num">Tickets</th><th class="num">Total</th></tr></thead>
+            <tbody>
+              <tr><td>Almagro</td><td class="num">890</td><td class="num">$ 1.620.000</td></tr>
+              <tr><td>Caballito</td><td class="num">702</td><td class="num">$ 1.210.000</td></tr>
+              <tr><td>Flores</td><td class="num">250</td><td class="num">$ 529.600</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script src="js/shell.js"></script>
+</body>
+</html>

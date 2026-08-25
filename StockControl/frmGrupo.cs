@@ -13,17 +13,14 @@ namespace StockControl
         private BindingList<ProductoDTO> _productosFiltrados = new();
         private int idGrupoSeleccioando = 0;
 
-        private decimal _dolar = 1;
         private readonly ProductoRepository _rprod = new();
         private readonly GrupoRepository _rgrupo = new();
         private bool _actualizando = false;
-        private bool _cobrarEnPesos = false;
 
-        public Grupo(bool cobrarEnPesos)
+        public Grupo()
         {
             InitializeComponent();
             InicializarFormulario();
-            _cobrarEnPesos = cobrarEnPesos;
         }
 
         private void InicializarFormulario()
@@ -183,6 +180,7 @@ namespace StockControl
                         var prod = _rprod.BuscarPorCodigo(producto.CodigoProducto);
                         prod.Precio = grupoSeleccionado.PrecioGrupo;
                         prod.Costo = grupoSeleccionado.Costo;
+                        prod.fechaModificacion = DateTime.Now;
                         _rprod.Actualizar(prod);
                     }
                     else

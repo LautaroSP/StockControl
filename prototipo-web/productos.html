@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Productos — StockControl</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body>
+  <div class="app">
+    <aside data-shell data-active="productos"></aside>
+    <main class="main">
+      <div data-banner></div>
+      <div class="topbar">
+        <h1>Productos</h1>
+        <div class="row">
+          <button class="btn btn-primary" type="button" data-dueno-only>Nuevo producto</button>
+          <a class="btn" href="grupos.html" data-dueno-only>Grupos de precio</a>
+          <button class="btn" type="button" data-dueno-only>Carteles PDF</button>
+          <button class="btn" type="button" id="btnStock">Sumar stock</button>
+        </div>
+      </div>
+      <div class="toolbar" style="margin-bottom:12px">
+        <input class="grow" id="q" type="search" placeholder="Buscar nombre o código" />
+        <select id="tipo">
+          <option value="">Tipo: todos</option>
+          <option value="comun">Común</option>
+          <option value="sector">Sector</option>
+        </select>
+        <select id="grupo">
+          <option value="">Grupo: todos</option>
+          <option>Gaseosas 500</option>
+          <option>Aguas</option>
+          <option>Lácteos</option>
+          <option value="ninguno">Sin grupo</option>
+        </select>
+        <label class="check"><input type="checkbox" id="bajo" /> Stock bajo</label>
+      </div>
+      <section class="panel">
+        <table class="data" id="tabla">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Nombre</th>
+              <th class="num">Stock</th>
+              <th class="num" data-dueno-only>Costo</th>
+              <th class="num">Precio</th>
+              <th>Grupo</th>
+              <th>Tipo</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+      <p class="meta" style="margin-top:12px" data-dueno-only>
+        Dueño: alta, precio, costo, sector, grupo. Empleado: ve la lista, suma stock, no toca precio (salvo que lo habilites en config).
+      </p>
+      <p class="meta" style="margin-top:12px" data-empleado-only>
+        Podés sumar stock. No cambiás precios ni creás productos.
+      </p>
+    </main>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="js/shell.js"></script>
+  <script>
+    const rows = [
+      { codigo: "7790895001234", nombre: "Coca Cola 500ml", stock: 12, costo: "$ 1.400", precio: "$ 2.500", grupo: "Gaseosas 500", tipo: "Común" },
+      { codigo: "7790895005678", nombre: "Pan lacteal", stock: 8, costo: "$ 1.100", precio: "$ 1.800", grupo: "—", tipo: "Común" },
+      { codigo: "7790895009012", nombre: "Agua Villavicencio 2L", stock: 3, costo: "$ 900", precio: "$ 1.600", grupo: "Aguas", tipo: "Común" },
+      { codigo: "SEC-FIAMBRE", nombre: "Fiambre (sector)", stock: 1, costo: "—", precio: "en caja", grupo: "—", tipo: "Sector" },
+      { codigo: "7790895001357", nombre: "Leche La Serísima 1L", stock: 2, costo: "$ 980", precio: "$ 1.450", grupo: "Lácteos", tipo: "Común" },
+      { codigo: "7790895002468", nombre: "Yerba Playadito 1kg", stock: 15, costo: "$ 2.800", precio: "$ 4.200", grupo: "—", tipo: "Ganancia propia" }
+    ];
+    function draw() {
+      const q = document.getElementById("q").value.toLowerCase();
+      const tipo = document.getElementById("tipo").value;
+      const grupo = document.getElementById("grupo").value;
+      const bajo = document.getElementById("bajo").checked;
+      const dueño = SC.esDueño();
+      const list = rows.filter((r) => {
+        if (q && !r.nombre.toLowerCase().includes(q) && !r.codigo.includes(q)) return false;
+        if (tipo === "sector" && r.tipo !== "Sector") return false;
+        if (tipo === "comun" && r.tipo === "Sector") return false;
+        if (grupo === "ninguno" && r.grupo !== "—") return false;
+        if (grupo && grupo !== "ninguno" && r.grupo !== grupo) return false;
+        if (bajo && r.stock >= 5) return false;
+        return true;
+      });
+      document.querySelector("#tabla tbody").innerHTML = list.map((r) => `
+        <tr class="${r.stock < 5 ? "low" : ""}">
+          <td>${r.codigo}</td>
+          <td>${r.nombre}</td>
+          <td class="num">${r.stock}</td>
+          ${dueño ? `<td class="num">${r.costo}</td>` : ""}
+          <td class="num">${r.precio}</td>
+          <td>${r.grupo}</td>
+          <td>${r.tipo}</td>
+        </tr>`).join("");
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      ["q", "tipo", "grupo", "bajo"].forEach((id) => {
+        document.getElementById(id).addEventListener("input", draw);
+        document.getElementById(id).addEventListener("change", draw);
+      });
+      document.getElementById("btnStock").onclick = () => {
+        const t = document.getElementById("toast");
+        t.textContent = "En el real: elegís producto y sumás unidades. Queda quién y cuándo.";
+        t.classList.add("show");
+        setTimeout(() => t.classList.remove("show"), 2200);
+      };
+      draw();
+    });
+  </script>
+</body>
+</html>

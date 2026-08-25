@@ -31,6 +31,19 @@ TestResults/
 *.dbmdl
 .DS_Store
 
+# Secretos / entorno local (web)
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+**/secrets.json
+
+# Angular
+node_modules/
+.angular/
+dist/
+src/StockControl.Web/dist/
+
 # Otros caches / herramientas
 _ReSharper*/
 *.DotSettings.user

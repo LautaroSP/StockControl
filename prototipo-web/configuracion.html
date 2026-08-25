@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Configuración — StockControl</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body data-min="dueno">
+  <div class="app">
+    <aside data-shell data-active="config"></aside>
+    <main class="main">
+      <div data-banner></div>
+      <div class="topbar">
+        <h1>Configuración del local</h1>
+        <span class="meta">Solo dueño · vale para esta sucursal</span>
+      </div>
+      <section class="panel">
+        <div class="form-grid">
+          <div class="field">
+            <label>Nombre en el ticket</label>
+            <input class="wide" type="text" value="Lo de Pepe — Almagro" />
+          </div>
+          <div class="field">
+            <label>IVA</label>
+            <input class="wide" type="text" value="1,21" />
+          </div>
+          <div class="field">
+            <label>Factor de ganancia</label>
+            <input class="wide" type="text" value="1,4" />
+          </div>
+          <div class="field">
+            <label>Alerta stock bajo</label>
+            <input class="wide" type="number" value="5" />
+          </div>
+          <div class="field wide">
+            <label class="check"><input type="checkbox" /> Stock rígido (con 0 no se vende)</label>
+            <p class="hint">Off: se cobra igual y el stock queda en 0.</p>
+          </div>
+          <div class="field wide">
+            <label class="check"><input type="checkbox" /> El empleado puede modificar precios de lista</label>
+            <p class="hint">Off de fábrica. No incluye costo ni ganancia.</p>
+          </div>
+          <div class="field">
+            <label>Ticket</label>
+            <select class="wide">
+              <option>POS térmica</option>
+              <option>A4</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Imprimir al cobrar</label>
+            <select class="wide">
+              <option>No (el cajero tilda)</option>
+              <option>Sí, por defecto</option>
+            </select>
+          </div>
+          <div class="field wide">
+            <label>Carteles</label>
+            <div class="row">
+              <button class="btn" type="button">Usar plantilla genérica</button>
+              <button class="btn" type="button">Subir grande</button>
+              <button class="btn" type="button">Subir chico</button>
+            </div>
+          </div>
+          <div class="field wide">
+            <label>Medios de pago de este local</label>
+            <p class="meta">Efectivo · Transferencia · Mercado Pago · Posnet (manual). El QR integrado de caja es después.</p>
+          </div>
+          <div class="wide">
+            <button class="btn btn-primary" type="button">Guardar</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="js/shell.js"></script>
+</body>
+</html>

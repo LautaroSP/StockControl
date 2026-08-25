@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Locales — Admin StockControl</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body>
+  <div class="app">
+    <aside data-shell="admin" data-active="locales"></aside>
+    <main class="main">
+      <div class="topbar">
+        <h1>Locales suscriptos</h1>
+        <a class="btn btn-primary" href="admin-alta.html">Alta de local</a>
+      </div>
+      <div class="kpis">
+        <div class="panel kpi"><div class="n">6</div><div class="l">Locales al día</div></div>
+        <div class="panel kpi"><div class="n">$ 59.994</div><div class="l">Cobrado este mes (6 × $ 9.999)</div></div>
+        <div class="panel kpi"><div class="n">1</div><div class="l">Trial</div></div>
+        <div class="panel kpi"><div class="n">1</div><div class="l">Vencido</div></div>
+      </div>
+      <section class="panel">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Local</th>
+              <th>Dueño</th>
+              <th>Barrio</th>
+              <th>Estado</th>
+              <th>Vence</th>
+              <th class="num">Empleados</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Lo de Pepe Almagro</td><td>Jorge</td><td>Almagro</td>
+              <td><span class="badge">Al día</span></td><td>12 sep</td><td class="num">2</td>
+            </tr>
+            <tr>
+              <td>Lo de Pepe Caballito</td><td>Jorge</td><td>Caballito</td>
+              <td><span class="badge">Al día</span></td><td>12 sep</td><td class="num">1</td>
+            </tr>
+            <tr>
+              <td>Lo de Pepe Flores</td><td>Jorge</td><td>Flores</td>
+              <td><span class="badge wait">Trial</span></td><td>31 ago</td><td class="num">1</td>
+            </tr>
+            <tr>
+              <td>Kiosco 24</td><td>Marta</td><td>Flores</td>
+              <td><span class="badge">Al día</span></td><td>3 sep</td><td class="num">1</td>
+            </tr>
+            <tr>
+              <td>Dietética Sur</td><td>Luis</td><td>Avellaneda</td>
+              <td><span class="badge wait">Por vencer</span></td><td>24 ago</td><td class="num">1</td>
+            </tr>
+            <tr>
+              <td>Almacén Don Luis</td><td>Luis</td><td>Morón</td>
+              <td><span class="badge off">Vencido</span></td><td>10 ago</td><td class="num">1</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <p class="meta" style="margin-top:12px">
+        Vos das de alta el local o marcás el pago si te contactaron por WhatsApp (11 5555-0101).
+        El dueño no crea sucursales: paga $ 9.999 o habla con ventas.
+      </p>
+    </main>
+  </div>
+  <script src="js/shell.js"></script>
+</body>
+</html>

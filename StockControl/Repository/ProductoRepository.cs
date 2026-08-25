@@ -2,14 +2,15 @@
 using Microsoft.Data.Sqlite;
 using Dapper;
 using System.Collections.Generic;
+using StockControl.Infrastructure;
 
 namespace StockControl.Repository
 {
     public class ProductoRepository
     {
-        private readonly string _connectionString = "Data Source=stock.db";
+        private string ConnectionString => DbPath.ConnectionString;
 
-        private SqliteConnection GetConnection() => new SqliteConnection(_connectionString);
+        private SqliteConnection GetConnection() => new SqliteConnection(ConnectionString);
 
         public void Insertar(Producto p)
         {
@@ -66,9 +67,9 @@ namespace StockControl.Repository
 
             var ids = productosDelGrupo.Select(p => p.Id).ToList();
 
-            var sql = $"UPDATE Productos SET Precio = @precio, Costo = @costo WHERE Id IN ({string.Join(",", ids)})";
+            var sql = $"UPDATE Productos SET Precio = @precio, Costo = @costo, FechaModificacion = @fechaModificacion WHERE Id IN ({string.Join(",", ids)})";
 
-            con.Execute(sql, new { precio = precioGrupo, costo = costo });
+            con.Execute(sql, new { precio = precioGrupo, costo = costo, fechaModificacion = DateTime.Now });
         }
     }
 

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mis locales — StockControl</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body data-min="dueno">
+  <div class="app">
+    <aside data-shell data-active="locales"></aside>
+    <main class="main">
+      <div data-banner></div>
+      <div class="topbar">
+        <h1>Mis locales</h1>
+        <a class="btn btn-primary" href="plan.html">Contratar otro local · $ 9.999</a>
+      </div>
+      <p class="meta" style="margin-bottom:14px">Jorge entra una vez y elige sucursal. Ana no ve esta pantalla: va directo a caja.</p>
+      <div class="cards" id="cards"></div>
+    </main>
+  </div>
+  <script src="js/shell.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const root = document.getElementById("cards");
+      SC.locales.forEach((l) => {
+        const a = document.createElement("a");
+        a.className = "panel card-local";
+        a.href = "caja.html";
+        a.innerHTML = `<span class="badge ${l.estado === "trial" ? "wait" : ""}">${l.estado === "trial" ? "Trial" : "Al día"}</span>
+          <h2>${l.nombre}</h2>
+          <p>${l.full}<br />Vence ${l.vence}</p>`;
+        a.addEventListener("click", () => SC.setLocal(l.id));
+        root.appendChild(a);
+      });
+    });
+  </script>
+</body>
+</html>

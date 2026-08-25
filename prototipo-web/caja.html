@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Caja — StockControl</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body>
+  <div class="app">
+    <aside data-shell data-active="caja"></aside>
+    <main class="main">
+      <div data-banner></div>
+      <div class="topbar">
+        <h1>Caja</h1>
+        <div class="row">
+          <span class="meta">Stock bajo en naranja</span>
+          <input id="scanner" type="text" placeholder="Código + Enter" autofocus style="width:200px" />
+          <button class="btn" id="btnGeneric" type="button">Genérico</button>
+        </div>
+      </div>
+      <div class="caja-grid">
+        <section class="panel list-wrap">
+          <div class="toolbar" style="padding:12px">
+            <input class="grow" id="buscar" type="search" placeholder="Buscar por nombre o código" />
+            <select id="filtroTipo">
+              <option value="">Tipo: todos</option>
+              <option value="comun">Común</option>
+              <option value="sector">Sector</option>
+            </select>
+            <span class="meta" id="cantProd">0 en lista</span>
+          </div>
+          <div class="scroll">
+            <table class="data" id="tablaProd">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Nombre</th>
+                  <th class="num">Stock</th>
+                  <th class="num">Precio</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+        <aside class="panel cart">
+          <h2>Carrito</h2>
+          <div class="scroll" style="min-height:180px;border:1px solid var(--line);border-radius:8px">
+            <table class="data" id="tablaCart">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th class="num">Cant</th>
+                  <th class="num">Subt</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="total-box">
+            <div>
+              <div class="lbl">Ítems</div>
+              <div id="lblItems">0</div>
+            </div>
+            <div>
+              <div class="lbl">Total</div>
+              <div class="val" id="lblTotal">$ 0</div>
+            </div>
+          </div>
+          <div class="checks">
+            <label class="check"><input type="checkbox" id="chkDesc" /> Descuento</label>
+            <input id="txtDesc" type="number" min="0" max="100" value="0" style="width:72px" disabled />
+            <label class="check" data-dueno-only><input type="checkbox" /> Cobrar al costo</label>
+            <label class="check"><input type="checkbox" /> Imprimir ticket</label>
+          </div>
+          <div class="row">
+            <select class="grow" id="medio">
+              <option>Efectivo</option>
+              <option>Transferencia</option>
+              <option>Mercado Pago QR</option>
+              <option>Posnet (manual)</option>
+            </select>
+          </div>
+          <div class="tabs">
+            <button class="tab on" type="button">1 F1</button>
+            <button class="tab" type="button">2 F2</button>
+            <button class="tab" type="button">3 F3</button>
+            <button class="btn" type="button">+</button>
+            <button class="btn" type="button">×</button>
+          </div>
+          <div class="row">
+            <button class="btn btn-charge grow" id="btnCobrar" type="button">COBRAR</button>
+            <button class="btn" id="btnCancelar" type="button">Cancelar</button>
+          </div>
+          <p class="meta">Doble clic agrega / saca. El QR de MP en caja es la última feature: acá se simula.</p>
+        </aside>
+      </div>
+    </main>
+  </div>
+  <div class="modal-back" id="modalQr">
+    <div class="modal">
+      <h2 style="margin:0 0 8px;font-size:18px">QR Mercado Pago</h2>
+      <p class="meta" id="qrMonto">El cliente escanea el total</p>
+      <div class="qr-wrap" style="padding:8px 0 16px">
+        <div class="qr" id="qrCaja"></div>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary grow" type="button" id="qrOk">Simular pagado</button>
+        <button class="btn" type="button" id="qrNo">Cancelar QR</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="js/shell.js"></script>
+  <script src="js/caja.js"></script>
+</body>
+</html>

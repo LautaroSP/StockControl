@@ -5,7 +5,7 @@ namespace StockControl.Infrastructure
 {
     public class DbInitializer
     {
-        private readonly string _connectionString = "Data Source=stock.db";
+        private readonly string _connectionString = DbPath.ConnectionString;
         public void Initialize()
         {
 
@@ -69,7 +69,8 @@ namespace StockControl.Infrastructure
                     IdCaja INTEGER PRIMARY KEY AUTOINCREMENT,
                     Fecha DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
                     Total REAL NOT NULL,
-                    MetodoPago TEXT NOT NULL
+                    MetodoPago TEXT NOT NULL,
+                    CantidadVentas INTEGER NOT NULL DEFAULT 0
                 );";
             cmd.ExecuteNonQuery();
 
@@ -203,6 +204,15 @@ namespace StockControl.Infrastructure
             try
             {
                 cmd.CommandText = "ALTER TABLE InformeVenta ADD COLUMN PrecioCosto TEXT NOT NULL DEFAULT 'NO';";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException ex)
+            {
+                // La columna ya existe, no hacer nada
+            }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE Cajas ADD COLUMN CantidadVentas INTEGER NOT NULL DEFAULT 0;";
                 cmd.ExecuteNonQuery();
             }
             catch (SqliteException ex)

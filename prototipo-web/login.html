@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Entrar — StockControl</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body>
+  <div class="auth">
+    <div class="panel auth-card">
+      <div class="brand" style="border:0;padding:0 0 8px">
+        <strong>StockControl</strong>
+        <span>Argentina · $ 9.999 / mes por local</span>
+      </div>
+      <h1>Entrar</h1>
+      <p class="meta">Prototipo: elegí un rol y recorré las pantallas. En el real es usuario y contraseña.</p>
+
+      <div class="login-roles">
+        <button class="btn btn-primary" type="button" id="btnDueno">Soy Jorge · dueño (3 locales)</button>
+        <button class="btn" type="button" id="btnEmpleado">Soy Ana · empleado (solo Almagro)</button>
+        <button class="btn" type="button" id="btnAdmin">Soy admin · el servicio</button>
+        <button class="btn" type="button" id="btnTrial">Probar 7 días (trial limitado)</button>
+      </div>
+
+      <p class="meta" style="margin-top:16px">
+        ¿Local nuevo? <a href="registro.html">Crear cuenta</a><br />
+        <a href="index.html">Volver al inicio</a>
+      </p>
+    </div>
+  </div>
+  <script src="js/shell.js"></script>
+  <script>
+    document.getElementById("btnDueno").onclick = () => SC.loginAs("dueno");
+    document.getElementById("btnEmpleado").onclick = () => SC.loginAs("empleado");
+    document.getElementById("btnAdmin").onclick = () => SC.loginAs("admin");
+    document.getElementById("btnTrial").onclick = () => SC.loginAs("dueno", { trial: true });
+  </script>
+</body>
+</html>

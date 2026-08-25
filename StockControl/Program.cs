@@ -13,6 +13,7 @@ namespace StockControl
             // To customize application configuration such as set high DPI settings or default font,
             // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
+            DbPath.Load();
             var init = new DbInitializer();
             init.Initialize();
 
@@ -21,7 +22,6 @@ namespace StockControl
                 Application.Run(new StockMain());
                 return;
             }
-
 
             // Si no, abrimos el formulario de activación
             using (var frm = new ActivationForm())

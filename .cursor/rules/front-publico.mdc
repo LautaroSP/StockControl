@@ -1,0 +1,15 @@
+---
+description: Front Angular público (sitemap, carga, sobre nosotros, contacto, FAQ)
+globs: src/StockControl.Web/**
+alwaysApply: false
+---
+
+# Front público
+
+- `sitemap.xml` en el sitio (rutas públicas: inicio, sobre nosotros, contacto, FAQs).
+- Carga: lazy routes, CSS del prototipo (`prototipo-web/css/estilos.css`), sin assets pesados de más.
+- **Modo oscuro** (tarjeta 23): colores solo por variables CSS. Toggle + `localStorage`; si no hay dato, `prefers-color-scheme`. Incluirlo al armar Angular, no como parche después.
+- **Sobre nosotros**: texto real del negocio, no lorem. Si no hay copy, pedirlo; no inventar una empresa.
+- **Contacto**: formulario corto, datos de contacto visibles, botón volver.
+- **FAQs**: sección con preguntas reales (precio $ 9.999, trial, empleados, locales).
+- HTTPS no se implementa en Angular: lo fuerza el reverse proxy (ver rule de API).

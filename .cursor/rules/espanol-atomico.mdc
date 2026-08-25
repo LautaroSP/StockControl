@@ -1,0 +1,19 @@
+---
+description: Nombres en español y código atómico en el web (API y Angular)
+alwaysApply: true
+---
+
+# Español y atómico
+
+El modelo web se nombra en **español**. Inglés solo en tipos del framework (`DbContext`, `HttpClient`, `OnInit`).
+
+```
+✅ Producto, InformeVenta, IdLocal, /productos, caja, empleados
+❌ Product, SaleReport, storeId, /products, cash-register
+```
+
+- Tablas, propiedades, endpoints y componentes Angular en español.
+- Un archivo / una clase = un trabajo. Métodos cortos. Nada “por las dudas”.
+- Preferir editar un archivo existente a crear otro.
+- No tocar el WinForms en `StockControl/` salvo que el usuario lo pida.
+- El prototipo en `prototipo-web/` es maqueta, no se “compila” al producto.

@@ -17,6 +17,7 @@ Todo lo configurable **por sucursal**. El empleado no entra.
 - Ticket: POS o A4; imprimir al cobrar default (tarjeta 18).
 - Plantillas de cartel (tarjeta 19).
 - Vincular Mercado Pago para QR (tarjeta 21, última).
+- Cantidad de cajas / puestos (tarjeta 24).
 
 ## Criterios de aceptación
 

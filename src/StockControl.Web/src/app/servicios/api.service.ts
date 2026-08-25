@@ -92,4 +92,92 @@ export class ApiService {
       cobrarAlCosto
     });
   }
+
+  ventas(opts: { desde?: string; hasta?: string; medio?: string; pagina?: number; tamano?: number } = {}) {
+    let params = new HttpParams().set('tamano', String(opts.tamano ?? 100));
+    if (opts.desde) params = params.set('desde', opts.desde);
+    if (opts.hasta) params = params.set('hasta', opts.hasta);
+    if (opts.medio) params = params.set('medio', opts.medio);
+    if (opts.pagina) params = params.set('pagina', String(opts.pagina));
+    return this.http.get<{
+      total: number;
+      suma: number;
+      pagina: number;
+      tamano: number;
+      items: VentaListaDto[];
+    }>(`${this.base}/ventas`, { params });
+  }
+
+  venta(id: number) {
+    return this.http.get<VentaDetalleDto>(`${this.base}/ventas/${id}`);
+  }
+
+  anularVenta(id: number) {
+    return this.http.delete(`${this.base}/ventas/${id}`);
+  }
+
+  cajas() {
+    return this.http.get<{
+      proximoNro: number;
+      pendientesHoy: { tickets: number; total: number };
+      items: CajaListaDto[];
+    }>(`${this.base}/cajas`);
+  }
+
+  caja(nro: number) {
+    return this.http.get<CajaDetalleDto>(`${this.base}/cajas/${nro}`);
+  }
+
+  cerrarCaja(fecha?: string) {
+    return this.http.post<{ nroCaja: number; filas: { metodoPago: string; cantidadVentas: number; total: number }[] }>(
+      `${this.base}/cajas/cerrar`,
+      fecha ? { fecha } : {}
+    );
+  }
+}
+
+export interface VentaListaDto {
+  idInformeVenta: number;
+  fecha: string;
+  total: number;
+  metodoPago: string;
+  descuento: number;
+  precioCosto: string;
+  nroCaja?: number | null;
+}
+
+export interface VentaDetalleDto {
+  idInformeVenta: number;
+  fecha: string;
+  total: number;
+  subtotal: number;
+  metodoPago: string;
+  descuento: number;
+  precioCosto: string;
+  nroCaja?: number | null;
+  items: {
+    idInformeVentaDetalle: number;
+    idProducto?: number | null;
+    codigo: string;
+    nombre: string;
+    cantidad: number;
+    precio: number;
+    costo?: number | null;
+    subTotal: number;
+  }[];
+}
+
+export interface CajaListaDto {
+  nroCaja: number;
+  fecha: string;
+  nombreCierre: string;
+  total: number;
+  cantidadVentas: number;
+}
+
+export interface CajaDetalleDto {
+  nroCaja: number;
+  fecha: string;
+  nombreCierre: string;
+  filas: { metodoPago: string; cantidadVentas: number; total: number }[];
 }

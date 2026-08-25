@@ -199,6 +199,8 @@ export class CajaComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    const pend = this.sesion.tomarCarritoPendiente();
+    if (pend?.length) this.carrito = pend.map((l) => ({ ...l }));
     this.cargar();
   }
 

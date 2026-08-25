@@ -26,6 +26,7 @@ Se paga **$ 9.999 / mes por local** (Argentina). El dueño **no** da de alta loc
 | 07 | [Venta en caja](07-venta-en-caja.md) | empleado, dueño |
 | 08 | [Varios carritos](08-varios-carritos.md) | empleado, dueño |
 | 09 | [Cierre de caja](09-cierre-de-caja.md) | empleado, dueño |
+| 24 | [Puestos de caja](24-puestos-de-caja.md) | dueño (cantidad), empleado y dueño (elegir / cerrar) |
 | 10 | [Informes de ventas](10-informes-de-ventas.md) | empleado*, dueño |
 | 11 | [Productos](11-productos.md) | dueño |
 | 12 | [Stock](12-stock.md) | empleado, dueño |

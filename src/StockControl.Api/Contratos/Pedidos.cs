@@ -58,3 +58,8 @@ public class ItemVentaPedido
 
     public decimal PrecioUnitario { get; set; }
 }
+
+public class CerrarCajaPedido
+{
+    public DateOnly? Fecha { get; set; }
+}

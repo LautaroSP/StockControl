@@ -20,6 +20,7 @@ public static class LectorSqliteEscritorio
         lectura.Metodos.AddRange(LeerMetodos(con));
         lectura.Ventas.AddRange(LeerVentas(con));
         lectura.Detalles.AddRange(LeerDetalles(con));
+        lectura.Cajas.AddRange(LeerCajas(con));
         lectura.Configuraciones.AddRange(LeerConfig(con));
         lectura.ValidarCodigosUnicos();
         return lectura;
@@ -159,6 +160,34 @@ public static class LectorSqliteEscritorio
                     Costo = costo,
                     Precio = Convert.ToDecimal(r.GetValue(6)),
                     SubTotal = Convert.ToDecimal(r.GetValue(7))
+                });
+            }
+            return list;
+        }
+        catch (SqliteException)
+        {
+            return [];
+        }
+    }
+
+    private static List<Caja> LeerCajas(SqliteConnection con)
+    {
+        try
+        {
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = @"SELECT IdCaja, Fecha, IFNULL(Total,0), IFNULL(MetodoPago,''), IFNULL(CantidadVentas,0)
+                FROM Cajas";
+            using var r = cmd.ExecuteReader();
+            var list = new List<Caja>();
+            while (r.Read())
+            {
+                list.Add(new Caja
+                {
+                    IdCaja = r.GetInt32(0),
+                    Fecha = ParseFecha(r.GetValue(1)?.ToString()) ?? DateTimeOffset.Now,
+                    Total = Convert.ToDecimal(r.GetValue(2)),
+                    MetodoPago = r.GetString(3),
+                    CantidadVentas = Convert.ToInt32(r.GetValue(4))
                 });
             }
             return list;

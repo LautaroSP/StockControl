@@ -32,3 +32,7 @@ También: fecha/hora, quién cerró, local.
 - [ ] Se puede cerrar el día de hoy o un día anterior (por si se olvidaron).
 - [ ] Las ventas ya incluidas en un cierre no vuelven a entrar en el siguiente.
 - [ ] Listado de cajas cerradas: nro, fecha, quién, total. Click ve el desglose.
+
+## Fuera
+
+Varios **puestos** (Caja 1…N del local), aviso si dos usan la misma, y desglose por usuario: tarjeta [24](24-puestos-de-caja.md). Hasta esa, el cierre toma todas las ventas abiertas del local.

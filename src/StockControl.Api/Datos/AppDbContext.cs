@@ -21,6 +21,7 @@ public class AppDbContext : DbContext
     public DbSet<MetodoPago> MetodosPago => Set<MetodoPago>();
     public DbSet<InformeVenta> InformeVenta => Set<InformeVenta>();
     public DbSet<InformeVentaDetalle> InformeVentaDetalle => Set<InformeVentaDetalle>();
+    public DbSet<Caja> Cajas => Set<Caja>();
     public DbSet<Configuracion> Configuracion => Set<Configuracion>();
 
     protected override void OnModelCreating(ModelBuilder model)
@@ -94,7 +95,20 @@ public class AppDbContext : DbContext
             e.Property(x => x.Total).HasPrecision(14, 2);
             e.Property(x => x.Subtotal).HasPrecision(14, 2);
             e.Property(x => x.Descuento).HasPrecision(14, 2);
+            e.HasIndex(x => new { x.IdLocal, x.Fecha });
             e.HasMany(x => x.Detalles).WithOne().HasForeignKey(d => d.IdInformeVenta);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<Caja>(e =>
+        {
+            e.ToTable("Cajas");
+            e.HasKey(x => x.IdCaja);
+            e.Property(x => x.IdCaja).UseIdentityByDefaultColumn();
+            e.Property(x => x.Total).HasPrecision(14, 2);
+            e.Property(x => x.MetodoPago).HasMaxLength(80);
+            e.Property(x => x.NombreCierre).HasMaxLength(80);
+            e.HasIndex(x => new { x.IdLocal, x.NroCaja });
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
 

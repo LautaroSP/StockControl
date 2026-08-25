@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using StockControl.Api.Importacion;
+using StockControl.Dominio;
 
 namespace StockControl.Tests;
 
@@ -49,5 +50,21 @@ public class LectorSqliteTests
             if (File.Exists(ruta))
                 File.Delete(ruta);
         }
+    }
+
+    [Fact]
+    public void Cajas_del_mismo_segundo_comparten_nro()
+    {
+        var t = new DateTimeOffset(2026, 8, 24, 22, 0, 0, TimeSpan.Zero);
+        var cajas = new List<Caja>
+        {
+            new() { Fecha = t, MetodoPago = "Efectivo", Total = 10 },
+            new() { Fecha = t, MetodoPago = "Total", Total = 10 },
+            new() { Fecha = t.AddHours(1), MetodoPago = "Total", Total = 5 }
+        };
+        ImportadorSqlite.AsignarNrosCajaImportadas(cajas);
+        Assert.Equal(1, cajas[0].NroCaja);
+        Assert.Equal(1, cajas[1].NroCaja);
+        Assert.Equal(2, cajas[2].NroCaja);
     }
 }

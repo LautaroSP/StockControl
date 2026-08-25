@@ -17,4 +17,13 @@ public class PermisosTests
         Assert.False(Permisos.PuedeCobrarAlCosto(Roles.Empleado));
         Assert.True(Permisos.PuedeCobrarAlCosto(Roles.Dueno));
     }
+
+    [Fact]
+    public void Empleado_no_anula_venta()
+    {
+        Assert.False(Permisos.PuedeAnularVenta(Roles.Empleado));
+        Assert.True(Permisos.PuedeAnularVenta(Roles.Dueno));
+        Assert.False(Permisos.PuedeVerCostoEnInforme(Roles.Empleado));
+        Assert.True(Permisos.PuedeVerCostoEnInforme(Roles.Dueno));
+    }
 }

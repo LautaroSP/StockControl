@@ -6,6 +6,17 @@ const NOMBRE = 'sc_nombre';
 const LOCAL = 'sc_localId';
 const LOCAL_NOMBRE = 'sc_localNombre';
 
+export interface LineaCarritoPendiente {
+  idProducto: number;
+  codigo: string;
+  nombre: string;
+  cantidad: number;
+  precioUnitario: number;
+  costo: number;
+  sector: boolean;
+  generico: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SesionService {
   readonly token = signal(localStorage.getItem(TOKEN) ?? '');
@@ -13,6 +24,7 @@ export class SesionService {
   readonly nombre = signal(localStorage.getItem(NOMBRE) ?? '');
   readonly idLocal = signal(Number(localStorage.getItem(LOCAL) || '0'));
   readonly nombreLocal = signal(localStorage.getItem(LOCAL_NOMBRE) ?? '');
+  private carritoPendiente: LineaCarritoPendiente[] | null = null;
 
   readonly hayToken = computed(() => this.token().length > 0);
   readonly esDueno = computed(() => this.rol() === 'dueno' || this.rol() === 'admin');
@@ -51,5 +63,15 @@ export class SesionService {
     localStorage.removeItem(TOKEN);
     localStorage.removeItem(ROL);
     localStorage.removeItem(NOMBRE);
+  }
+
+  dejarCarritoPendiente(lineas: LineaCarritoPendiente[]): void {
+    this.carritoPendiente = lineas;
+  }
+
+  tomarCarritoPendiente(): LineaCarritoPendiente[] | null {
+    const p = this.carritoPendiente;
+    this.carritoPendiente = null;
+    return p;
   }
 }

@@ -13,5 +13,6 @@ public class InformeVenta
     public decimal Descuento { get; set; }
     public decimal Subtotal { get; set; }
     public string PrecioCosto { get; set; } = "NO";
+    public int? NroCaja { get; set; }
     public List<InformeVentaDetalle> Detalles { get; set; } = new();
 }

@@ -7,6 +7,7 @@ public class LecturaEscritorio
     public List<MetodoPago> Metodos { get; } = new();
     public List<InformeVenta> Ventas { get; } = new();
     public List<InformeVentaDetalle> Detalles { get; } = new();
+    public List<Caja> Cajas { get; } = new();
     public List<Configuracion> Configuraciones { get; } = new();
 
     public void AsignarLocal(int idLocal)
@@ -16,6 +17,7 @@ public class LecturaEscritorio
         foreach (var m in Metodos) m.IdLocal = idLocal;
         foreach (var v in Ventas) v.IdLocal = idLocal;
         foreach (var d in Detalles) d.IdLocal = idLocal;
+        foreach (var caja in Cajas) caja.IdLocal = idLocal;
         foreach (var c in Configuraciones) c.IdLocal = idLocal;
         PasarFechasAUtc();
     }
@@ -30,6 +32,9 @@ public class LecturaEscritorio
 
         foreach (var v in Ventas)
             v.Fecha = v.Fecha.ToUniversalTime();
+
+        foreach (var caja in Cajas)
+            caja.Fecha = caja.Fecha.ToUniversalTime();
     }
 
     public void ValidarCodigosUnicos()

@@ -26,7 +26,7 @@ Tres roles. El dueño hereda todo lo del empleado.
 
 ## Criterios de aceptación
 
-- [ ] Login con usuario y contraseña. Elige **local** entre los que tiene asignados.
+- [ ] Login con usuario y contraseña. Elige **local** entre los que tiene asignados. Elegir **caja** (puesto) es la tarjeta 24.
 - [ ] Un empleado no ve costo, ganancia, estadísticas ni config del local.
 - [ ] Un dueño ve todos sus locales; no ve locales de otro dueño.
 - [ ] Admin no entra a cobrar en la caja del cliente (v1). Opera el servicio.

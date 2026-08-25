@@ -36,3 +36,5 @@ También: fecha/hora, quién cerró, local.
 ## Fuera
 
 Varios **puestos** (Caja 1…N del local), aviso si dos usan la misma, y desglose por usuario: tarjeta [24](24-puestos-de-caja.md). Hasta esa, el cierre toma todas las ventas abiertas del local.
+
+Consultar / filtrar cierres por persona o medio (pantalla de búsqueda): tarjeta [25](25-consulta-cajas-cerradas.md).

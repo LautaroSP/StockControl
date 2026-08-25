@@ -73,7 +73,10 @@ import { SesionService } from '../servicios/sesion.service';
     }
     <section class="panel" style="margin-bottom:16px">
       <div class="toolbar" style="padding:12px">
-        <strong style="font-size:14px">Ventas</strong>
+        <button type="button" class="colapsar" [attr.aria-expanded]="ventasAbiertas" (click)="ventasAbiertas = !ventasAbiertas">
+          <span class="flecha" [class.abierta]="ventasAbiertas">▸</span>
+          Ventas
+        </button>
         <input type="date" [(ngModel)]="fecha" (ngModelChange)="cargarVentas()" />
         <select [(ngModel)]="medio" (ngModelChange)="cargarVentas()">
           <option value="">Todos los medios</option>
@@ -82,26 +85,28 @@ import { SesionService } from '../servicios/sesion.service';
         </select>
         <span class="meta">{{ totalVentas }} tickets · {{ dinero(sumaVentas) }}</span>
       </div>
-      <table class="data">
-        <thead>
-          <tr>
-            <th>Hora</th>
-            <th class="num">Total</th>
-            <th>Método</th>
-            <th>Notas</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (v of ventas; track v.idInformeVenta) {
-            <tr class="clickable" (click)="abrir(v.idInformeVenta)">
-              <td>{{ hora(v.fecha) }}</td>
-              <td class="num">{{ dinero(v.total) }}</td>
-              <td>{{ v.metodoPago }}</td>
-              <td>{{ notas(v) }}</td>
+      @if (ventasAbiertas) {
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th class="num">Total</th>
+              <th>Método</th>
+              <th>Notas</th>
             </tr>
-          }
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            @for (v of ventas; track v.idInformeVenta) {
+              <tr class="clickable" (click)="abrir(v.idInformeVenta)">
+                <td>{{ hora(v.fecha) }}</td>
+                <td class="num">{{ dinero(v.total) }}</td>
+                <td>{{ v.metodoPago }}</td>
+                <td>{{ notas(v) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
     </section>
     <section class="panel">
       <div class="toolbar" style="padding:12px">
@@ -212,6 +217,7 @@ export class InformesComponent implements OnInit {
   ticket: VentaDetalleDto | null = null;
   cierre: CajaDetalleDto | null = null;
   error = '';
+  ventasAbiertas = true;
 
   constructor(
     private readonly api: ApiService,

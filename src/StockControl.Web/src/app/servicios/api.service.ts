@@ -128,6 +128,23 @@ export class ApiService {
     }>(`${this.base}/cajas`);
   }
 
+  consultaCajas(opts: { desde?: string; hasta?: string; quien?: string; medio?: string; pagina?: number; tamano?: number } = {}) {
+    let params = new HttpParams().set('tamano', String(opts.tamano ?? 100));
+    if (opts.desde) params = params.set('desde', opts.desde);
+    if (opts.hasta) params = params.set('hasta', opts.hasta);
+    if (opts.quien) params = params.set('quien', opts.quien);
+    if (opts.medio) params = params.set('medio', opts.medio);
+    if (opts.pagina) params = params.set('pagina', String(opts.pagina));
+    return this.http.get<{ total: number; pagina: number; tamano: number; items: CajaListaDto[] }>(
+      `${this.base}/cajas/consulta`,
+      { params }
+    );
+  }
+
+  filtrosCajas() {
+    return this.http.get<{ personas: string[]; medios: string[] }>(`${this.base}/cajas/filtros`);
+  }
+
   caja(nro: number) {
     return this.http.get<CajaDetalleDto>(`${this.base}/cajas/${nro}`);
   }

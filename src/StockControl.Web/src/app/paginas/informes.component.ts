@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import {
   ApiService,
   CajaDetalleDto,
@@ -13,7 +13,7 @@ import { SesionService } from '../servicios/sesion.service';
 @Component({
   selector: 'sc-informes',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   template: `
     <div class="topbar">
       <h1>Informes</h1>
@@ -111,6 +111,7 @@ import { SesionService } from '../servicios/sesion.service';
     <section class="panel">
       <div class="toolbar" style="padding:12px">
         <strong style="font-size:14px">Cajas cerradas</strong>
+        <a class="btn" routerLink="/cajas">Consultar cajas</a>
       </div>
       <table class="data">
         <thead>

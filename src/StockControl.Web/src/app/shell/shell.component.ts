@@ -21,6 +21,7 @@ import { TemaService } from '../servicios/tema.service';
             <a routerLink="/grupos" routerLinkActive="active">Grupos</a>
           }
           <a routerLink="/informes" routerLinkActive="active">Informes</a>
+          <a routerLink="/cajas" routerLinkActive="active">Cajas</a>
           <a routerLink="/locales">Locales</a>
         </nav>
         <div class="sidebar-foot">

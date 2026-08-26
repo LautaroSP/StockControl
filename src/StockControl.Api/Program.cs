@@ -540,6 +540,54 @@ app.MapGet("/cajas", async (AppDbContext db, SesionActual sesion) =>
     return Results.Ok(new { proximoNro, pendientesHoy, items });
 }).RequireAuthorization().RequireRateLimiting("api");
 
+app.MapGet("/cajas/filtros", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    var personas = await db.Cajas.Where(c => c.MetodoPago == "Total" && c.NombreCierre != "")
+        .Select(c => c.NombreCierre)
+        .Distinct()
+        .OrderBy(n => n)
+        .ToListAsync();
+    var medios = await db.Cajas.Where(c => c.MetodoPago != "Total")
+        .Select(c => c.MetodoPago)
+        .Distinct()
+        .OrderBy(m => m)
+        .ToListAsync();
+    return Results.Ok(new { personas, medios });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/cajas/consulta", async (
+    AppDbContext db,
+    SesionActual sesion,
+    DateOnly? desde,
+    DateOnly? hasta,
+    string? quien,
+    string? medio,
+    int pagina = 1,
+    int tamano = 50) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    tamano = Math.Clamp(tamano, 1, maxPagina);
+    pagina = Math.Max(1, pagina);
+    var hoy = DiaArgentina.Hoy();
+    var (mesIni, mesFin) = ServicioConsultaCajas.MesActual(hoy);
+    var diaDesde = desde ?? mesIni;
+    var diaHasta = hasta ?? mesFin;
+    if (diaHasta < diaDesde)
+        return Results.BadRequest("La fecha hasta no puede ser anterior a desde.");
+    var (ini, _) = DiaArgentina.Rango(diaDesde);
+    var (_, fin) = DiaArgentina.Rango(diaHasta);
+    var enRango = await db.Cajas.Where(c => c.Fecha >= ini && c.Fecha < fin).ToListAsync();
+    var filtradas = ServicioConsultaCajas.FiltrarTotales(enRango, quien, medio);
+    var total = filtradas.Count;
+    var items = filtradas
+        .Skip((pagina - 1) * tamano)
+        .Take(tamano)
+        .Select(c => new { c.NroCaja, c.Fecha, c.NombreCierre, c.Total, c.CantidadVentas })
+        .ToList();
+    return Results.Ok(new { total, pagina, tamano, items });
+}).RequireAuthorization().RequireRateLimiting("api");
+
 app.MapGet("/cajas/{nro:int}", async (int nro, AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");

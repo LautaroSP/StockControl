@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ApiService, ProductoDto } from '../servicios/api.service';
+import { ApiService, GrupoListaDto, ProductoDto } from '../servicios/api.service';
 import { SesionService } from '../servicios/sesion.service';
 
 @Component({
@@ -38,6 +38,9 @@ import { SesionService } from '../servicios/sesion.service';
             }
             <th class="num">Precio</th>
             <th>Tipo</th>
+            @if (sesion.esDueno()) {
+              <th>Grupo</th>
+            }
           </tr>
         </thead>
         <tbody>
@@ -57,6 +60,9 @@ import { SesionService } from '../servicios/sesion.service';
               }
               <td class="num">{{ p.productoSector ? 'en caja' : dinero(p.precio) }}</td>
               <td>{{ p.productoSector ? 'Sector' : 'Común' }}</td>
+              @if (sesion.esDueno()) {
+                <td>{{ p.nombreGrupo || '—' }}</td>
+              }
             </tr>
           }
         </tbody>
@@ -80,12 +86,44 @@ import { SesionService } from '../servicios/sesion.service';
         <label class="field">Costo <input class="wide" type="number" [(ngModel)]="form.costo" /></label>
         <label class="field">Precio <input class="wide" type="number" [(ngModel)]="form.precio" /></label>
         <label class="check"><input type="checkbox" [(ngModel)]="form.productoSector" /> Producto sector</label>
+        @if (!form.productoSector) {
+          <p class="meta" style="margin:8px 0 4px">Grupo: {{ form.nombreGrupo || 'Sin grupo' }}</p>
+          <div class="row">
+            <button class="btn" type="button" (click)="abrirGrupos()">Buscar grupo</button>
+            <button class="btn" type="button" [disabled]="!(form.idGrupoProducto)" (click)="sacarGrupo()">Sacar grupo</button>
+          </div>
+        }
         @if (error) {
           <p class="error">{{ error }}</p>
         }
         <div class="row" style="margin-top:12px">
           <button class="btn btn-primary grow" type="button" (click)="guardar()">Guardar</button>
           <button class="btn" type="button" (click)="formAbierto = false">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-back" [class.show]="gruposAbiertos">
+      <div class="modal">
+        <h2 style="margin:0 0 8px;font-size:18px">Elegir grupo</h2>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Grupo</th>
+              <th class="num">Precio</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (g of grupos; track g.idGrupoProducto) {
+              <tr class="clickable" (click)="elegirGrupo(g)">
+                <td>{{ g.nombreGrupo }}</td>
+                <td class="num">{{ dinero(g.precioGrupo) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <div class="row" style="margin-top:12px">
+          <button class="btn grow" type="button" (click)="gruposAbiertos = false">Cerrar</button>
         </div>
       </div>
     </div>
@@ -107,6 +145,7 @@ import { SesionService } from '../servicios/sesion.service';
 export class ProductosComponent implements OnInit {
   productos: ProductoDto[] = [];
   visibles: ProductoDto[] = [];
+  grupos: GrupoListaDto[] = [];
   total = 0;
   elegido: ProductoDto | null = null;
   q = '';
@@ -115,9 +154,19 @@ export class ProductosComponent implements OnInit {
   toast = '';
   formAbierto = false;
   stockAbierto = false;
+  gruposAbiertos = false;
   editando: ProductoDto | null = null;
   cantidadStock = 1;
-  form: Partial<ProductoDto> = { codigo: '', nombre: '', cantidad: 0, costo: 0, precio: 0, productoSector: false };
+  form: Partial<ProductoDto> = {
+    codigo: '',
+    nombre: '',
+    cantidad: 0,
+    costo: 0,
+    precio: 0,
+    productoSector: false,
+    idGrupoProducto: 0,
+    nombreGrupo: null
+  };
 
   constructor(
     private readonly api: ApiService,
@@ -160,7 +209,16 @@ export class ProductosComponent implements OnInit {
 
   nuevo(): void {
     this.editando = null;
-    this.form = { codigo: '', nombre: '', cantidad: 0, costo: 0, precio: 0, productoSector: false };
+    this.form = {
+      codigo: '',
+      nombre: '',
+      cantidad: 0,
+      costo: 0,
+      precio: 0,
+      productoSector: false,
+      idGrupoProducto: 0,
+      nombreGrupo: null
+    };
     this.formAbierto = true;
   }
 
@@ -169,6 +227,29 @@ export class ProductosComponent implements OnInit {
     this.editando = p;
     this.form = { ...p };
     this.formAbierto = true;
+  }
+
+  abrirGrupos(): void {
+    this.api.grupos().subscribe({
+      next: (r) => {
+        this.grupos = r;
+        this.gruposAbiertos = true;
+      },
+      error: () => (this.error = 'No se pudieron cargar los grupos.')
+    });
+  }
+
+  elegirGrupo(g: GrupoListaDto): void {
+    this.form.idGrupoProducto = g.idGrupoProducto;
+    this.form.nombreGrupo = g.nombreGrupo;
+    this.form.costo = g.costo;
+    this.form.precio = g.precioGrupo;
+    this.gruposAbiertos = false;
+  }
+
+  sacarGrupo(): void {
+    this.form.idGrupoProducto = 0;
+    this.form.nombreGrupo = null;
   }
 
   guardar(): void {

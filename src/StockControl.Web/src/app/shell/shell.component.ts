@@ -17,6 +17,9 @@ import { TemaService } from '../servicios/tema.service';
         <nav class="nav">
           <a routerLink="/caja" routerLinkActive="active">Caja</a>
           <a routerLink="/productos" routerLinkActive="active">Productos</a>
+          @if (sesion.esDueno()) {
+            <a routerLink="/grupos" routerLinkActive="active">Grupos</a>
+          }
           <a routerLink="/informes" routerLinkActive="active">Informes</a>
           <a routerLink="/locales">Locales</a>
         </nav>

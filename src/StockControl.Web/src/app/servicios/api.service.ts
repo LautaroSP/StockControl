@@ -11,6 +11,8 @@ export interface ProductoDto {
   costo: number;
   precio: number;
   productoSector: boolean;
+  idGrupoProducto?: number;
+  nombreGrupo?: string | null;
 }
 
 export interface LocalDto {
@@ -65,7 +67,8 @@ export class ApiService {
       cantidad: p.cantidad ?? 0,
       costo: p.costo ?? 0,
       precio: p.precio ?? 0,
-      productoSector: p.productoSector ?? false
+      productoSector: p.productoSector ?? false,
+      idGrupoProducto: p.idGrupoProducto ?? 0
     });
   }
 
@@ -76,7 +79,8 @@ export class ApiService {
       cantidad: p.cantidad ?? 0,
       costo: p.costo ?? 0,
       precio: p.precio ?? 0,
-      productoSector: p.productoSector ?? false
+      productoSector: p.productoSector ?? false,
+      idGrupoProducto: p.idGrupoProducto ?? 0
     });
   }
 
@@ -134,6 +138,48 @@ export class ApiService {
       fecha ? { fecha } : {}
     );
   }
+
+  grupos() {
+    return this.http.get<GrupoListaDto[]>(`${this.base}/grupos`);
+  }
+
+  grupo(id: number) {
+    return this.http.get<GrupoDetalleDto>(`${this.base}/grupos/${id}`);
+  }
+
+  crearGrupo(body: { nombreGrupo: string; costo: number; precioGrupo: number; ganancia?: number; gananciaIndividual?: boolean }) {
+    return this.http.post<GrupoListaDto>(`${this.base}/grupos`, body);
+  }
+
+  editarGrupo(id: number, body: { nombreGrupo: string; costo: number; precioGrupo: number; ganancia?: number; gananciaIndividual?: boolean }) {
+    return this.http.put<GrupoListaDto>(`${this.base}/grupos/${id}`, body);
+  }
+
+  eliminarGrupo(id: number) {
+    return this.http.delete(`${this.base}/grupos/${id}`);
+  }
+
+  miembrosGrupo(id: number, idsProducto: number[]) {
+    return this.http.put<{ idGrupoProducto: number; cantidad: number }>(`${this.base}/grupos/${id}/miembros`, {
+      idsProducto
+    });
+  }
+}
+
+export interface GrupoListaDto {
+  idGrupoProducto: number;
+  nombreGrupo: string;
+  costo: number;
+  precioGrupo: number;
+  cantidad: number;
+}
+
+export interface GrupoDetalleDto {
+  idGrupoProducto: number;
+  nombreGrupo: string;
+  costo: number;
+  precioGrupo: number;
+  miembros: { id: number; codigo: string; nombre: string; costo: number; precio: number }[];
 }
 
 export interface VentaListaDto {

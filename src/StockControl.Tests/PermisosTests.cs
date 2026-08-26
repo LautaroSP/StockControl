@@ -26,4 +26,11 @@ public class PermisosTests
         Assert.False(Permisos.PuedeVerCostoEnInforme(Roles.Empleado));
         Assert.True(Permisos.PuedeVerCostoEnInforme(Roles.Dueno));
     }
+
+    [Fact]
+    public void Empleado_no_administra_grupos()
+    {
+        Assert.False(Permisos.PuedeAdministrarGrupos(Roles.Empleado));
+        Assert.True(Permisos.PuedeAdministrarGrupos(Roles.Dueno));
+    }
 }

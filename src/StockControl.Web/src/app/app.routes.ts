@@ -5,6 +5,7 @@ import { LocalesComponent } from './paginas/locales.component';
 import { CajaComponent } from './paginas/caja.component';
 import { ProductosComponent } from './paginas/productos.component';
 import { InformesComponent } from './paginas/informes.component';
+import { GruposComponent } from './paginas/grupos.component';
 import { ShellComponent } from './shell/shell.component';
 
 export const routes: Routes = [
@@ -17,6 +18,7 @@ export const routes: Routes = [
     children: [
       { path: 'caja', component: CajaComponent },
       { path: 'productos', component: ProductosComponent },
+      { path: 'grupos', component: GruposComponent },
       { path: 'informes', component: InformesComponent },
       { path: '', redirectTo: 'caja', pathMatch: 'full' }
     ]

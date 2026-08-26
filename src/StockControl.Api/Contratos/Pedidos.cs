@@ -23,6 +23,23 @@ public class ProductoPedido
     public decimal Costo { get; set; }
     public decimal Precio { get; set; }
     public bool ProductoSector { get; set; }
+    public int? IdGrupoProducto { get; set; }
+}
+
+public class GrupoPedido
+{
+    [Required, MaxLength(200)]
+    public string NombreGrupo { get; set; } = "";
+
+    public decimal Costo { get; set; }
+    public decimal PrecioGrupo { get; set; }
+    public decimal Ganancia { get; set; }
+    public bool GananciaIndividual { get; set; }
+}
+
+public class MiembrosGrupoPedido
+{
+    public List<int> IdsProducto { get; set; } = new();
 }
 
 public class StockPedido

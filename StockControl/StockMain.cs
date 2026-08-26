@@ -546,6 +546,7 @@ namespace StockControl
         {
             try
             {
+                AplicarMetodoPagoDelCombo();
                 if (string.IsNullOrEmpty(MetodoDePago) &&
                 (!chkMultiPago.Checked || (chkMultiPago.Checked && multiplesMetodos.Count == 0)))
                 {
@@ -1009,16 +1010,30 @@ namespace StockControl
         }
 
 
+        private static bool EsOpcionAgregarMetodo(string? texto) =>
+            !string.IsNullOrEmpty(texto) && texto.StartsWith("Agregar", StringComparison.Ordinal);
+
+        private void AplicarMetodoPagoDelCombo()
+        {
+            var seleccionado = cbMetodosPago.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(seleccionado) || EsOpcionAgregarMetodo(seleccionado))
+                return;
+            MetodoDePago = seleccionado;
+        }
+
         private void cbMetodosPago_SelectedIndexChanged(object sender, EventArgs e)
         {
+            var seleccionado = cbMetodosPago.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(seleccionado))
+                return;
+
             if (_cambiandoPestaña)
             {
-                if (cbMetodosPago.SelectedItem?.ToString() != "Agregar m�todo de pago...")
-                    MetodoDePago = cbMetodosPago.SelectedItem?.ToString();
+                AplicarMetodoPagoDelCombo();
                 return;
             }
 
-            if (cbMetodosPago.SelectedItem?.ToString() == "Agregar m�todo de pago...")
+            if (EsOpcionAgregarMetodo(seleccionado))
             {
                 string nuevo = Interaction.InputBox("Ingrese el nuevo m�todo de pago:", "Nuevo m�todo", "");
 
@@ -1036,7 +1051,7 @@ namespace StockControl
             }
             else
             {
-                MetodoDePago = cbMetodosPago.SelectedItem?.ToString();
+                MetodoDePago = seleccionado;
             }
         }
 
@@ -1053,7 +1068,9 @@ namespace StockControl
             }
 
             cbMetodosPago.Items.Add("Agregar m�todo de pago...");
-            cbMetodosPago.SelectedIndex = 0;
+            if (cbMetodosPago.Items.Count > 1)
+                cbMetodosPago.SelectedIndex = 0;
+            AplicarMetodoPagoDelCombo();
         }
 
         private void chkMultiPago_CheckedChanged(object sender, EventArgs e)
@@ -1373,9 +1390,7 @@ namespace StockControl
             _sesionActual.PagoMultiple = chkMultiPago.Checked;
             _sesionActual.ImprimirTicket = chkImprimirTicket.Checked;
 
-            var seleccionado = cbMetodosPago.SelectedItem?.ToString();
-            if (!string.IsNullOrEmpty(seleccionado) && seleccionado != "Agregar m�todo de pago...")
-                _sesionActual.MetodoPago = seleccionado;
+            AplicarMetodoPagoDelCombo();
         }
 
         private void RestaurarEstadoSesion()
@@ -1411,8 +1426,10 @@ namespace StockControl
                 }
                 if (indicePago >= 0)
                     cbMetodosPago.SelectedIndex = indicePago;
-                else if (string.IsNullOrEmpty(_sesionActual.MetodoPago) && cbMetodosPago.Items.Count > 1)
+                else if (cbMetodosPago.Items.Count > 1)
                     cbMetodosPago.SelectedIndex = 0;
+
+                AplicarMetodoPagoDelCombo();
 
                 btnCerrarCarrito.Enabled = _sesiones.Count > 1;
             }

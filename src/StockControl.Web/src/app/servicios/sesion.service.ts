@@ -5,6 +5,7 @@ const ROL = 'sc_rol';
 const NOMBRE = 'sc_nombre';
 const LOCAL = 'sc_localId';
 const LOCAL_NOMBRE = 'sc_localNombre';
+const CAJA = 'sc_nroCaja';
 
 export interface LineaCarritoPendiente {
   idProducto: number;
@@ -24,10 +25,12 @@ export class SesionService {
   readonly nombre = signal(localStorage.getItem(NOMBRE) ?? '');
   readonly idLocal = signal(Number(localStorage.getItem(LOCAL) || '0'));
   readonly nombreLocal = signal(localStorage.getItem(LOCAL_NOMBRE) ?? '');
+  readonly nroCaja = signal(Number(localStorage.getItem(CAJA) || '0'));
   private carritoPendiente: LineaCarritoPendiente[] | null = null;
 
   readonly hayToken = computed(() => this.token().length > 0);
   readonly esDueno = computed(() => this.rol() === 'dueno' || this.rol() === 'admin');
+  readonly hayCaja = computed(() => this.nroCaja() > 0);
 
   guardarLogin(token: string, rol: string, nombre: string): void {
     this.token.set(token);
@@ -46,6 +49,19 @@ export class SesionService {
     localStorage.setItem(TOKEN, token);
     localStorage.setItem(LOCAL, String(idLocal));
     localStorage.setItem(LOCAL_NOMBRE, nombreLocal);
+    this.limpiarCaja();
+  }
+
+  guardarCaja(token: string, nroCaja: number): void {
+    this.token.set(token);
+    this.nroCaja.set(nroCaja);
+    localStorage.setItem(TOKEN, token);
+    localStorage.setItem(CAJA, String(nroCaja));
+  }
+
+  limpiarCaja(): void {
+    this.nroCaja.set(0);
+    localStorage.removeItem(CAJA);
   }
 
   limpiarLocal(): void {
@@ -53,6 +69,7 @@ export class SesionService {
     this.nombreLocal.set('');
     localStorage.removeItem(LOCAL);
     localStorage.removeItem(LOCAL_NOMBRE);
+    this.limpiarCaja();
   }
 
   salir(): void {

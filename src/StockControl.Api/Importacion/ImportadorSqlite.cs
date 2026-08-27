@@ -40,6 +40,8 @@ public static class ImportadorSqlite
             db.MetodosPago.Add(m);
         foreach (var c in lectura.Configuraciones)
             db.Configuracion.Add(c);
+        if (lectura.Configuraciones.All(c => c.Clave != "CantidadCajas"))
+            db.Configuracion.Add(new Configuracion { IdLocal = local.IdLocal, Clave = "CantidadCajas", Valor = "1" });
         // El .db no vincula ventas a un nro de caja: se numeran por Fecha del cierre, sin sellar InformeVenta.
         AsignarNrosCajaImportadas(lectura.Cajas);
         foreach (var caja in lectura.Cajas)
@@ -67,22 +69,23 @@ public static class ImportadorSqlite
         return local.IdLocal;
     }
 
-    // El .exe no vincula Cajas con InformeVenta. Agrupamos por Fecha (segundo) y
-    // numeramos 1..N; no se sella NroCaja en ventas históricas (se pueden "cerrar de nuevo").
+    // Agrupa por Fecha (segundo): IdCierre correlativo; NroCaja = puesto 1 (historial).
     public static void AsignarNrosCajaImportadas(IEnumerable<Caja> cajas)
     {
-        var nro = 1;
+        var idCierre = 1;
         foreach (var grupo in cajas
             .GroupBy(c => new DateTimeOffset(c.Fecha.Year, c.Fecha.Month, c.Fecha.Day, c.Fecha.Hour, c.Fecha.Minute, c.Fecha.Second, TimeSpan.Zero))
             .OrderBy(g => g.Key))
         {
             foreach (var c in grupo)
             {
-                c.NroCaja = nro;
+                c.IdCierre = idCierre;
+                c.NroCaja = 1;
+                c.TipoDesglose = TipoDesgloseCaja.Medio;
                 if (string.IsNullOrWhiteSpace(c.NombreCierre))
                     c.NombreCierre = "import";
             }
-            nro++;
+            idCierre++;
         }
     }
 

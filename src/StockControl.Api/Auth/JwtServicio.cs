@@ -16,7 +16,7 @@ public class JwtServicio
                  ?? throw new InvalidOperationException("Falta Jwt:Clave en configuración.");
     }
 
-    public string Emitir(Usuario usuario, int? idLocal)
+    public string Emitir(Usuario usuario, int? idLocal, int? nroCaja = null)
     {
         var claims = new List<Claim>
         {
@@ -26,6 +26,8 @@ public class JwtServicio
         };
         if (idLocal.HasValue)
             claims.Add(new Claim("localId", idLocal.Value.ToString()));
+        if (nroCaja.HasValue)
+            claims.Add(new Claim("nroCaja", nroCaja.Value.ToString()));
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_clave));
         var token = new JwtSecurityToken(

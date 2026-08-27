@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ApiService, CajaDetalleDto, CajaListaDto } from '../servicios/api.service';
+import { ApiService, CajaDetalleDto, CajaListaDto, GrupoUnificableDto } from '../servicios/api.service';
 
 @Component({
   selector: 'sc-cajas',
@@ -34,6 +34,18 @@ import { ApiService, CajaDetalleDto, CajaListaDto } from '../servicios/api.servi
       @if (error) {
         <p class="error" style="padding:0 12px 12px">{{ error }}</p>
       }
+      @if (unificables.length > 0) {
+        <div style="padding:0 12px 12px">
+          @for (g of unificables; track trackGrupo(g)) {
+            <p class="meta" style="margin:0 0 8px">
+              {{ g.idsCierre.length }} cierres · Caja {{ g.nroCaja }} · {{ g.nombreCierre }} · {{ g.dia }}
+              <button class="btn btn-primary" type="button" style="margin-left:8px" (click)="unificar(g)">
+                Unificar
+              </button>
+            </p>
+          }
+        </div>
+      }
       @if (!cargando && total === 0 && !error) {
         <p class="meta" style="padding:0 12px 12px">No hay cajas con esos filtros.</p>
       }
@@ -41,7 +53,7 @@ import { ApiService, CajaDetalleDto, CajaListaDto } from '../servicios/api.servi
         <table class="data">
           <thead>
             <tr>
-              <th>Nro</th>
+              <th>Puesto</th>
               <th>Fecha</th>
               <th>Quién</th>
               <th class="num">Tickets</th>
@@ -49,8 +61,8 @@ import { ApiService, CajaDetalleDto, CajaListaDto } from '../servicios/api.servi
             </tr>
           </thead>
           <tbody>
-            @for (c of items; track c.nroCaja) {
-              <tr class="clickable" (click)="abrir(c.nroCaja)">
+            @for (c of items; track c.idCierre) {
+              <tr class="clickable" (click)="abrir(c.idCierre)">
                 <td>{{ c.nroCaja }}</td>
                 <td>{{ fechaCorta(c.fecha) }}</td>
                 <td>{{ c.nombreCierre }}</td>
@@ -67,14 +79,14 @@ import { ApiService, CajaDetalleDto, CajaListaDto } from '../servicios/api.servi
       <section class="panel">
         <div class="toolbar" style="padding:12px 12px 0">
           <strong style="font-size:14px">
-            Caja nro {{ detalle.nroCaja }} · {{ detalle.nombreCierre }} · {{ fechaCorta(detalle.fecha) }}
+            Caja {{ detalle.nroCaja }} · {{ detalle.nombreCierre }} · {{ fechaCorta(detalle.fecha) }}
           </strong>
           <button class="btn" type="button" (click)="detalle = null">Cerrar detalle</button>
         </div>
         <table class="data">
           <thead>
             <tr>
-              <th>Medio de pago</th>
+              <th>{{ detalle.tipoDesglose === 'Usuario' ? 'Usuario' : 'Medio de pago' }}</th>
               <th class="num">Cant. ventas</th>
               <th class="num">Total</th>
             </tr>
@@ -101,6 +113,7 @@ export class CajasComponent implements OnInit {
   personas: string[] = [];
   medios: string[] = [];
   items: CajaListaDto[] = [];
+  unificables: GrupoUnificableDto[] = [];
   total = 0;
   detalle: CajaDetalleDto | null = null;
   error = '';
@@ -119,6 +132,10 @@ export class CajasComponent implements OnInit {
       }
     });
     this.buscar();
+  }
+
+  trackGrupo(g: GrupoUnificableDto): string {
+    return `${g.nroCaja}-${g.nombreCierre}-${g.dia}-${g.idsCierre.join(',')}`;
   }
 
   dinero(n: number): string {
@@ -140,7 +157,7 @@ export class CajasComponent implements OnInit {
   buscar(): void {
     this.cargando = true;
     this.error = '';
-    const nroAbierto = this.detalle?.nroCaja;
+    const idAbierto = this.detalle?.idCierre;
     this.api
       .consultaCajas({
         desde: this.desde || undefined,
@@ -152,8 +169,9 @@ export class CajasComponent implements OnInit {
         next: (r) => {
           this.items = r.items;
           this.total = r.total;
+          this.unificables = r.unificables ?? [];
           this.cargando = false;
-          if (nroAbierto != null && !r.items.some((c) => c.nroCaja === nroAbierto)) {
+          if (idAbierto != null && !r.items.some((c) => c.idCierre === idAbierto)) {
             this.detalle = null;
           }
         },
@@ -161,14 +179,29 @@ export class CajasComponent implements OnInit {
           this.error = 'No se pudieron cargar las cajas.';
           this.items = [];
           this.total = 0;
+          this.unificables = [];
           this.detalle = null;
           this.cargando = false;
         }
       });
   }
 
-  abrir(nro: number): void {
-    this.api.caja(nro).subscribe({
+  unificar(g: GrupoUnificableDto): void {
+    const msg = `¿Unificar ${g.idsCierre.length} cierres de Caja ${g.nroCaja} (${g.nombreCierre}, ${g.dia})?`;
+    if (!confirm(msg)) return;
+    this.api.unificarCajas(g.idsCierre).subscribe({
+      next: (r) => {
+        this.error = '';
+        this.detalle = null;
+        this.buscar();
+        this.abrir(r.idCierre);
+      },
+      error: (err) => (this.error = typeof err.error === 'string' ? err.error : 'No se pudo unificar.')
+    });
+  }
+
+  abrir(idCierre: number): void {
+    this.api.cierre(idCierre).subscribe({
       next: (d) => (this.detalle = d),
       error: () => (this.error = 'No se pudo abrir el detalle.')
     });

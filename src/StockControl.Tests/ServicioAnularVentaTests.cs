@@ -68,7 +68,8 @@ public class ServicioAnularVentaTests
         var prod = Comun();
         var venta = new InformeVenta
         {
-            NroCaja = 4,
+            NroCaja = 1,
+            IdCierre = 4,
             Detalles =
             [
                 new InformeVentaDetalle { IdProducto = 1, Codigo = "779", Nombre = "Coca", Cantidad = 2 }

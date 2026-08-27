@@ -65,7 +65,23 @@ export class LocalesComponent implements OnInit {
     this.api.entrar(local.idLocal).subscribe({
       next: (r) => {
         this.sesion.guardarLocal(r.token, local.idLocal, local.nombre);
-        this.router.navigateByUrl('/caja');
+        this.api.puestos().subscribe({
+          next: (p) => {
+            if (p.cantidad <= 1) {
+              this.api.elegirPuesto(1).subscribe({
+                next: (e) => {
+                  this.sesion.guardarCaja(e.token, e.nroCaja);
+                  void this.router.navigateByUrl('/caja');
+                },
+                error: (err) =>
+                  (this.error = typeof err.error === 'string' ? err.error : 'No se pudo elegir la caja.')
+              });
+            } else {
+              void this.router.navigateByUrl('/elegir-caja');
+            }
+          },
+          error: () => (this.error = 'No se pudieron cargar los puestos.')
+        });
       },
       error: () => (this.error = 'No pudiste entrar a ese local.')
     });

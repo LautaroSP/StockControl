@@ -18,6 +18,10 @@ import { SesionService } from '../servicios/sesion.service';
     <div class="topbar">
       <h1>Informes</h1>
       <div class="row">
+        <select [(ngModel)]="desglose">
+          <option value="medio">Desglose: medio</option>
+          <option value="usuario">Desglose: usuario</option>
+        </select>
         <button class="btn btn-primary" type="button" (click)="cerrarHoy()">Cerrar caja de hoy</button>
         <input type="date" [(ngModel)]="fechaAnterior" />
         <button class="btn" type="button" (click)="cerrarAnterior()">Cerrar caja anterior</button>
@@ -26,20 +30,25 @@ import { SesionService } from '../servicios/sesion.service';
     <div class="kpis">
       <div class="panel kpi">
         <div class="n">{{ dinero(pendientes.total) }}</div>
-        <div class="l">Ventas de hoy (sin cerrar)</div>
+        <div class="l">Ventas de hoy (sin cerrar) · Caja {{ sesion.nroCaja() }}</div>
       </div>
       <div class="panel kpi">
         <div class="n">{{ pendientes.tickets }}</div>
         <div class="l">Tickets abiertos</div>
       </div>
       <div class="panel kpi">
-        <div class="n">{{ proximoNro }}</div>
-        <div class="l">Próximo nro de caja</div>
-      </div>
-      <div class="panel kpi">
         <div class="n">{{ sesion.nombre() }}</div>
         <div class="l">{{ sesion.esDueno() ? 'Dueño' : 'Puede cerrar (empleado)' }}</div>
       </div>
+      @if (sesion.esDueno()) {
+        <div class="panel kpi">
+          <div class="row" style="align-items:center;gap:8px">
+            <input type="number" min="1" max="50" [(ngModel)]="cantidadCajas" style="width:64px" />
+            <button class="btn" type="button" (click)="guardarCantidad()">Guardar</button>
+          </div>
+          <div class="l">Cantidad de cajas</div>
+        </div>
+      }
     </div>
     @if (error) {
       <p class="error">{{ error }}</p>
@@ -47,13 +56,13 @@ import { SesionService } from '../servicios/sesion.service';
     @if (cierre) {
       <section class="panel" style="margin-bottom:16px">
         <div class="toolbar" style="padding:12px 12px 0">
-          <strong style="font-size:14px">Caja nro {{ cierre.nroCaja }} · cerró {{ cierre.nombreCierre }}</strong>
+          <strong style="font-size:14px">Caja {{ cierre.nroCaja }} · cierre {{ cierre.idCierre }} · cerró {{ cierre.nombreCierre }}</strong>
         </div>
         <table class="data">
           <thead>
             <tr>
-              <th>Nro caja</th>
-              <th>Medio de pago</th>
+              <th>Puesto</th>
+              <th>{{ cierre.tipoDesglose === 'Usuario' ? 'Usuario' : 'Medio de pago' }}</th>
               <th class="num">Cant. ventas</th>
               <th class="num">Total</th>
             </tr>
@@ -116,7 +125,7 @@ import { SesionService } from '../servicios/sesion.service';
       <table class="data">
         <thead>
           <tr>
-            <th>Nro</th>
+            <th>Puesto</th>
             <th>Fecha</th>
             <th>Quién</th>
             <th class="num">Tickets</th>
@@ -124,8 +133,8 @@ import { SesionService } from '../servicios/sesion.service';
           </tr>
         </thead>
         <tbody>
-          @for (c of cajas; track c.nroCaja) {
-            <tr class="clickable" (click)="verCaja(c.nroCaja)">
+          @for (c of cajas; track c.idCierre) {
+            <tr class="clickable" (click)="verCaja(c.idCierre)">
               <td>{{ c.nroCaja }}</td>
               <td>{{ fechaCorta(c.fecha) }}</td>
               <td>{{ c.nombreCierre }}</td>
@@ -169,7 +178,7 @@ import { SesionService } from '../servicios/sesion.service';
             <button class="btn" type="button" (click)="imprimir()">Reimprimir</button>
             <button class="btn" type="button" (click)="copiar()">Copiar al carrito</button>
             @if (sesion.esDueno()) {
-              <button class="btn btn-danger" type="button" [disabled]="!!detalle.nroCaja" (click)="anular()">
+              <button class="btn btn-danger" type="button" [disabled]="!!detalle.idCierre" (click)="anular()">
                 Anular
               </button>
             }
@@ -208,11 +217,12 @@ export class InformesComponent implements OnInit {
   fecha = hoyYmd();
   fechaAnterior = hoyYmd();
   medio = '';
+  desglose: 'medio' | 'usuario' = 'medio';
+  cantidadCajas = 1;
   ventas: VentaListaDto[] = [];
   totalVentas = 0;
   sumaVentas = 0;
   cajas: CajaListaDto[] = [];
-  proximoNro = 1;
   pendientes = { tickets: 0, total: 0 };
   detalle: VentaDetalleDto | null = null;
   ticket: VentaDetalleDto | null = null;
@@ -229,6 +239,11 @@ export class InformesComponent implements OnInit {
   ngOnInit(): void {
     this.cargarVentas();
     this.cargarCajas();
+    if (this.sesion.esDueno()) {
+      this.api.cantidadCajas().subscribe({
+        next: (r) => (this.cantidadCajas = r.cantidad)
+      });
+    }
   }
 
   dinero(n: number): string {
@@ -248,7 +263,8 @@ export class InformesComponent implements OnInit {
     const bits: string[] = [];
     if (v.descuento > 0) bits.push(`Desc. ${v.descuento}%`);
     if ((v.precioCosto || '').toUpperCase() === 'SI') bits.push('Al costo');
-    if (v.nroCaja) bits.push(`Caja ${v.nroCaja}`);
+    if (v.nroCaja) bits.push(`Puesto ${v.nroCaja}`);
+    if (v.idCierre) bits.push('Cerrada');
     return bits.join(' · ');
   }
 
@@ -268,10 +284,18 @@ export class InformesComponent implements OnInit {
     this.api.cajas().subscribe({
       next: (r) => {
         this.cajas = r.items;
-        this.proximoNro = r.proximoNro;
         this.pendientes = r.pendientesHoy;
       },
       error: () => (this.error = 'No se pudieron cargar las cajas.')
+    });
+  }
+
+  guardarCantidad(): void {
+    const n = Math.max(1, Math.min(50, Number(this.cantidadCajas) || 1));
+    this.cantidadCajas = n;
+    this.api.setCantidadCajas(n).subscribe({
+      next: () => (this.error = ''),
+      error: (err) => (this.error = typeof err.error === 'string' ? err.error : 'No se pudo guardar.')
     });
   }
 
@@ -322,8 +346,8 @@ export class InformesComponent implements OnInit {
     }, 50);
   }
 
-  verCaja(nro: number): void {
-    this.api.caja(nro).subscribe({
+  verCaja(idCierre: number): void {
+    this.api.cierre(idCierre).subscribe({
       next: (c) => (this.cierre = c),
       error: () => (this.error = 'No se pudo abrir la caja.')
     });
@@ -341,12 +365,14 @@ export class InformesComponent implements OnInit {
   private cerrar(fecha?: string): void {
     const msg = fecha ? `¿Cerrar la caja del ${fecha}?` : '¿Cerrar la caja de hoy?';
     if (!confirm(msg)) return;
-    this.api.cerrarCaja(fecha).subscribe({
+    this.api.cerrarCaja(fecha, this.desglose).subscribe({
       next: (r) => {
         this.cierre = {
+          idCierre: r.idCierre,
           nroCaja: r.nroCaja,
           fecha: new Date().toISOString(),
           nombreCierre: this.sesion.nombre(),
+          tipoDesglose: this.desglose === 'usuario' ? 'Usuario' : 'Medio',
           filas: r.filas
         };
         this.error = '';

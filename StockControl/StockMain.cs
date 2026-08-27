@@ -12,6 +12,7 @@ namespace StockControl
     {
         private ProductoRepository _prodRepository = new ProductoRepository();
         List<Producto> productos = new List<Producto>();
+        private const int CarritosFijos = 4;
         private readonly List<CarritoSesion> _sesiones = new();
         private CarritoSesion _sesionActual = null!;
         private bool _cambiandoPestaña;
@@ -460,24 +461,8 @@ namespace StockControl
 
         private void brnCancelar_Click(object sender, EventArgs e)
         {
-            _carrito.Clear();
-            _cambiandoPestaña = true;
-            try
-            {
-                chkCosto.Checked = false;
-                chkDescuento.Checked = false;
-                txtDescuento.Text = string.Empty;
-                txtDescuento.Enabled = false;
-            }
-            finally
-            {
-                _cambiandoPestaña = false;
-            }
-            _sesionActual.CobrarAlCosto = false;
-            _sesionActual.DescuentoActivo = false;
-            _sesionActual.DescuentoTexto = string.Empty;
-            dataGridView2.Refresh();
-            CalcularTotal();
+            VaciarCarritoActual();
+            VolverAScanner();
         }
 
         private void btnEditar_Click(object sender, EventArgs e)
@@ -603,7 +588,11 @@ namespace StockControl
                         ImprimirTicket();
                     }
 
-                    CerrarSesionActual(confirmarSiTieneItems: false);
+                    int indice = _sesiones.IndexOf(_sesionActual);
+                    if (indice >= CarritosFijos)
+                        CerrarSesionActual(confirmarSiTieneItems: false);
+                    else
+                        VaciarCarritoActual();
                 }
                 VolverAScanner();
             }
@@ -1342,7 +1331,19 @@ namespace StockControl
         {
             _sesiones.Clear();
             tabCarritos.TabPages.Clear();
-            AgregarSesion(seleccionar: true);
+            _cambiandoPestaña = true;
+            try
+            {
+                for (int i = 0; i < CarritosFijos; i++)
+                    AgregarSesion(seleccionar: false);
+                _sesionActual = _sesiones[0];
+                tabCarritos.SelectedIndex = 0;
+            }
+            finally
+            {
+                _cambiandoPestaña = false;
+            }
+            ActualizarBotonCerrarCarrito();
         }
 
         private CarritoSesion AgregarSesion(bool seleccionar)
@@ -1364,8 +1365,40 @@ namespace StockControl
                     _cambiandoPestaña = false;
                 }
             }
-            btnCerrarCarrito.Enabled = _sesiones.Count > 1;
+            ActualizarBotonCerrarCarrito();
             return sesion;
+        }
+
+        private void VaciarCarritoActual()
+        {
+            _carrito.Clear();
+            _cambiandoPestaña = true;
+            try
+            {
+                chkCosto.Checked = false;
+                chkDescuento.Checked = false;
+                txtDescuento.Text = string.Empty;
+                txtDescuento.Enabled = false;
+                chkMultiPago.Checked = false;
+            }
+            finally
+            {
+                _cambiandoPestaña = false;
+            }
+            _sesionActual.CobrarAlCosto = false;
+            _sesionActual.DescuentoActivo = false;
+            _sesionActual.DescuentoTexto = string.Empty;
+            _sesionActual.PagoMultiple = false;
+            _sesionActual.MultiplesMetodos = new List<MetodoDePago>();
+            AplicarMetodoPagoDelCombo();
+            dataGridView2.Refresh();
+            CalcularTotal();
+        }
+
+        private void ActualizarBotonCerrarCarrito()
+        {
+            int indice = _sesiones.IndexOf(_sesionActual);
+            btnCerrarCarrito.Enabled = indice >= CarritosFijos;
         }
 
         private void ActualizarTitulosPestañas()
@@ -1373,7 +1406,7 @@ namespace StockControl
             for (int i = 0; i < tabCarritos.TabPages.Count; i++)
             {
                 string titulo = (i + 1).ToString();
-                if (i < 4)
+                if (i < CarritosFijos)
                     titulo += $" F{i + 1}";
                 tabCarritos.TabPages[i].Text = titulo;
             }
@@ -1431,7 +1464,7 @@ namespace StockControl
 
                 AplicarMetodoPagoDelCombo();
 
-                btnCerrarCarrito.Enabled = _sesiones.Count > 1;
+                ActualizarBotonCerrarCarrito();
             }
             finally
             {
@@ -1462,13 +1495,26 @@ namespace StockControl
                 indice = tabCarritos.SelectedIndex;
             if (indice < 0)
                 indice = 0;
+            if (indice < CarritosFijos)
+                return;
 
             _sesiones.RemoveAt(indice);
             tabCarritos.TabPages.RemoveAt(indice);
 
-            if (_sesiones.Count == 0)
+            if (_sesiones.Count < CarritosFijos)
             {
-                AgregarSesion(seleccionar: true);
+                _cambiandoPestaña = true;
+                try
+                {
+                    while (_sesiones.Count < CarritosFijos)
+                        AgregarSesion(seleccionar: false);
+                    _sesionActual = _sesiones[0];
+                    tabCarritos.SelectedIndex = 0;
+                }
+                finally
+                {
+                    _cambiandoPestaña = false;
+                }
                 RestaurarEstadoSesion();
                 return;
             }
@@ -1512,7 +1558,7 @@ namespace StockControl
 
         private void btnCerrarCarrito_Click(object sender, EventArgs e)
         {
-            if (_sesiones.Count <= 1)
+            if (_sesiones.IndexOf(_sesionActual) < CarritosFijos)
                 return;
             CerrarSesionActual(confirmarSiTieneItems: true);
             VolverAScanner();

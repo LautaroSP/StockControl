@@ -19,4 +19,7 @@ public static class Permisos
 
     public static bool PuedeAdministrarGrupos(string rol) =>
         rol is Roles.Dueno or Roles.Admin;
+
+    public static bool PuedeConfigurarCajas(string rol) =>
+        rol is Roles.Dueno or Roles.Admin;
 }

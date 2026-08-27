@@ -13,6 +13,9 @@ import { TemaService } from '../servicios/tema.service';
         <div class="brand">
           <strong>StockControl</strong>
           <span>{{ sesion.nombreLocal() }}</span>
+          @if (sesion.hayCaja()) {
+            <span>Caja {{ sesion.nroCaja() }}</span>
+          }
         </div>
         <nav class="nav">
           <a routerLink="/caja" routerLinkActive="active">Caja</a>
@@ -22,6 +25,7 @@ import { TemaService } from '../servicios/tema.service';
           }
           <a routerLink="/informes" routerLinkActive="active">Informes</a>
           <a routerLink="/cajas" routerLinkActive="active">Cajas</a>
+          <a routerLink="/elegir-caja">Cambiar caja</a>
           <a routerLink="/locales">Locales</a>
         </nav>
         <div class="sidebar-foot">

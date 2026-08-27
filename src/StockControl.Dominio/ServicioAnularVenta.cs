@@ -4,7 +4,7 @@ public static class ServicioAnularVenta
 {
     public static void Anular(InformeVenta venta, IEnumerable<Producto> productosDelLocal)
     {
-        if (venta.NroCaja != null)
+        if (venta.IdCierre != null)
             throw new ErrorNegocio("No se puede anular una venta de una caja ya cerrada.");
 
         var porId = productosDelLocal.ToDictionary(p => p.Id);

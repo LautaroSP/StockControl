@@ -79,4 +79,19 @@ public class ItemVentaPedido
 public class CerrarCajaPedido
 {
     public DateOnly? Fecha { get; set; }
+
+    /// <summary>medio | usuario</summary>
+    public string Desglose { get; set; } = "medio";
+}
+
+public class CantidadCajasPedido
+{
+    [Range(1, 50)]
+    public int Cantidad { get; set; } = 1;
+}
+
+public class UnificarCajasPedido
+{
+    [Required, MinLength(2)]
+    public List<int> IdsCierre { get; set; } = new();
 }

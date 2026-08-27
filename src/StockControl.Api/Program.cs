@@ -392,6 +392,7 @@ app.MapPut("/grupos/{id:int}/miembros", async (int id, MiembrosGrupoPedido pedid
 app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (sesion.NroCaja == null) return Results.BadRequest("Elegí una caja.");
     if (pedido.CobrarAlCosto && !Permisos.PuedeCobrarAlCosto(sesion.Rol ?? ""))
         return Results.Forbid();
     var productos = await db.Productos.ToListAsync();
@@ -425,7 +426,8 @@ app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual 
             MetodoPago = resultado.MetodoPago,
             Descuento = resultado.Descuento,
             PrecioCosto = resultado.PrecioCosto,
-            DetalleAdjunto = true
+            DetalleAdjunto = true,
+            NroCaja = sesion.NroCaja.Value
         };
         foreach (var l in resultado.Lineas)
         {
@@ -467,7 +469,7 @@ app.MapGet("/ventas", async (AppDbContext db, SesionActual sesion, DateOnly? des
     var total = await q.CountAsync();
     var suma = await q.SumAsync(v => (decimal?)v.Total) ?? 0;
     var items = await q.Skip((pagina - 1) * tamano).Take(tamano)
-        .Select(v => new { v.IdInformeVenta, v.Fecha, v.Total, v.MetodoPago, v.Descuento, v.PrecioCosto, v.NroCaja })
+        .Select(v => new { v.IdInformeVenta, v.Fecha, v.Total, v.MetodoPago, v.Descuento, v.PrecioCosto, v.NroCaja, v.IdCierre })
         .ToListAsync();
     return Results.Ok(new { total, suma, pagina, tamano, items });
 }).RequireAuthorization().RequireRateLimiting("api");
@@ -488,6 +490,7 @@ app.MapGet("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual sesi
         venta.Descuento,
         venta.PrecioCosto,
         venta.NroCaja,
+        venta.IdCierre,
         items = venta.Detalles.Select(d => new
         {
             d.IdInformeVentaDetalle,
@@ -525,19 +528,90 @@ app.MapDelete("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual s
 app.MapGet("/cajas", async (AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (sesion.NroCaja == null) return Results.BadRequest("Elegí una caja.");
     var (ini, fin) = DiaArgentina.Rango(DiaArgentina.Hoy());
-    var abiertas = db.InformeVenta.Where(v => v.Fecha >= ini && v.Fecha < fin && v.NroCaja == null);
+    var puesto = sesion.NroCaja.Value;
+    var abiertas = db.InformeVenta.Where(v =>
+        v.Fecha >= ini && v.Fecha < fin && v.IdCierre == null && v.NroCaja == puesto);
     var pendientesHoy = new
     {
         tickets = await abiertas.CountAsync(),
         total = await abiertas.SumAsync(v => (decimal?)v.Total) ?? 0
     };
-    var proximoNro = (await db.Cajas.MaxAsync(c => (int?)c.NroCaja) ?? 0) + 1;
     var items = await db.Cajas.Where(c => c.MetodoPago == "Total")
-        .OrderByDescending(c => c.NroCaja)
-        .Select(c => new { c.NroCaja, c.Fecha, c.NombreCierre, c.Total, c.CantidadVentas })
+        .OrderByDescending(c => c.IdCierre)
+        .Take(20)
+        .Select(c => new { c.IdCierre, c.NroCaja, c.Fecha, c.NombreCierre, c.Total, c.CantidadVentas })
         .ToListAsync();
-    return Results.Ok(new { proximoNro, pendientesHoy, items });
+    return Results.Ok(new { nroCaja = puesto, pendientesHoy, items });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/configuracion/cajas", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    var cantidad = await CantidadCajasLocal(db);
+    return Results.Ok(new { cantidad });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPut("/configuracion/cajas", async (CantidadCajasPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarCajas(sesion.Rol ?? "")) return Results.Forbid();
+    if (pedido.Cantidad < 1) return Results.BadRequest("La cantidad mínima es 1.");
+    var fila = await db.Configuracion.FirstOrDefaultAsync(c => c.Clave == "CantidadCajas");
+    if (fila == null)
+    {
+        fila = new Configuracion { IdLocal = sesion.IdLocal.Value, Clave = "CantidadCajas", Valor = pedido.Cantidad.ToString() };
+        db.Configuracion.Add(fila);
+    }
+    else
+        fila.Valor = pedido.Cantidad.ToString();
+    await db.SaveChangesAsync();
+    return Results.Ok(new { cantidad = pedido.Cantidad });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/cajas/puestos", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    var cantidad = await CantidadCajasLocal(db);
+    var ocupaciones = await db.OcupacionesCaja
+        .OrderBy(o => o.NroCaja)
+        .Select(o => new { o.NroCaja, o.NombreUsuario, o.IdUsuario })
+        .ToListAsync();
+    return Results.Ok(new { cantidad, ocupaciones });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/cajas/puestos/{nro:int}/elegir", async (int nro, AppDbContext db, SesionActual sesion, JwtServicio jwt) =>
+{
+    if (sesion.IdLocal == null || sesion.IdUsuario == null) return Results.BadRequest("Elegí un local.");
+    var cantidad = await CantidadCajasLocal(db);
+    if (nro < 1 || nro > cantidad)
+        return Results.BadRequest($"Elegí una caja entre 1 y {cantidad}.");
+    var u = await db.Usuarios.IgnoreQueryFilters().FirstAsync(x => x.Id == sesion.IdUsuario);
+    var otros = await db.OcupacionesCaja
+        .Where(o => o.NroCaja == nro && o.IdUsuario != sesion.IdUsuario)
+        .Select(o => o.NombreUsuario)
+        .ToListAsync();
+    var mias = await db.OcupacionesCaja.Where(o => o.IdUsuario == sesion.IdUsuario).ToListAsync();
+    db.OcupacionesCaja.RemoveRange(mias);
+    db.OcupacionesCaja.Add(new OcupacionCaja
+    {
+        IdLocal = sesion.IdLocal.Value,
+        NroCaja = nro,
+        IdUsuario = sesion.IdUsuario.Value,
+        NombreUsuario = u.NombreUsuario,
+        Desde = DateTimeOffset.UtcNow
+    });
+    await db.SaveChangesAsync();
+    string? aviso = otros.Count == 0
+        ? null
+        : $"{string.Join(", ", otros)} está usando la Caja {nro}";
+    return Results.Ok(new
+    {
+        token = jwt.Emitir(u, sesion.IdLocal, nro),
+        nroCaja = nro,
+        aviso
+    });
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapGet("/cajas/filtros", async (AppDbContext db, SesionActual sesion) =>
@@ -548,7 +622,7 @@ app.MapGet("/cajas/filtros", async (AppDbContext db, SesionActual sesion) =>
         .Distinct()
         .OrderBy(n => n)
         .ToListAsync();
-    var medios = await db.Cajas.Where(c => c.MetodoPago != "Total")
+    var medios = await db.Cajas.Where(c => c.MetodoPago != "Total" && c.TipoDesglose == TipoDesgloseCaja.Medio)
         .Select(c => c.MetodoPago)
         .Distinct()
         .OrderBy(m => m)
@@ -583,41 +657,120 @@ app.MapGet("/cajas/consulta", async (
     var items = filtradas
         .Skip((pagina - 1) * tamano)
         .Take(tamano)
-        .Select(c => new { c.NroCaja, c.Fecha, c.NombreCierre, c.Total, c.CantidadVentas })
+        .Select(c => new { c.IdCierre, c.NroCaja, c.Fecha, c.NombreCierre, c.Total, c.CantidadVentas })
         .ToList();
-    return Results.Ok(new { total, pagina, tamano, items });
+    var paraUnificar = string.IsNullOrWhiteSpace(medio)
+        ? filtradas
+        : ServicioConsultaCajas.FiltrarTotales(enRango, quien, null);
+    var unificables = ServicioUnificarCajas.GruposUnificables(paraUnificar)
+        .Select(g => new { g.NroCaja, g.NombreCierre, dia = g.Dia.ToString("yyyy-MM-dd"), idsCierre = g.IdsCierre })
+        .ToList();
+    return Results.Ok(new { total, pagina, tamano, items, unificables });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/cajas/unificar", async (UnificarCajasPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (pedido.IdsCierre == null || pedido.IdsCierre.Count < 2)
+        return Results.BadRequest("Elegí al menos dos cierres.");
+    var ids = pedido.IdsCierre.Distinct().ToList();
+    var filas = await db.Cajas.Where(c => ids.Contains(c.IdCierre)).ToListAsync();
+    try
+    {
+        var r = ServicioUnificarCajas.Unificar(filas, ids);
+        db.Cajas.RemoveRange(filas);
+        db.Cajas.AddRange(r.Filas);
+        var ventas = await db.InformeVenta.Where(v => v.IdCierre != null && ids.Contains(v.IdCierre.Value)).ToListAsync();
+        foreach (var v in ventas)
+            v.IdCierre = r.IdCierre;
+        await db.SaveChangesAsync();
+        return Results.Ok(new
+        {
+            r.IdCierre,
+            eliminados = r.IdsEliminados,
+            filas = r.Filas.Select(c => new { c.MetodoPago, c.CantidadVentas, c.Total })
+        });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/cajas/cierres/{idCierre:int}", async (int idCierre, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    var filas = await db.Cajas.Where(c => c.IdCierre == idCierre).OrderBy(c => c.IdCaja).ToListAsync();
+    if (filas.Count == 0) return Results.NotFound();
+    return Results.Ok(new
+    {
+        idCierre,
+        nroCaja = filas[0].NroCaja,
+        fecha = filas[0].Fecha,
+        nombreCierre = filas[0].NombreCierre,
+        tipoDesglose = filas[0].TipoDesglose,
+        filas = filas.Select(c => new { c.MetodoPago, c.CantidadVentas, c.Total })
+    });
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapGet("/cajas/{nro:int}", async (int nro, AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
-    var filas = await db.Cajas.Where(c => c.NroCaja == nro).OrderBy(c => c.IdCaja).ToListAsync();
-    if (filas.Count == 0) return Results.NotFound();
-    return Results.Ok(new
+    // Compat: si existe IdCierre = nro, devolver ese cierre; si no, último Total del puesto.
+    var porId = await db.Cajas.Where(c => c.IdCierre == nro).OrderBy(c => c.IdCaja).ToListAsync();
+    if (porId.Count > 0)
     {
-        nroCaja = nro,
-        fecha = filas[0].Fecha,
-        nombreCierre = filas[0].NombreCierre,
-        filas = filas.Select(c => new { c.MetodoPago, c.CantidadVentas, c.Total })
-    });
+        return Results.Ok(new
+        {
+            idCierre = nro,
+            nroCaja = porId[0].NroCaja,
+            fecha = porId[0].Fecha,
+            nombreCierre = porId[0].NombreCierre,
+            tipoDesglose = porId[0].TipoDesglose,
+            filas = porId.Select(c => new { c.MetodoPago, c.CantidadVentas, c.Total })
+        });
+    }
+    return Results.NotFound();
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapPost("/cajas/cerrar", async (CerrarCajaPedido pedido, AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (sesion.NroCaja == null) return Results.BadRequest("Elegí una caja.");
     var dia = pedido.Fecha ?? DiaArgentina.Hoy();
     var (ini, fin) = DiaArgentina.Rango(dia);
     var ventas = await db.InformeVenta.Where(v => v.Fecha >= ini && v.Fecha < fin).ToListAsync();
-    var nro = (await db.Cajas.MaxAsync(c => (int?)c.NroCaja) ?? 0) + 1;
+    var idCierre = (await db.Cajas.MaxAsync(c => (int?)c.IdCierre) ?? 0) + 1;
     var nombre = sesion.IdUsuario == null
         ? ""
         : (await db.Usuarios.IgnoreQueryFilters().FirstAsync(u => u.Id == sesion.IdUsuario)).NombreUsuario;
+    var idsUsuarios = ventas.Where(v => v.IdUsuario != null).Select(v => v.IdUsuario!.Value).Distinct().ToList();
+    var nombres = await db.Usuarios.IgnoreQueryFilters()
+        .Where(u => idsUsuarios.Contains(u.Id))
+        .ToDictionaryAsync(u => u.Id, u => u.NombreUsuario);
+    var tipo = string.Equals(pedido.Desglose, "usuario", StringComparison.OrdinalIgnoreCase)
+        ? TipoDesgloseCaja.Usuario
+        : TipoDesgloseCaja.Medio;
     try
     {
-        var r = ServicioCierre.Cerrar(ventas, nro, sesion.IdLocal.Value, sesion.IdUsuario, nombre, DateTimeOffset.UtcNow);
+        var r = ServicioCierre.Cerrar(
+            ventas,
+            sesion.NroCaja.Value,
+            idCierre,
+            sesion.IdLocal.Value,
+            sesion.IdUsuario,
+            nombre,
+            DateTimeOffset.UtcNow,
+            tipo,
+            nombres);
         db.Cajas.AddRange(r.Filas);
         await db.SaveChangesAsync();
-        return Results.Ok(new { r.NroCaja, filas = r.Filas.Select(c => new { c.MetodoPago, c.CantidadVentas, c.Total }) });
+        return Results.Ok(new
+        {
+            r.IdCierre,
+            r.NroCaja,
+            filas = r.Filas.Select(c => new { c.MetodoPago, c.CantidadVentas, c.Total })
+        });
     }
     catch (ErrorNegocio ex)
     {
@@ -626,6 +779,12 @@ app.MapPost("/cajas/cerrar", async (CerrarCajaPedido pedido, AppDbContext db, Se
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.Run();
+
+static async Task<int> CantidadCajasLocal(AppDbContext db)
+{
+    var valor = (await db.Configuracion.FirstOrDefaultAsync(c => c.Clave == "CantidadCajas"))?.Valor;
+    return int.TryParse(valor, out var n) && n >= 1 ? n : 1;
+}
 
 static void CargarEnvLocal()
 {

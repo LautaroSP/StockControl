@@ -15,3 +15,12 @@ export const localGuard: CanActivateFn = () => {
   if (!sesion.idLocal()) return router.parseUrl('/locales');
   return true;
 };
+
+export const cajaGuard: CanActivateFn = () => {
+  const sesion = inject(SesionService);
+  const router = inject(Router);
+  if (!sesion.hayToken()) return router.parseUrl('/login');
+  if (!sesion.idLocal()) return router.parseUrl('/locales');
+  if (!sesion.hayCaja()) return router.parseUrl('/elegir-caja');
+  return true;
+};

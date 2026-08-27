@@ -122,7 +122,7 @@ export class ApiService {
 
   cajas() {
     return this.http.get<{
-      proximoNro: number;
+      nroCaja: number;
       pendientesHoy: { tickets: number; total: number };
       items: CajaListaDto[];
     }>(`${this.base}/cajas`);
@@ -135,25 +135,67 @@ export class ApiService {
     if (opts.quien) params = params.set('quien', opts.quien);
     if (opts.medio) params = params.set('medio', opts.medio);
     if (opts.pagina) params = params.set('pagina', String(opts.pagina));
-    return this.http.get<{ total: number; pagina: number; tamano: number; items: CajaListaDto[] }>(
-      `${this.base}/cajas/consulta`,
-      { params }
-    );
+    return this.http.get<{
+      total: number;
+      pagina: number;
+      tamano: number;
+      items: CajaListaDto[];
+      unificables: GrupoUnificableDto[];
+    }>(`${this.base}/cajas/consulta`, { params });
+  }
+
+  unificarCajas(idsCierre: number[]) {
+    return this.http.post<{
+      idCierre: number;
+      eliminados: number[];
+      filas: { metodoPago: string; cantidadVentas: number; total: number }[];
+    }>(`${this.base}/cajas/unificar`, { idsCierre });
   }
 
   filtrosCajas() {
     return this.http.get<{ personas: string[]; medios: string[] }>(`${this.base}/cajas/filtros`);
   }
 
-  caja(nro: number) {
-    return this.http.get<CajaDetalleDto>(`${this.base}/cajas/${nro}`);
+  cierre(idCierre: number) {
+    return this.http.get<CajaDetalleDto>(`${this.base}/cajas/cierres/${idCierre}`);
   }
 
-  cerrarCaja(fecha?: string) {
-    return this.http.post<{ nroCaja: number; filas: { metodoPago: string; cantidadVentas: number; total: number }[] }>(
-      `${this.base}/cajas/cerrar`,
-      fecha ? { fecha } : {}
+  /** @deprecated preferir cierre(idCierre) */
+  caja(nro: number) {
+    return this.cierre(nro);
+  }
+
+  puestos() {
+    return this.http.get<{
+      cantidad: number;
+      ocupaciones: { nroCaja: number; nombreUsuario: string; idUsuario: number }[];
+    }>(`${this.base}/cajas/puestos`);
+  }
+
+  elegirPuesto(nro: number) {
+    return this.http.post<{ token: string; nroCaja: number; aviso?: string | null }>(
+      `${this.base}/cajas/puestos/${nro}/elegir`,
+      {}
     );
+  }
+
+  cantidadCajas() {
+    return this.http.get<{ cantidad: number }>(`${this.base}/configuracion/cajas`);
+  }
+
+  setCantidadCajas(cantidad: number) {
+    return this.http.put<{ cantidad: number }>(`${this.base}/configuracion/cajas`, { cantidad });
+  }
+
+  cerrarCaja(fecha?: string, desglose: 'medio' | 'usuario' = 'medio') {
+    return this.http.post<{
+      idCierre: number;
+      nroCaja: number;
+      filas: { metodoPago: string; cantidadVentas: number; total: number }[];
+    }>(`${this.base}/cajas/cerrar`, {
+      ...(fecha ? { fecha } : {}),
+      desglose
+    });
   }
 
   grupos() {
@@ -207,6 +249,7 @@ export interface VentaListaDto {
   descuento: number;
   precioCosto: string;
   nroCaja?: number | null;
+  idCierre?: number | null;
 }
 
 export interface VentaDetalleDto {
@@ -218,6 +261,7 @@ export interface VentaDetalleDto {
   descuento: number;
   precioCosto: string;
   nroCaja?: number | null;
+  idCierre?: number | null;
   items: {
     idInformeVentaDetalle: number;
     idProducto?: number | null;
@@ -231,6 +275,7 @@ export interface VentaDetalleDto {
 }
 
 export interface CajaListaDto {
+  idCierre: number;
   nroCaja: number;
   fecha: string;
   nombreCierre: string;
@@ -238,9 +283,18 @@ export interface CajaListaDto {
   cantidadVentas: number;
 }
 
+export interface GrupoUnificableDto {
+  nroCaja: number;
+  nombreCierre: string;
+  dia: string;
+  idsCierre: number[];
+}
+
 export interface CajaDetalleDto {
+  idCierre?: number;
   nroCaja: number;
   fecha: string;
   nombreCierre: string;
+  tipoDesglose?: string;
   filas: { metodoPago: string; cantidadVentas: number; total: number }[];
 }

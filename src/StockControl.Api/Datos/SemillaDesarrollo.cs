@@ -71,6 +71,12 @@ public static class SemillaDesarrollo
             Clave = "StockRigido",
             Valor = "0"
         });
+        db.Configuracion.Add(new Configuracion
+        {
+            IdLocal = local.IdLocal,
+            Clave = "CantidadCajas",
+            Valor = "1"
+        });
 
         await db.SaveChangesAsync();
     }

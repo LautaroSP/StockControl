@@ -5,14 +5,14 @@ public static class ServicioConsultaCajas
     public static IReadOnlyList<Caja> FilasTotal(IEnumerable<Caja> filas) =>
         filas.Where(c => c.MetodoPago == "Total").ToList();
 
-    public static HashSet<int> NrosConMedio(IEnumerable<Caja> filas, string medio)
+    public static HashSet<int> IdsCierreConMedio(IEnumerable<Caja> filas, string medio)
     {
         if (string.IsNullOrWhiteSpace(medio))
-            return filas.Select(c => c.NroCaja).ToHashSet();
+            return filas.Select(c => c.IdCierre).ToHashSet();
         return filas
             .Where(c => !string.Equals(c.MetodoPago, "Total", StringComparison.OrdinalIgnoreCase)
                         && string.Equals(c.MetodoPago, medio, StringComparison.OrdinalIgnoreCase))
-            .Select(c => c.NroCaja)
+            .Select(c => c.IdCierre)
             .ToHashSet();
     }
 
@@ -25,8 +25,8 @@ public static class ServicioConsultaCajas
         var totales = FilasTotal(lista);
         if (!string.IsNullOrWhiteSpace(medio))
         {
-            var nros = NrosConMedio(lista, medio);
-            totales = totales.Where(c => nros.Contains(c.NroCaja)).ToList();
+            var ids = IdsCierreConMedio(lista, medio);
+            totales = totales.Where(c => ids.Contains(c.IdCierre)).ToList();
         }
         if (!string.IsNullOrWhiteSpace(quien))
         {
@@ -34,7 +34,7 @@ public static class ServicioConsultaCajas
                 .Where(c => c.NombreCierre.Contains(quien, StringComparison.OrdinalIgnoreCase))
                 .ToList();
         }
-        return totales.OrderByDescending(c => c.NroCaja).ToList();
+        return totales.OrderByDescending(c => c.IdCierre).ToList();
     }
 
     public static (DateOnly desde, DateOnly hasta) MesActual(DateOnly hoy) =>

@@ -22,6 +22,13 @@ import { TemaService } from '../servicios/tema.service';
           <a routerLink="/productos" routerLinkActive="active">Productos</a>
           @if (sesion.esDueno()) {
             <a routerLink="/grupos" routerLinkActive="active">Grupos</a>
+            <a routerLink="/medios-pago" routerLinkActive="active">Medios de pago</a>
+          }
+          @if (sesion.puedeGestionarUsuarios()) {
+            <a routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
+          }
+          @if (sesion.puedeConfigurarLocal()) {
+            <a routerLink="/configuracion" routerLinkActive="active">Configuración</a>
           }
           <a routerLink="/informes" routerLinkActive="active">Informes</a>
           <a routerLink="/cajas" routerLinkActive="active">Cajas</a>

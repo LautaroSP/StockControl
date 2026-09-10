@@ -281,7 +281,8 @@ namespace StockControl.Api.Datos.Migraciones
 
                     b.Property<string>("Descripcion")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
 
                     b.Property<int>("IdLocal")
                         .HasColumnType("integer");
@@ -322,6 +323,41 @@ namespace StockControl.Api.Datos.Migraciones
                         .IsUnique();
 
                     b.ToTable("OcupacionesCaja", (string)null);
+                });
+
+            modelBuilder.Entity("StockControl.Dominio.PagoVenta", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DescripcionMetodoPago")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int>("IdInformeVenta")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("IdLocal")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("IdMetodoPago")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Importe")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdInformeVenta");
+
+                    b.HasIndex("IdLocal", "IdInformeVenta");
+
+                    b.ToTable("PagosVenta", (string)null);
                 });
 
             modelBuilder.Entity("StockControl.Dominio.Producto", b =>
@@ -368,6 +404,11 @@ namespace StockControl.Api.Datos.Migraciones
                     b.Property<bool>("ProductoSector")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("UsuarioModificacion")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
                     b.Property<decimal>("ValorGanancia")
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)");
@@ -388,9 +429,19 @@ namespace StockControl.Api.Datos.Migraciones
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("Activo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("HashClave")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
 
                     b.Property<string>("NombreUsuario")
                         .IsRequired()
@@ -441,9 +492,20 @@ namespace StockControl.Api.Datos.Migraciones
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("StockControl.Dominio.PagoVenta", b =>
+                {
+                    b.HasOne("StockControl.Dominio.InformeVenta", null)
+                        .WithMany("Pagos")
+                        .HasForeignKey("IdInformeVenta")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("StockControl.Dominio.InformeVenta", b =>
                 {
                     b.Navigation("Detalles");
+
+                    b.Navigation("Pagos");
                 });
 #pragma warning restore 612, 618
         }

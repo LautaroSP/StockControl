@@ -14,8 +14,10 @@ No es lo mismo que el precio libre del **producto sector** o del **genérico** e
 
 ## Criterios de aceptación
 
-- [ ] Config del local: checkbox “El empleado puede modificar precios de lista”. Off de fábrica.
-- [ ] Off: el empleado no ve campos de precio/costo editables en productos.
-- [ ] On: puede editar **precio de venta** del producto. Costo y factor de ganancia siguen siendo del dueño.
-- [ ] El permiso es por local (en Caballito sí, en Almagro no).
-- [ ] Queda registro de quién cambió el precio (usuario + fecha).
+- [x] Config del local: checkbox “El empleado puede modificar precios de lista”. Off de fábrica.
+- [x] Off: el empleado no ve campos de precio/costo editables en productos.
+- [x] On: puede editar **precio de venta** del producto. Costo y factor de ganancia siguen siendo del dueño.
+- [x] El permiso es por local (en Caballito sí, en Almagro no).
+- [x] Queda registro de quién cambió el precio (usuario + fecha).
+- [x] La tabla de productos muestra fecha y usuario de la última modificación.
+- [x] Cambiar un grupo actualiza fecha y usuario de todos sus productos.

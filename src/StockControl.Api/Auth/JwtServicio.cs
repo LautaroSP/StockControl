@@ -22,7 +22,8 @@ public class JwtServicio
         {
             new(JwtRegisteredClaimNames.Sub, usuario.Id.ToString()),
             new("rol", usuario.Rol),
-            new("nombre", usuario.NombreUsuario)
+            new("usuario", usuario.NombreUsuario),
+            new("nombre", string.IsNullOrWhiteSpace(usuario.Nombre) ? usuario.NombreUsuario : usuario.Nombre)
         };
         if (idLocal.HasValue)
             claims.Add(new Claim("localId", idLocal.Value.ToString()));

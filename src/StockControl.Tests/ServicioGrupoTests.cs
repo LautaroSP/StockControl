@@ -60,6 +60,18 @@ public class ServicioGrupoTests
     }
 
     [Fact]
+    public void AplicarAMiembros_actualiza_auditoria_de_todos()
+    {
+        var g = Grupo(precio: 250, costo: 120);
+        var productos = new[] { Comun(1, grupo: 1), Comun(2, grupo: 1) };
+
+        ServicioGrupo.AplicarAMiembros(g, productos, "matias");
+
+        Assert.All(productos, p => Assert.Equal("matias", p.UsuarioModificacion));
+        Assert.All(productos, p => Assert.NotNull(p.FechaModificacion));
+    }
+
+    [Fact]
     public void Sacar_deja_grupo_cero_sin_cambiar_precio()
     {
         var p = Comun(1, grupo: 1);

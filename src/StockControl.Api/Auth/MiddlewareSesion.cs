@@ -19,6 +19,7 @@ public class MiddlewareSesion
             if (int.TryParse(sub, out var id))
                 sesion.IdUsuario = id;
             sesion.Rol = http.User.FindFirstValue("rol");
+            sesion.NombreUsuario = http.User.FindFirstValue("usuario");
             if (int.TryParse(http.User.FindFirstValue("localId"), out var local))
                 sesion.IdLocal = local;
             if (int.TryParse(http.User.FindFirstValue("nroCaja"), out var caja))

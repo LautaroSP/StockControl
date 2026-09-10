@@ -18,7 +18,8 @@ public static class ServicioCierre
         string nombreCierre,
         DateTimeOffset fecha,
         string tipoDesglose,
-        IReadOnlyDictionary<int, string>? nombresUsuarios = null)
+        IReadOnlyDictionary<int, string>? nombresUsuarios = null,
+        IReadOnlyDictionary<int, IReadOnlyList<PagoVenta>>? pagosPorVenta = null)
     {
         var desglose = string.Equals(tipoDesglose, TipoDesgloseCaja.Usuario, StringComparison.OrdinalIgnoreCase)
             ? TipoDesgloseCaja.Usuario
@@ -52,7 +53,9 @@ public static class ServicioCierre
         else
         {
             filas = abiertas
-                .GroupBy(v => v.MetodoPago)
+                .SelectMany(v => MediosDeVenta(v, pagosPorVenta)
+                    .Select(m => new { Venta = v, Medio = m }))
+                .GroupBy(x => x.Medio.DescripcionMetodoPago)
                 .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(g => NuevaFila(
                     idLocal,
@@ -60,7 +63,7 @@ public static class ServicioCierre
                     idCierre,
                     fecha,
                     g.Key,
-                    g.Sum(v => v.Total),
+                    g.Sum(x => x.Medio.Importe),
                     g.Count(),
                     idUsuarioCierre,
                     nombreCierre,
@@ -84,6 +87,15 @@ public static class ServicioCierre
             v.IdCierre = idCierre;
 
         return new ResultadoCierre { IdCierre = idCierre, NroCaja = nroPuesto, Filas = filas };
+    }
+
+    private static IEnumerable<PagoVenta> MediosDeVenta(
+        InformeVenta venta,
+        IReadOnlyDictionary<int, IReadOnlyList<PagoVenta>>? pagosPorVenta)
+    {
+        if (pagosPorVenta != null && pagosPorVenta.TryGetValue(venta.IdInformeVenta, out var pagos) && pagos.Count > 0)
+            return pagos;
+        return [new PagoVenta { DescripcionMetodoPago = venta.MetodoPago, Importe = venta.Total }];
     }
 
     private static string NombreUsuario(int idUsuario, IReadOnlyDictionary<int, string>? nombres)

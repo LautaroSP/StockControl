@@ -2,6 +2,9 @@ namespace StockControl.Dominio;
 
 public static class PrecioVenta
 {
+    public static decimal CalcularLista(decimal costo, decimal factorGanancia, decimal iva) =>
+        Math.Round(costo * factorGanancia * iva, 2, MidpointRounding.AwayFromZero);
+
     /// <summary>
     /// Descuento sobre el margen (precio − costo), no sobre el precio entero.
     /// Ej: 1500 − 1000 = 500; 50% → 1500 − 250 = 1250.

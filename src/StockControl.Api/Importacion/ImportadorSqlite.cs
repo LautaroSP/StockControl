@@ -35,13 +35,20 @@ public static class ImportadorSqlite
         foreach (var g in lectura.Grupos)
             db.GrupoProductos.Add(g);
         foreach (var p in lectura.Productos)
+        {
+            p.UsuarioModificacion = "import";
             db.Productos.Add(p);
+        }
         foreach (var m in lectura.Metodos)
             db.MetodosPago.Add(m);
         foreach (var c in lectura.Configuraciones)
             db.Configuracion.Add(c);
-        if (lectura.Configuraciones.All(c => c.Clave != "CantidadCajas"))
-            db.Configuracion.Add(new Configuracion { IdLocal = local.IdLocal, Clave = "CantidadCajas", Valor = "1" });
+        var clavesConfiguracion = lectura.Configuraciones.Select(c => c.Clave).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var (claveConfig, valor) in ConfiguracionesPorDefecto())
+        {
+            if (!clavesConfiguracion.Contains(claveConfig))
+                db.Configuracion.Add(new Configuracion { IdLocal = local.IdLocal, Clave = claveConfig, Valor = valor });
+        }
         // El .db no vincula ventas a un nro de caja: se numeran por Fecha del cierre, sin sellar InformeVenta.
         AsignarNrosCajaImportadas(lectura.Cajas);
         foreach (var caja in lectura.Cajas)
@@ -102,4 +109,16 @@ public static class ImportadorSqlite
             SELECT setval(pg_get_serial_sequence('"Locales"', 'IdLocal'), COALESCE((SELECT MAX("IdLocal") FROM "Locales"), 1));
             """);
     }
+
+    private static IReadOnlyDictionary<string, string> ConfiguracionesPorDefecto() => new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["CantidadCajas"] = "1",
+        ["FactorGanancia"] = "1",
+        ["IVA"] = "1.21",
+        ["StockRigido"] = "0",
+        ["UmbralStockBajo"] = "5",
+        ["EmpleadoPuedeModificarPrecios"] = "0",
+        ["FormatoTicket"] = "POS",
+        ["ImprimirTicketAlCobrar"] = "1"
+    };
 }

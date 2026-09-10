@@ -21,6 +21,6 @@ Todo lo configurable **por sucursal**. El empleado no entra.
 
 ## Criterios de aceptación
 
-- [ ] Cada local tiene su config. Cambiar Almagro no toca Caballito.
-- [ ] Recalcular precios es opt-in (Sí/No), no silencioso.
-- [ ] Admin no pisa esta config; solo el estado del abono del local.
+- [x] Cada local tiene su config. Cambiar Almagro no toca Caballito.
+- [x] Recalcular precios es opt-in (Sí/No), no silencioso.
+- [x] Admin no pisa esta config; solo el estado del abono del local.

@@ -13,9 +13,9 @@ public static class SemillaDesarrollo
             return;
 
         var hasher = new PasswordHasher<Usuario>();
-        var jorge = new Usuario { NombreUsuario = "jorge", Rol = Roles.Dueno };
+        var jorge = new Usuario { Nombre = "Jorge", NombreUsuario = "jorge", Rol = Roles.Dueno };
         jorge.HashClave = hasher.HashPassword(jorge, clave);
-        var ana = new Usuario { NombreUsuario = "ana", Rol = Roles.Empleado };
+        var ana = new Usuario { Nombre = "Ana", NombreUsuario = "ana", Rol = Roles.Empleado };
         ana.HashClave = hasher.HashPassword(ana, clave);
 
         var local = new Local
@@ -35,7 +35,8 @@ public static class SemillaDesarrollo
 
         db.MetodosPago.AddRange(
             new MetodoPago { IdLocal = local.IdLocal, Descripcion = "Efectivo" },
-            new MetodoPago { IdLocal = local.IdLocal, Descripcion = "Mercado Pago" });
+            new MetodoPago { IdLocal = local.IdLocal, Descripcion = "Mercado Pago" },
+            new MetodoPago { IdLocal = local.IdLocal, Descripcion = "Transferencia" });
 
         db.Productos.AddRange(
             new Producto
@@ -77,6 +78,13 @@ public static class SemillaDesarrollo
             Clave = "CantidadCajas",
             Valor = "1"
         });
+        db.Configuracion.AddRange(
+            new Configuracion { IdLocal = local.IdLocal, Clave = "FactorGanancia", Valor = "1" },
+            new Configuracion { IdLocal = local.IdLocal, Clave = "IVA", Valor = "1.21" },
+            new Configuracion { IdLocal = local.IdLocal, Clave = "UmbralStockBajo", Valor = "5" },
+            new Configuracion { IdLocal = local.IdLocal, Clave = "EmpleadoPuedeModificarPrecios", Valor = "0" },
+            new Configuracion { IdLocal = local.IdLocal, Clave = "FormatoTicket", Valor = "POS" },
+            new Configuracion { IdLocal = local.IdLocal, Clave = "ImprimirTicketAlCobrar", Valor = "1" });
 
         await db.SaveChangesAsync();
     }

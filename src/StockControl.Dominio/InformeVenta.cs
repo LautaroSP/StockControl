@@ -18,4 +18,5 @@ public class InformeVenta
     /// <summary>Null = venta abierta; set = incluida en ese cierre.</summary>
     public int? IdCierre { get; set; }
     public List<InformeVentaDetalle> Detalles { get; set; } = new();
+    public List<PagoVenta> Pagos { get; set; } = new();
 }

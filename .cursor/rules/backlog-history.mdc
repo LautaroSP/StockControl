@@ -1,0 +1,23 @@
+---
+description: Estado del backlog web — consultar History.md; al cerrar una tarjeta, loguear ahí.
+alwaysApply: true
+---
+
+# Backlog y History
+
+Antes de implementar o de preguntar “qué falta”: leer `backlog/History.md`. Esa tabla es la fuente de verdad (estado + `#orden`). No recorrer todo `backlog/` ni el código para rearmar el tablero.
+
+## Orden
+
+Seguir `#orden` de History. La sección **Siguiente** es la próxima tarjeta. No saltear a la 21 (QR de mostrador): es la última. La 22 (abono que te pagan a vos) es otro Mercado Pago.
+
+## Al cerrar una tarjeta
+
+1. Tildar criterios en `backlog/NN-….md`.
+2. En `backlog/History.md`: estado **sí**, quitar huecos, actualizar **Siguiente**, una línea en el **Log** (`fecha · NN título · sí`).
+3. Test xUnit del dominio en el mismo cambio (rule de tests).
+
+```
+✅ 18 Ticket · sí · History log + criterios tildados
+❌ Cerrar la feature y dejar History como estaba
+```

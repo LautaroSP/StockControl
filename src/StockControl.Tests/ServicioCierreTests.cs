@@ -107,4 +107,26 @@ public class ServicioCierreTests
         Assert.Throws<ErrorNegocio>(() =>
             ServicioCierre.Cerrar(ventas, 1, 2, 1, 9, "matias", DateTimeOffset.UtcNow, TipoDesgloseCaja.Medio));
     }
+
+    [Fact]
+    public void Cerrar_desglosa_una_venta_con_pagos_multiples()
+    {
+        var venta = Venta("Múltiple", 100);
+        var pagos = new Dictionary<int, IReadOnlyList<PagoVenta>>
+        {
+            [1] = new[]
+            {
+                new PagoVenta { IdInformeVenta = 1, DescripcionMetodoPago = "Efectivo", Importe = 60 },
+                new PagoVenta { IdInformeVenta = 1, DescripcionMetodoPago = "Transferencia", Importe = 40 }
+            }
+        };
+
+        var r = ServicioCierre.Cerrar(
+            new[] { venta }, 1, 4, 1, 9, "matias", DateTimeOffset.UtcNow,
+            TipoDesgloseCaja.Medio, pagosPorVenta: pagos);
+
+        Assert.Equal(60, r.Filas.Single(f => f.MetodoPago == "Efectivo").Total);
+        Assert.Equal(40, r.Filas.Single(f => f.MetodoPago == "Transferencia").Total);
+        Assert.Equal(100, r.Filas.Single(f => f.MetodoPago == "Total").Total);
+    }
 }

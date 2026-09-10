@@ -14,6 +14,7 @@ public class Producto
     public bool GananciaIndividual { get; set; }
     public decimal ValorGanancia { get; set; }
     public DateTimeOffset? FechaModificacion { get; set; }
+    public string UsuarioModificacion { get; set; } = "";
 
     public bool EsGenerico => Codigo.StartsWith("GENERIC-", StringComparison.OrdinalIgnoreCase);
 }

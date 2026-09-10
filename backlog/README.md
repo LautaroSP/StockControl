@@ -1,5 +1,7 @@
 # Backlog web — StockControl
 
+**Estado y orden:** [History.md](History.md). Consultar ahí, no rearmar el tablero.
+
 Una tarjeta = un archivo. El dueño puede todo lo del empleado, y más.
 Se paga **$ 9.999 / mes por local** (Argentina). El dueño **no** da de alta locales: paga o habla con ventas.
 
@@ -38,6 +40,8 @@ Se paga **$ 9.999 / mes por local** (Argentina). El dueño **no** da de alta loc
 | 17 | [Estadísticas](17-estadisticas.md) | dueño |
 | 18 | [Ticket](18-ticket.md) | dueño (config), empleado (imprimir) |
 | 19 | [Carteles](19-carteles.md) | dueño |
+| 26 | [Proveedores y órdenes](26-proveedores.md) | dueño, socio |
+| 27 | [Recibir orden](27-recibir-orden.md) | dueño, socio |
 | 20 | [Configuración del local](20-configuracion-del-local.md) | dueño |
 | 21 | [Pasarela de pagos (QR MP / Posnet)](21-pasarela-pagos-qr.md) | dueño (vincula), empleado (cobra) — **última** |
 | 23 | [Modo oscuro](23-modo-oscuro.md) | todos — UI |

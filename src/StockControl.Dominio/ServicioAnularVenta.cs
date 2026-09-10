@@ -2,7 +2,7 @@ namespace StockControl.Dominio;
 
 public static class ServicioAnularVenta
 {
-    public static void Anular(InformeVenta venta, IEnumerable<Producto> productosDelLocal)
+    public static void Anular(InformeVenta venta, IEnumerable<Producto> productosDelLocal, string usuarioModificacion = "")
     {
         if (venta.IdCierre != null)
             throw new ErrorNegocio("No se puede anular una venta de una caja ya cerrada.");
@@ -19,6 +19,8 @@ public static class ServicioAnularVenta
             if (p.ProductoSector || p.EsGenerico)
                 continue;
             p.Cantidad += d.Cantidad;
+            p.FechaModificacion = DateTimeOffset.UtcNow;
+            p.UsuarioModificacion = usuarioModificacion;
         }
     }
 }

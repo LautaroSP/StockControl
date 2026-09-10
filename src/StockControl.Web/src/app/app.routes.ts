@@ -9,6 +9,9 @@ import { InformesComponent } from './paginas/informes.component';
 import { CajasComponent } from './paginas/cajas.component';
 import { GruposComponent } from './paginas/grupos.component';
 import { ShellComponent } from './shell/shell.component';
+import { MediosPagoComponent } from './paginas/medios-pago.component';
+import { UsuariosComponent } from './paginas/usuarios.component';
+import { ConfiguracionComponent } from './paginas/configuracion.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -24,6 +27,9 @@ export const routes: Routes = [
       { path: 'grupos', component: GruposComponent },
       { path: 'informes', component: InformesComponent },
       { path: 'cajas', component: CajasComponent },
+      { path: 'medios-pago', component: MediosPagoComponent },
+      { path: 'usuarios', component: UsuariosComponent },
+      { path: 'configuracion', component: ConfiguracionComponent },
       { path: '', redirectTo: 'caja', pathMatch: 'full' }
     ]
   },

@@ -15,3 +15,5 @@ Al implementar una tarjeta de `backlog/` o código en `src/`:
 6. Si toca Angular/CSS: variables de color y modo oscuro (tarjeta 23 / rule `front-publico`).
 
 No dar la feature por cerrada sin test del dominio.
+
+7. Al cerrar la tarjeta: tildar `backlog/NN-….md` **y** actualizar `backlog/History.md` (estado, Siguiente, Log). Esa tabla es la fuente de verdad; no re-auditar el repo.

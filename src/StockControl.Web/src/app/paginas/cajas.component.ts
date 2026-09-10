@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ApiService, CajaDetalleDto, CajaListaDto, GrupoUnificableDto } from '../servicios/api.service';
+import { ApiService, CajaDetalleDto, CajaListaDto, GrupoUnificableDto, VentaDetalleDto, VentaListaDto } from '../servicios/api.service';
+import { SesionService } from '../servicios/sesion.service';
 
 @Component({
   selector: 'sc-cajas',
@@ -14,8 +15,8 @@ import { ApiService, CajaDetalleDto, CajaListaDto, GrupoUnificableDto } from '..
     </div>
     <section class="panel" style="margin-bottom:16px">
       <div class="toolbar" style="padding:12px">
-        <input type="date" [(ngModel)]="desde" />
-        <input type="date" [(ngModel)]="hasta" />
+        <input type="text" inputmode="numeric" placeholder="dd/mm/aaaa" [(ngModel)]="desde" />
+        <input type="text" inputmode="numeric" placeholder="dd/mm/aaaa" [(ngModel)]="hasta" />
         <select [(ngModel)]="quien">
           <option value="">Quién cerró: todos</option>
           @for (p of personas; track p) {
@@ -64,7 +65,7 @@ import { ApiService, CajaDetalleDto, CajaListaDto, GrupoUnificableDto } from '..
             @for (c of items; track c.idCierre) {
               <tr class="clickable" (click)="abrir(c.idCierre)">
                 <td>{{ c.nroCaja }}</td>
-                <td>{{ fechaCorta(c.fecha) }}</td>
+                <td>{{ fechaHora(c.fecha) }}</td>
                 <td>{{ c.nombreCierre }}</td>
                 <td class="num">{{ c.cantidadVentas }}</td>
                 <td class="num">{{ dinero(c.total) }}</td>
@@ -79,9 +80,9 @@ import { ApiService, CajaDetalleDto, CajaListaDto, GrupoUnificableDto } from '..
       <section class="panel">
         <div class="toolbar" style="padding:12px 12px 0">
           <strong style="font-size:14px">
-            Caja {{ detalle.nroCaja }} · {{ detalle.nombreCierre }} · {{ fechaCorta(detalle.fecha) }}
+             Caja {{ detalle.nroCaja }} · {{ detalle.nombreCierre }} · {{ fechaHora(detalle.fecha) }}
           </strong>
-          <button class="btn" type="button" (click)="detalle = null">Cerrar detalle</button>
+          <button class="btn" type="button" (click)="cerrarDetalle()">Cerrar detalle</button>
         </div>
         <table class="data">
           <thead>
@@ -101,7 +102,70 @@ import { ApiService, CajaDetalleDto, CajaListaDto, GrupoUnificableDto } from '..
             }
           </tbody>
         </table>
+        <div class="toolbar" style="padding:12px">
+          <strong style="font-size:14px">Ventas de esta caja</strong>
+        </div>
+        @if (ventas.length === 0) {
+          <p class="meta" style="padding:0 12px 12px">No hay ventas en este cierre.</p>
+        } @else {
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Hora</th>
+                <th class="num">Total</th>
+                <th>Método</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (v of ventas; track v.idInformeVenta) {
+                <tr>
+                  <td>{{ hora(v.fecha) }}</td>
+                  <td class="num">{{ dinero(v.total) }}</td>
+                  <td>{{ v.metodoPago }}</td>
+                  <td><button class="btn" type="button" (click)="verVenta(v.idInformeVenta)">Ver detalles</button></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
       </section>
+    }
+
+    @if (venta) {
+      <div class="modal-back show">
+        <div class="modal" style="max-width:520px">
+          <h2 style="margin:0 0 8px;font-size:18px">Venta {{ hora(venta.fecha) }}</h2>
+          <p class="meta">{{ venta.metodoPago }} · {{ dinero(venta.total) }}</p>
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th class="num">Cant</th>
+                @if (sesion.esDueno()) {
+                  <th class="num">Costo</th>
+                }
+                <th class="num">Subt</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (i of venta.items; track i.idInformeVentaDetalle) {
+                <tr>
+                  <td>{{ i.nombre }}</td>
+                  <td class="num">{{ i.cantidad }}</td>
+                  @if (sesion.esDueno()) {
+                    <td class="num">{{ i.costo == null ? '—' : dinero(i.costo) }}</td>
+                  }
+                  <td class="num">{{ dinero(i.subTotal) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          <div class="row" style="margin-top:12px">
+            <button class="btn grow" type="button" (click)="venta = null">Cerrar</button>
+          </div>
+        </div>
+      </div>
     }
   `
 })
@@ -116,10 +180,12 @@ export class CajasComponent implements OnInit {
   unificables: GrupoUnificableDto[] = [];
   total = 0;
   detalle: CajaDetalleDto | null = null;
+  ventas: VentaListaDto[] = [];
+  venta: VentaDetalleDto | null = null;
   error = '';
   cargando = false;
 
-  constructor(private readonly api: ApiService) {}
+  constructor(private readonly api: ApiService, readonly sesion: SesionService) {}
 
   ngOnInit(): void {
     const hoy = hoyYmd();
@@ -146,6 +212,11 @@ export class CajasComponent implements OnInit {
     return new Date(iso).toLocaleDateString('es-AR');
   }
 
+  fechaHora(iso: string): string {
+    const d = new Date(iso);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+
   filasDetalle(): { metodoPago: string; cantidadVentas: number; total: number }[] {
     if (!this.detalle) return [];
     if (!this.medio) return this.detalle.filas;
@@ -158,10 +229,17 @@ export class CajasComponent implements OnInit {
     this.cargando = true;
     this.error = '';
     const idAbierto = this.detalle?.idCierre;
+    const desde = fechaIso(this.desde);
+    const hasta = fechaIso(this.hasta);
+    if (!desde || !hasta) {
+      this.error = 'Las fechas deben tener formato dd/mm/aaaa.';
+      this.cargando = false;
+      return;
+    }
     this.api
       .consultaCajas({
-        desde: this.desde || undefined,
-        hasta: this.hasta || undefined,
+        desde,
+        hasta,
         quien: this.quien || undefined,
         medio: this.medio || undefined
       })
@@ -172,7 +250,7 @@ export class CajasComponent implements OnInit {
           this.unificables = r.unificables ?? [];
           this.cargando = false;
           if (idAbierto != null && !r.items.some((c) => c.idCierre === idAbierto)) {
-            this.detalle = null;
+            this.cerrarDetalle();
           }
         },
         error: () => {
@@ -180,7 +258,7 @@ export class CajasComponent implements OnInit {
           this.items = [];
           this.total = 0;
           this.unificables = [];
-          this.detalle = null;
+          this.cerrarDetalle();
           this.cargando = false;
         }
       });
@@ -192,7 +270,7 @@ export class CajasComponent implements OnInit {
     this.api.unificarCajas(g.idsCierre).subscribe({
       next: (r) => {
         this.error = '';
-        this.detalle = null;
+        this.cerrarDetalle();
         this.buscar();
         this.abrir(r.idCierre);
       },
@@ -202,22 +280,63 @@ export class CajasComponent implements OnInit {
 
   abrir(idCierre: number): void {
     this.api.cierre(idCierre).subscribe({
-      next: (d) => (this.detalle = d),
+      next: (d) => {
+        this.detalle = d;
+        this.venta = null;
+        this.cargarVentas(idCierre);
+      },
       error: () => (this.error = 'No se pudo abrir el detalle.')
     });
+  }
+
+  cargarVentas(idCierre: number): void {
+    this.api.ventas({ idCierre, tamano: 200 }).subscribe({
+      next: (r) => (this.ventas = r.items),
+      error: () => {
+        this.ventas = [];
+        this.error = 'No se pudieron cargar las ventas de la caja.';
+      }
+    });
+  }
+
+  verVenta(id: number): void {
+    this.api.venta(id).subscribe({
+      next: (d) => (this.venta = d),
+      error: () => (this.error = 'No se pudo abrir la venta.')
+    });
+  }
+
+  hora(iso?: string): string {
+    if (!iso) return '';
+    return new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  cerrarDetalle(): void {
+    this.detalle = null;
+    this.ventas = [];
+    this.venta = null;
   }
 }
 
 function hoyYmd(): string {
   const d = new Date();
-  return ymd(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  return dmy(d.getFullYear(), d.getMonth() + 1, d.getDate());
 }
 
 function primerDiaMesYmd(): string {
   const d = new Date();
-  return ymd(d.getFullYear(), d.getMonth() + 1, 1);
+  return dmy(d.getFullYear(), d.getMonth() + 1, 1);
 }
 
-function ymd(y: number, m: number, day: number): string {
-  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+function dmy(y: number, m: number, day: number): string {
+  return `${String(day).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+}
+
+function fechaIso(valor: string): string | null {
+  const partes = valor.trim().split('/');
+  if (partes.length !== 3) return null;
+  const [dia, mes, anio] = partes.map(Number);
+  const fecha = new Date(anio, mes - 1, dia);
+  if (!dia || !mes || !anio || fecha.getFullYear() !== anio || fecha.getMonth() !== mes - 1 || fecha.getDate() !== dia) return null;
+  return `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 }

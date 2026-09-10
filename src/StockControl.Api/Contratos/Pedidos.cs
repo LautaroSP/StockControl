@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using StockControl.Dominio;
 
 namespace StockControl.Api.Contratos;
 
@@ -52,13 +53,87 @@ public class VentaPedido
     [Required, MinLength(1)]
     public List<ItemVentaPedido> Items { get; set; } = new();
 
-    [Required, MaxLength(80)]
-    public string MetodoPago { get; set; } = "Efectivo";
+    [MaxLength(80)]
+    public string MetodoPago { get; set; } = "";
+
+    public List<PagoPedido> Pagos { get; set; } = new();
 
     [Range(0, 100)]
     public int DescuentoPorcentaje { get; set; }
 
     public bool CobrarAlCosto { get; set; }
+}
+
+public class PrecioProductoPedido
+{
+    [Range(0, 999999999)]
+    public decimal Precio { get; set; }
+}
+
+public class UsuarioPedido
+{
+    [Required, MaxLength(120)]
+    public string Nombre { get; set; } = "";
+
+    [Required, MaxLength(80)]
+    public string NombreUsuario { get; set; } = "";
+
+    [MaxLength(20)]
+    public string Rol { get; set; } = Roles.Empleado;
+
+    public List<int> IdsLocal { get; set; } = new();
+
+    [MinLength(4), MaxLength(200)]
+    public string? Clave { get; set; }
+}
+
+public class ResetearClavePedido
+{
+    [Required, MinLength(4), MaxLength(200)]
+    public string Clave { get; set; } = "";
+}
+
+public class ConfiguracionLocalPedido
+{
+    [Required, MaxLength(200)]
+    public string NombreLocal { get; set; } = "";
+
+    [Range(0.0001, 999999)]
+    public decimal FactorGanancia { get; set; }
+
+    [Range(0, 999999)]
+    public decimal Iva { get; set; }
+
+    public bool StockRigido { get; set; }
+
+    [Range(0, 999999)]
+    public decimal UmbralStockBajo { get; set; }
+
+    public bool EmpleadoPuedeModificarPrecios { get; set; }
+
+    [Required, MaxLength(10)]
+    public string FormatoTicket { get; set; } = "POS-80";
+
+    public bool ImprimirTicketAlCobrar { get; set; }
+
+    [Range(1, 50)]
+    public int CantidadCajas { get; set; } = 1;
+
+    public bool RecalcularPrecios { get; set; }
+}
+
+public class PagoPedido
+{
+    public int IdMetodoPago { get; set; }
+
+    [Range(0.01, 999999999)]
+    public decimal Importe { get; set; }
+}
+
+public class MetodoPagoPedido
+{
+    [Required, MaxLength(80)]
+    public string Descripcion { get; set; } = "";
 }
 
 public class ItemVentaPedido
@@ -82,6 +157,8 @@ public class CerrarCajaPedido
 
     /// <summary>medio | usuario</summary>
     public string Desglose { get; set; } = "medio";
+
+    public bool Todas { get; set; }
 }
 
 public class CantidadCajasPedido

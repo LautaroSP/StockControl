@@ -11,9 +11,9 @@ La nube no habla con la impresora: un agente chico en la PC del mostrador (o di�
 
 ## Criterios de aceptación
 
-- [ ] Config del local: formato POS (58/80 mm) o A4.
-- [ ] Config: “imprimir ticket al cobrar” default on/off (el checkbox de caja lo puede pisar en esa venta).
-- [ ] El ticket lleva nombre del local, fecha/hora, ítems, cantidades, subtotales, total, medio(s) de pago.
-- [ ] Si hubo descuento o cobro al costo, que se note.
-- [ ] Reimpresión desde informes (tarjeta 10).
-- [ ] Si no hay agente / impresora, la venta **igual se guarda** y se avisa.
+- [x] Config del local: formato POS (58/80 mm) o A4.
+- [x] Config: “imprimir ticket al cobrar” default on/off (el checkbox de caja lo puede pisar en esa venta).
+- [x] El ticket lleva nombre del local, fecha/hora, ítems, cantidades, subtotales, total, medio(s) de pago.
+- [x] Si hubo descuento o cobro al costo, que se note.
+- [x] Reimpresión desde informes (tarjeta 10).
+- [x] Si no hay agente / impresora, la venta **igual se guarda** y se avisa.

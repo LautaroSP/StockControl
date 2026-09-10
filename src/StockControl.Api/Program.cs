@@ -1,5 +1,6 @@
 using System.Text;
 using System.Threading.RateLimiting;
+using System.Globalization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
@@ -110,9 +111,9 @@ app.MapPost("/auth/login", async (LoginPedido pedido, AppDbContext db, PasswordH
         return Results.BadRequest("Usuario y clave son obligatorios.");
     var u = await db.Usuarios.IgnoreQueryFilters()
         .FirstOrDefaultAsync(x => x.NombreUsuario == pedido.Usuario);
-    if (u == null || hasher.VerifyHashedPassword(u, u.HashClave, pedido.Clave) == PasswordVerificationResult.Failed)
+    if (u == null || !u.Activo || hasher.VerifyHashedPassword(u, u.HashClave, pedido.Clave) == PasswordVerificationResult.Failed)
         return Results.Unauthorized();
-    return Results.Ok(new { token = jwt.Emitir(u, null), rol = u.Rol, nombre = u.NombreUsuario });
+    return Results.Ok(new { token = jwt.Emitir(u, null), rol = u.Rol, nombre = string.IsNullOrWhiteSpace(u.Nombre) ? u.NombreUsuario : u.Nombre });
 }).RequireRateLimiting("api");
 
 app.MapGet("/locales", async (AppDbContext db, SesionActual sesion) =>
@@ -132,7 +133,7 @@ app.MapPost("/locales/{id:int}/entrar", async (int id, AppDbContext db, SesionAc
     return Results.Ok(new { token = jwt.Emitir(u, id) });
 }).RequireAuthorization().RequireRateLimiting("api");
 
-app.MapGet("/productos", async (AppDbContext db, SesionActual sesion, string? q, string? codigo, bool? sector, string? tipo, int pagina = 1, int tamano = 50) =>
+app.MapGet("/productos", async (AppDbContext db, SesionActual sesion, string? q, string? codigo, bool? sector, string? tipo, int? idGrupo, bool? sinGrupo, bool? stockBajo, int pagina = 1, int tamano = 50) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     tamano = Math.Clamp(tamano, 1, maxPagina);
@@ -144,6 +145,17 @@ app.MapGet("/productos", async (AppDbContext db, SesionActual sesion, string? q,
         consulta = consulta.Where(p => p.ProductoSector);
     else if (soloComun)
         consulta = consulta.Where(p => !p.ProductoSector);
+    if (idGrupo is > 0)
+        consulta = consulta.Where(p => p.IdGrupoProducto == idGrupo);
+    else if (sinGrupo == true)
+        consulta = consulta.Where(p => p.IdGrupoProducto == 0);
+    var valorUmbral = (await db.Configuracion.FirstOrDefaultAsync(c => c.Clave == "UmbralStockBajo"))?.Valor;
+    var umbral = decimal.TryParse(valorUmbral, out var umbralConfigurado) && umbralConfigurado >= 0 ? umbralConfigurado : 5;
+    var permisoPrecio = (await db.Configuracion.FirstOrDefaultAsync(c => c.Clave == "EmpleadoPuedeModificarPrecios"))?.Valor == "1";
+    if (stockBajo == true)
+    {
+        consulta = consulta.Where(p => !p.ProductoSector && p.Cantidad <= umbral);
+    }
     if (!string.IsNullOrWhiteSpace(codigo))
         consulta = consulta.Where(p => p.Codigo == codigo);
     else if (!string.IsNullOrWhiteSpace(q))
@@ -157,6 +169,8 @@ app.MapGet("/productos", async (AppDbContext db, SesionActual sesion, string? q,
         total,
         pagina,
         tamano,
+        umbralStockBajo = umbral,
+        puedeModificarPrecio = Permisos.EsDuenoOperativo(sesion.Rol ?? "") || Permisos.PuedeModificarPrecioEmpleado(sesion.Rol ?? "", permisoPrecio),
         items = items.Select(p => new
         {
             p.Id,
@@ -168,6 +182,8 @@ app.MapGet("/productos", async (AppDbContext db, SesionActual sesion, string? q,
             p.Precio,
             p.ProductoSector,
             p.IdGrupoProducto,
+            p.FechaModificacion,
+            p.UsuarioModificacion,
             nombreGrupo = p.IdGrupoProducto == 0
                 ? null
                 : nombresGrupo.GetValueOrDefault(p.IdGrupoProducto)
@@ -192,7 +208,8 @@ app.MapPost("/productos", async (ProductoPedido pedido, AppDbContext db, SesionA
         Costo = pedido.Costo,
         Precio = pedido.Precio,
         ProductoSector = pedido.ProductoSector,
-        FechaModificacion = DateTimeOffset.UtcNow
+        FechaModificacion = DateTimeOffset.UtcNow,
+        UsuarioModificacion = sesion.NombreUsuario ?? "sistema"
     };
     try
     {
@@ -200,7 +217,7 @@ app.MapPost("/productos", async (ProductoPedido pedido, AppDbContext db, SesionA
         {
             var g = await db.GrupoProductos.FirstOrDefaultAsync(x => x.IdGrupoProducto == idG);
             if (g == null) return Results.BadRequest("El grupo no existe.");
-            ServicioGrupo.Asignar(p, g);
+            ServicioGrupo.Asignar(p, g, sesion.NombreUsuario ?? "sistema");
         }
         db.Productos.Add(p);
         await db.SaveChangesAsync();
@@ -224,17 +241,18 @@ app.MapPut("/productos/{id:int}", async (int id, ProductoPedido pedido, AppDbCon
     p.Precio = pedido.Precio;
     p.ProductoSector = pedido.ProductoSector;
     p.FechaModificacion = DateTimeOffset.UtcNow;
+    p.UsuarioModificacion = sesion.NombreUsuario ?? "sistema";
     try
     {
         if (pedido.IdGrupoProducto is int idG)
         {
             if (idG == 0)
-                ServicioGrupo.Sacar(p);
+                ServicioGrupo.Sacar(p, sesion.NombreUsuario ?? "sistema");
             else if (idG != p.IdGrupoProducto)
             {
                 var g = await db.GrupoProductos.FirstOrDefaultAsync(x => x.IdGrupoProducto == idG);
                 if (g == null) return Results.BadRequest("El grupo no existe.");
-                ServicioGrupo.Asignar(p, g);
+                ServicioGrupo.Asignar(p, g, sesion.NombreUsuario ?? "sistema");
             }
         }
         await db.SaveChangesAsync();
@@ -246,6 +264,27 @@ app.MapPut("/productos/{id:int}", async (int id, ProductoPedido pedido, AppDbCon
     }
 }).RequireAuthorization().RequireRateLimiting("api");
 
+app.MapPut("/productos/{id:int}/precio", async (int id, PrecioProductoPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    var producto = await db.Productos.FirstOrDefaultAsync(p => p.Id == id);
+    if (producto == null) return Results.NotFound();
+    var esEmpleado = sesion.Rol == Roles.Empleado;
+    var habilitado = (await db.Configuracion.FirstOrDefaultAsync(c => c.Clave == "EmpleadoPuedeModificarPrecios"))?.Valor == "1";
+    if (!Permisos.EsDuenoOperativo(sesion.Rol ?? "") && !Permisos.PuedeModificarPrecioEmpleado(sesion.Rol ?? "", habilitado))
+        return Results.Forbid();
+    if (esEmpleado && producto.ProductoSector)
+        return Results.BadRequest("El precio de un producto sector se define en caja.");
+    if (esEmpleado && producto.IdGrupoProducto != 0)
+        return Results.BadRequest("El precio de un producto de grupo se define desde el grupo.");
+    if (pedido.Precio < 0) return Results.BadRequest("El precio no puede ser negativo.");
+    producto.Precio = pedido.Precio;
+    producto.FechaModificacion = DateTimeOffset.UtcNow;
+    producto.UsuarioModificacion = sesion.NombreUsuario ?? "sistema";
+    await db.SaveChangesAsync();
+    return Results.Ok(producto);
+}).RequireAuthorization().RequireRateLimiting("api");
+
 app.MapPost("/productos/{id:int}/stock", async (int id, StockPedido pedido, AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
@@ -254,6 +293,7 @@ app.MapPost("/productos/{id:int}/stock", async (int id, StockPedido pedido, AppD
     if (p == null) return Results.NotFound();
     p.Cantidad += pedido.Cantidad;
     p.FechaModificacion = DateTimeOffset.UtcNow;
+    p.UsuarioModificacion = sesion.NombreUsuario ?? "sistema";
     await db.SaveChangesAsync();
     return Results.Ok(p);
 }).RequireAuthorization().RequireRateLimiting("api");
@@ -342,7 +382,7 @@ app.MapPut("/grupos/{id:int}", async (int id, GrupoPedido pedido, AppDbContext d
     g.Ganancia = pedido.Ganancia;
     g.GananciaIndividual = pedido.GananciaIndividual;
     var miembros = await db.Productos.Where(p => p.IdGrupoProducto == id).ToListAsync();
-    ServicioGrupo.AplicarAMiembros(g, miembros);
+    ServicioGrupo.AplicarAMiembros(g, miembros, sesion.NombreUsuario ?? "sistema");
     await db.SaveChangesAsync();
     return Results.Ok(new
     {
@@ -361,7 +401,7 @@ app.MapDelete("/grupos/{id:int}", async (int id, AppDbContext db, SesionActual s
     var g = await db.GrupoProductos.FirstOrDefaultAsync(x => x.IdGrupoProducto == id);
     if (g == null) return Results.NotFound();
     var miembros = await db.Productos.Where(p => p.IdGrupoProducto == id).ToListAsync();
-    ServicioGrupo.Eliminar(miembros);
+    ServicioGrupo.Eliminar(miembros, sesion.NombreUsuario ?? "sistema");
     db.GrupoProductos.Remove(g);
     await db.SaveChangesAsync();
     return Results.NoContent();
@@ -379,7 +419,7 @@ app.MapPut("/grupos/{id:int}/miembros", async (int id, MiembrosGrupoPedido pedid
         .ToListAsync();
     try
     {
-        ServicioGrupo.ReemplazarMiembros(g, candidatos, ids);
+        ServicioGrupo.ReemplazarMiembros(g, candidatos, ids, sesion.NombreUsuario ?? "sistema");
         await db.SaveChangesAsync();
         return Results.Ok(new { g.IdGrupoProducto, cantidad = ids.Count });
     }
@@ -387,6 +427,237 @@ app.MapPut("/grupos/{id:int}/miembros", async (int id, MiembrosGrupoPedido pedid
     {
         return Results.BadRequest(ex.Message);
     }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/configuracion/local", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
+    var local = await db.Locales.FirstOrDefaultAsync(l => l.IdLocal == sesion.IdLocal);
+    if (local == null) return Results.NotFound();
+    var configuracion = await LeerConfiguracionLocal(db, local);
+    await db.SaveChangesAsync();
+    configuracion.FormatoTicket = ServicioTicket.FormatoODefault(configuracion.FormatoTicket);
+    return Results.Ok(configuracion);
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/configuracion/ticket", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    var local = await db.Locales.FirstOrDefaultAsync(l => l.IdLocal == sesion.IdLocal);
+    if (local == null) return Results.NotFound();
+    var configuracion = await LeerConfiguracionLocal(db, local);
+    await db.SaveChangesAsync();
+    return Results.Ok(new
+    {
+        formatoTicket = ServicioTicket.FormatoODefault(configuracion.FormatoTicket),
+        imprimirTicketAlCobrar = configuracion.ImprimirTicketAlCobrar,
+        nombreLocal = local.Nombre
+    });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPut("/configuracion/local", async (ConfiguracionLocalPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
+    var local = await db.Locales.FirstOrDefaultAsync(l => l.IdLocal == sesion.IdLocal);
+    if (local == null) return Results.NotFound();
+    string formato;
+    try
+    {
+        formato = ServicioTicket.NormalizarFormato(pedido.FormatoTicket);
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+    var anterior = await LeerConfiguracionLocal(db, local);
+    var cambioPrecios = anterior.FactorGanancia != pedido.FactorGanancia || anterior.Iva != pedido.Iva;
+    local.Nombre = pedido.NombreLocal.Trim();
+    if (local.Nombre.Length == 0) return Results.BadRequest("El nombre del local es obligatorio.");
+    GuardarConfiguracion(db, local.IdLocal, "FactorGanancia", pedido.FactorGanancia);
+    GuardarConfiguracion(db, local.IdLocal, "IVA", pedido.Iva);
+    GuardarConfiguracion(db, local.IdLocal, "StockRigido", pedido.StockRigido);
+    GuardarConfiguracion(db, local.IdLocal, "UmbralStockBajo", pedido.UmbralStockBajo);
+    GuardarConfiguracion(db, local.IdLocal, "EmpleadoPuedeModificarPrecios", pedido.EmpleadoPuedeModificarPrecios);
+    GuardarConfiguracion(db, local.IdLocal, "FormatoTicket", formato);
+    GuardarConfiguracion(db, local.IdLocal, "ImprimirTicketAlCobrar", pedido.ImprimirTicketAlCobrar);
+    GuardarConfiguracion(db, local.IdLocal, "CantidadCajas", pedido.CantidadCajas);
+    var recalculados = 0;
+    if (pedido.RecalcularPrecios && cambioPrecios)
+    {
+        var productos = await db.Productos
+            .Where(p => !p.ProductoSector && p.IdGrupoProducto == 0 && !p.GananciaIndividual)
+            .ToListAsync();
+        foreach (var producto in productos)
+        {
+            producto.Precio = PrecioVenta.CalcularLista(producto.Costo, pedido.FactorGanancia, pedido.Iva);
+            producto.FechaModificacion = DateTimeOffset.UtcNow;
+            producto.UsuarioModificacion = sesion.NombreUsuario ?? "sistema";
+            recalculados++;
+        }
+    }
+    await db.SaveChangesAsync();
+    return Results.Ok(new { recalculados });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/usuarios", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeAdministrarUsuarios(sesion.Rol ?? "")) return Results.Forbid();
+    var locales = await LocalesAccesibles(db, sesion);
+    var idsUsuarios = await db.UsuarioLocales.Where(x => x.IdLocal == sesion.IdLocal)
+        .Select(x => x.IdUsuario).Distinct().ToListAsync();
+    var usuarios = await db.Usuarios.Where(u => idsUsuarios.Contains(u.Id) && (u.Rol == Roles.Empleado || u.Rol == Roles.Socio))
+        .OrderBy(u => u.Nombre).ThenBy(u => u.NombreUsuario).ToListAsync();
+    var asignaciones = await db.UsuarioLocales.Where(x => idsUsuarios.Contains(x.IdUsuario) && locales.Contains(x.IdLocal)).ToListAsync();
+    var nombresLocales = await db.Locales.Where(l => locales.Contains(l.IdLocal)).ToDictionaryAsync(l => l.IdLocal, l => l.Nombre);
+    return Results.Ok(usuarios.Select(u => new
+    {
+        u.Id,
+        nombre = string.IsNullOrWhiteSpace(u.Nombre) ? u.NombreUsuario : u.Nombre,
+        u.NombreUsuario,
+        u.Rol,
+        u.Activo,
+        locales = asignaciones.Where(a => a.IdUsuario == u.Id).Select(a => new { a.IdLocal, nombre = nombresLocales[a.IdLocal] })
+    }));
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/usuarios", async (UsuarioPedido pedido, AppDbContext db, SesionActual sesion, PasswordHasher<Usuario> hasher) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!PuedeCrearUsuario(sesion.Rol, pedido.Rol)) return Results.Forbid();
+    var validacion = ValidarUsuarioPedido(pedido, true);
+    if (validacion != null) return Results.BadRequest(validacion);
+    if (await db.Usuarios.AnyAsync(u => u.NombreUsuario == pedido.NombreUsuario.Trim()))
+        return Results.Conflict("Ya existe ese nombre de usuario.");
+    var locales = await LocalesAccesibles(db, sesion);
+    var idsLocal = pedido.IdsLocal.Distinct().ToList();
+    if (!idsLocal.All(locales.Contains)) return Results.Forbid();
+    var usuario = new Usuario
+    {
+        Nombre = pedido.Nombre.Trim(),
+        NombreUsuario = pedido.NombreUsuario.Trim(),
+        Rol = pedido.Rol,
+        Activo = true
+    };
+    usuario.HashClave = hasher.HashPassword(usuario, pedido.Clave!);
+    db.Usuarios.Add(usuario);
+    await db.SaveChangesAsync();
+    db.UsuarioLocales.AddRange(idsLocal.Select(idLocal => new UsuarioLocal { IdUsuario = usuario.Id, IdLocal = idLocal }));
+    await db.SaveChangesAsync();
+    return Results.Created($"/usuarios/{usuario.Id}", new { usuario.Id, usuario.Nombre, usuario.NombreUsuario, usuario.Rol, usuario.Activo });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPut("/usuarios/{id:int}", async (int id, UsuarioPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
+    if (usuario == null) return Results.NotFound();
+    if (!await PerteneceAlLocal(db, id, sesion.IdLocal.Value)) return Results.NotFound();
+    if (!PuedeEditarUsuario(sesion.Rol, usuario.Rol, pedido.Rol)) return Results.Forbid();
+    var validacion = ValidarUsuarioPedido(pedido, false);
+    if (validacion != null) return Results.BadRequest(validacion);
+    if (await db.Usuarios.AnyAsync(u => u.Id != id && u.NombreUsuario == pedido.NombreUsuario.Trim()))
+        return Results.Conflict("Ya existe ese nombre de usuario.");
+    var locales = await LocalesAccesibles(db, sesion);
+    var idsLocal = pedido.IdsLocal.Distinct().ToList();
+    if (!idsLocal.All(locales.Contains)) return Results.Forbid();
+    usuario.Nombre = pedido.Nombre.Trim();
+    usuario.NombreUsuario = pedido.NombreUsuario.Trim();
+    usuario.Rol = pedido.Rol;
+    var actuales = await db.UsuarioLocales.Where(x => x.IdUsuario == id).ToListAsync();
+    db.UsuarioLocales.RemoveRange(actuales);
+    db.UsuarioLocales.AddRange(idsLocal.Select(idLocal => new UsuarioLocal { IdUsuario = id, IdLocal = idLocal }));
+    await db.SaveChangesAsync();
+    return Results.Ok(new { usuario.Id, usuario.Nombre, usuario.NombreUsuario, usuario.Rol, usuario.Activo });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/usuarios/{id:int}/activar", async (int id, AppDbContext db, SesionActual sesion) =>
+    await CambiarEstadoUsuario(id, true, db, sesion))
+    .RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/usuarios/{id:int}/desactivar", async (int id, AppDbContext db, SesionActual sesion) =>
+    await CambiarEstadoUsuario(id, false, db, sesion))
+    .RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/usuarios/{id:int}/resetear-clave", async (int id, ResetearClavePedido pedido, AppDbContext db, SesionActual sesion, PasswordHasher<Usuario> hasher) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
+    if (usuario == null || !await PerteneceAlLocal(db, id, sesion.IdLocal.Value)) return Results.NotFound();
+    if (!PuedeEditarUsuario(sesion.Rol, usuario.Rol, usuario.Rol)) return Results.Forbid();
+    if (string.IsNullOrWhiteSpace(pedido.Clave) || pedido.Clave.Length < 4) return Results.BadRequest("La clave debe tener al menos 4 caracteres.");
+    usuario.HashClave = hasher.HashPassword(usuario, pedido.Clave);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/productos/grupos", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    var grupos = await db.GrupoProductos.OrderBy(g => g.NombreGrupo)
+        .Select(g => new { g.IdGrupoProducto, g.NombreGrupo })
+        .ToListAsync();
+    return Results.Ok(grupos);
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/medios-pago", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    var medios = await db.MetodosPago.OrderBy(m => m.Descripcion).ToListAsync();
+    return Results.Ok(medios.Select(m => new { m.Id, m.Descripcion, m.Activo }));
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/medios-pago", async (MetodoPagoPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeAdministrarMetodosPago(sesion.Rol ?? "")) return Results.Forbid();
+    var descripcion = pedido.Descripcion.Trim();
+    if (descripcion.Length == 0) return Results.BadRequest("La descripción es obligatoria.");
+    if (await db.MetodosPago.AnyAsync(m => m.Descripcion.ToLower() == descripcion.ToLower()))
+        return Results.Conflict("Ya existe ese medio de pago.");
+    var medio = new MetodoPago { IdLocal = sesion.IdLocal.Value, Descripcion = descripcion };
+    db.MetodosPago.Add(medio);
+    await db.SaveChangesAsync();
+    return Results.Created($"/medios-pago/{medio.Id}", new { medio.Id, medio.Descripcion, medio.Activo });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPut("/medios-pago/{id:int}", async (int id, MetodoPagoPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeAdministrarMetodosPago(sesion.Rol ?? "")) return Results.Forbid();
+    var medio = await db.MetodosPago.FirstOrDefaultAsync(m => m.Id == id);
+    if (medio == null) return Results.NotFound();
+    var descripcion = pedido.Descripcion.Trim();
+    if (descripcion.Length == 0) return Results.BadRequest("La descripción es obligatoria.");
+    if (await db.MetodosPago.AnyAsync(m => m.Id != id && m.Descripcion.ToLower() == descripcion.ToLower()))
+        return Results.Conflict("Ya existe ese medio de pago.");
+    medio.Descripcion = descripcion;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { medio.Id, medio.Descripcion, medio.Activo });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapDelete("/medios-pago/{id:int}", async (int id, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeAdministrarMetodosPago(sesion.Rol ?? "")) return Results.Forbid();
+    var medio = await db.MetodosPago.FirstOrDefaultAsync(m => m.Id == id);
+    if (medio == null) return Results.NotFound();
+    medio.Activo = false;
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/medios-pago/{id:int}/activar", async (int id, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeAdministrarMetodosPago(sesion.Rol ?? "")) return Results.Forbid();
+    var medio = await db.MetodosPago.FirstOrDefaultAsync(m => m.Id == id);
+    if (medio == null) return Results.NotFound();
+    medio.Activo = true;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { medio.Id, medio.Descripcion, medio.Activo });
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual sesion) =>
@@ -429,6 +700,16 @@ app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual 
             DetalleAdjunto = true,
             NroCaja = sesion.NroCaja.Value
         };
+        var pagosSolicitados = pedido.Pagos.Count > 0
+            ? pedido.Pagos.Select(p => new PagoSolicitado(p.IdMetodoPago, p.Importe)).ToList()
+            : await MetodoUnico(db, pedido.MetodoPago, resultado.Total);
+        ServicioPagos.Validar(resultado.Total, pagosSolicitados);
+        var idsMedios = pagosSolicitados.Select(p => p.IdMetodoPago).Distinct().ToList();
+        var medios = await db.MetodosPago.Where(m => idsMedios.Contains(m.Id) && m.Activo).ToDictionaryAsync(m => m.Id);
+        if (medios.Count != idsMedios.Count)
+            throw new ErrorNegocio("El medio de pago no existe o está inactivo.");
+        venta.MetodoPago = string.Join(", ", pagosSolicitados.Select(p => medios[p.IdMetodoPago].Descripcion).Distinct());
+        venta.MultipleMetodoDePago = pagosSolicitados.Select(p => p.IdMetodoPago).Distinct().Count() > 1;
         foreach (var l in resultado.Lineas)
         {
             venta.Detalles.Add(new InformeVentaDetalle
@@ -443,6 +724,14 @@ app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual 
                 SubTotal = l.SubTotal
             });
         }
+        venta.Pagos.AddRange(pagosSolicitados.Select(p => new PagoVenta
+        {
+            IdLocal = sesion.IdLocal.Value,
+            IdInformeVenta = venta.IdInformeVenta,
+            IdMetodoPago = p.IdMetodoPago,
+            DescripcionMetodoPago = medios[p.IdMetodoPago].Descripcion,
+            Importe = p.Importe
+        }));
         db.InformeVenta.Add(venta);
         await db.SaveChangesAsync();
         return Results.Created($"/ventas/{venta.IdInformeVenta}", new { venta.IdInformeVenta, venta.Total });
@@ -453,18 +742,28 @@ app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual 
     }
 }).RequireAuthorization().RequireRateLimiting("api");
 
-app.MapGet("/ventas", async (AppDbContext db, SesionActual sesion, DateOnly? desde, DateOnly? hasta, string? medio, int pagina = 1, int tamano = 50) =>
+app.MapGet("/ventas", async (AppDbContext db, SesionActual sesion, DateOnly? desde, DateOnly? hasta, string? medio, int? nroCaja, int? idCierre, int pagina = 1, int tamano = 50) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     tamano = Math.Clamp(tamano, 1, maxPagina);
     pagina = Math.Max(1, pagina);
-    var diaDesde = desde ?? DiaArgentina.Hoy();
-    var diaHasta = hasta ?? diaDesde;
-    var (ini, _) = DiaArgentina.Rango(diaDesde);
-    var (_, fin) = DiaArgentina.Rango(diaHasta);
-    var q = db.InformeVenta.Where(v => v.Fecha >= ini && v.Fecha < fin);
+    IQueryable<InformeVenta> q = db.InformeVenta;
+    if (idCierre is > 0)
+        q = q.Where(v => v.IdCierre == idCierre);
+    else
+    {
+        var diaDesde = desde ?? DiaArgentina.Hoy();
+        var diaHasta = hasta ?? diaDesde;
+        var (ini, _) = DiaArgentina.Rango(diaDesde);
+        var (_, fin) = DiaArgentina.Rango(diaHasta);
+        q = q.Where(v => v.Fecha >= ini && v.Fecha < fin);
+    }
+    if (nroCaja is > 0)
+        q = q.Where(v => v.NroCaja == nroCaja);
+    if (sesion.Rol == Roles.Empleado)
+        q = q.Where(v => v.IdUsuario == sesion.IdUsuario);
     if (!string.IsNullOrWhiteSpace(medio))
-        q = q.Where(v => v.MetodoPago == medio);
+        q = q.Where(v => v.MetodoPago == medio || db.PagosVenta.Any(p => p.IdInformeVenta == v.IdInformeVenta && p.DescripcionMetodoPago == medio));
     q = q.OrderByDescending(v => v.Fecha);
     var total = await q.CountAsync();
     var suma = await q.SumAsync(v => (decimal?)v.Total) ?? 0;
@@ -477,8 +776,9 @@ app.MapGet("/ventas", async (AppDbContext db, SesionActual sesion, DateOnly? des
 app.MapGet("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
-    var venta = await db.InformeVenta.Include(v => v.Detalles).FirstOrDefaultAsync(v => v.IdInformeVenta == id);
+    var venta = await db.InformeVenta.Include(v => v.Detalles).Include(v => v.Pagos).FirstOrDefaultAsync(v => v.IdInformeVenta == id);
     if (venta == null) return Results.NotFound();
+    if (sesion.Rol == Roles.Empleado && venta.IdUsuario != sesion.IdUsuario) return Results.NotFound();
     var verCosto = Permisos.PuedeVerCostoEnInforme(sesion.Rol ?? "");
     return Results.Ok(new
     {
@@ -491,6 +791,7 @@ app.MapGet("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual sesi
         venta.PrecioCosto,
         venta.NroCaja,
         venta.IdCierre,
+        pagos = venta.Pagos.Select(p => new { p.IdMetodoPago, p.DescripcionMetodoPago, p.Importe }),
         items = venta.Detalles.Select(d => new
         {
             d.IdInformeVentaDetalle,
@@ -514,7 +815,7 @@ app.MapDelete("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual s
     var productos = await db.Productos.ToListAsync();
     try
     {
-        ServicioAnularVenta.Anular(venta, productos);
+        ServicioAnularVenta.Anular(venta, productos, sesion.NombreUsuario ?? "sistema");
         db.InformeVenta.Remove(venta);
         await db.SaveChangesAsync();
         return Results.NoContent();
@@ -544,6 +845,20 @@ app.MapGet("/cajas", async (AppDbContext db, SesionActual sesion) =>
         .Select(c => new { c.IdCierre, c.NroCaja, c.Fecha, c.NombreCierre, c.Total, c.CantidadVentas })
         .ToListAsync();
     return Results.Ok(new { nroCaja = puesto, pendientesHoy, items });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/cajas/abiertas", async (AppDbContext db, SesionActual sesion, DateOnly? fecha) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.EsDuenoOperativo(sesion.Rol ?? "")) return Results.Forbid();
+    var (ini, fin) = DiaArgentina.Rango(fecha ?? DiaArgentina.Hoy());
+    var cajas = await db.InformeVenta
+        .Where(v => v.Fecha >= ini && v.Fecha < fin && v.IdCierre == null)
+        .GroupBy(v => v.NroCaja)
+        .Select(g => new { nroCaja = g.Key, tickets = g.Count(), total = g.Sum(v => v.Total) })
+        .OrderBy(c => c.nroCaja)
+        .ToListAsync();
+    return Results.Ok(cajas);
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapGet("/configuracion/cajas", async (AppDbContext db, SesionActual sesion) =>
@@ -740,6 +1055,15 @@ app.MapPost("/cajas/cerrar", async (CerrarCajaPedido pedido, AppDbContext db, Se
     var dia = pedido.Fecha ?? DiaArgentina.Hoy();
     var (ini, fin) = DiaArgentina.Rango(dia);
     var ventas = await db.InformeVenta.Where(v => v.Fecha >= ini && v.Fecha < fin).ToListAsync();
+    var idsVentas = ventas.Select(v => v.IdInformeVenta).ToList();
+    var pagosPorVenta = await db.PagosVenta.Where(p => idsVentas.Contains(p.IdInformeVenta))
+        .GroupBy(p => p.IdInformeVenta)
+        .ToDictionaryAsync(g => g.Key, g => (IReadOnlyList<PagoVenta>)g.ToList());
+    var puedeCerrarTodas = Permisos.EsDuenoOperativo(sesion.Rol ?? "");
+    var puestosAbiertos = ventas.Where(v => v.IdCierre == null).Select(v => v.NroCaja).Distinct().OrderBy(n => n).ToList();
+    var puestos = pedido.Todas && puedeCerrarTodas
+        ? puestosAbiertos
+        : puestosAbiertos.Where(n => n == sesion.NroCaja.Value).ToList();
     var idCierre = (await db.Cajas.MaxAsync(c => (int?)c.IdCierre) ?? 0) + 1;
     var nombre = sesion.IdUsuario == null
         ? ""
@@ -753,23 +1077,33 @@ app.MapPost("/cajas/cerrar", async (CerrarCajaPedido pedido, AppDbContext db, Se
         : TipoDesgloseCaja.Medio;
     try
     {
-        var r = ServicioCierre.Cerrar(
-            ventas,
-            sesion.NroCaja.Value,
-            idCierre,
-            sesion.IdLocal.Value,
-            sesion.IdUsuario,
-            nombre,
-            DateTimeOffset.UtcNow,
-            tipo,
-            nombres);
-        db.Cajas.AddRange(r.Filas);
+        var resultados = new List<ResultadoCierre>();
+        foreach (var puesto in puestos)
+        {
+            var r = ServicioCierre.Cerrar(
+                ventas,
+                puesto,
+                idCierre++,
+                sesion.IdLocal.Value,
+                sesion.IdUsuario,
+                nombre,
+                DateTimeOffset.UtcNow,
+                tipo,
+                nombres,
+                pagosPorVenta);
+            resultados.Add(r);
+            db.Cajas.AddRange(r.Filas);
+        }
+        if (resultados.Count == 0)
+            throw new ErrorNegocio("No hay ventas para cerrar en ese día.");
         await db.SaveChangesAsync();
+        var primero = resultados[0];
         return Results.Ok(new
         {
-            r.IdCierre,
-            r.NroCaja,
-            filas = r.Filas.Select(c => new { c.MetodoPago, c.CantidadVentas, c.Total })
+            idCierre = primero.IdCierre,
+            nroCaja = primero.NroCaja,
+            filas = primero.Filas.Select(c => new { c.MetodoPago, c.CantidadVentas, c.Total }),
+            cierres = resultados.Select(r => new { r.IdCierre, r.NroCaja })
         });
     }
     catch (ErrorNegocio ex)
@@ -784,6 +1118,124 @@ static async Task<int> CantidadCajasLocal(AppDbContext db)
 {
     var valor = (await db.Configuracion.FirstOrDefaultAsync(c => c.Clave == "CantidadCajas"))?.Valor;
     return int.TryParse(valor, out var n) && n >= 1 ? n : 1;
+}
+
+static async Task<ConfiguracionLocalPedido> LeerConfiguracionLocal(AppDbContext db, Local local)
+{
+    var filas = await db.Configuracion.ToListAsync();
+    var valores = filas.ToDictionary(c => c.Clave, c => c.Valor, StringComparer.OrdinalIgnoreCase);
+    var defaults = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["FactorGanancia"] = "1",
+        ["IVA"] = "1.21",
+        ["StockRigido"] = "0",
+        ["UmbralStockBajo"] = "5",
+        ["EmpleadoPuedeModificarPrecios"] = "0",
+        ["FormatoTicket"] = "POS-80",
+        ["ImprimirTicketAlCobrar"] = "1",
+        ["CantidadCajas"] = "1"
+    };
+    foreach (var (clave, valor) in defaults)
+    {
+        if (valores.ContainsKey(clave)) continue;
+        var fila = new Configuracion { IdLocal = local.IdLocal, Clave = clave, Valor = valor };
+        db.Configuracion.Add(fila);
+        valores[clave] = valor;
+    }
+    return new ConfiguracionLocalPedido
+    {
+        NombreLocal = local.Nombre,
+        FactorGanancia = DecimalConfig(valores["FactorGanancia"], 1),
+        Iva = DecimalConfig(valores["IVA"], 1.21m),
+        StockRigido = BoolConfig(valores["StockRigido"]),
+        UmbralStockBajo = DecimalConfig(valores["UmbralStockBajo"], 5),
+        EmpleadoPuedeModificarPrecios = BoolConfig(valores["EmpleadoPuedeModificarPrecios"]),
+        FormatoTicket = ServicioTicket.FormatoODefault(valores["FormatoTicket"]),
+        ImprimirTicketAlCobrar = BoolConfig(valores["ImprimirTicketAlCobrar"]),
+        CantidadCajas = IntConfig(valores["CantidadCajas"], 1)
+    };
+}
+
+static void GuardarConfiguracion(AppDbContext db, int idLocal, string clave, object valor)
+{
+    var fila = db.Configuracion.Local.FirstOrDefault(c => c.IdLocal == idLocal && c.Clave == clave);
+    if (fila == null)
+    {
+        fila = new Configuracion { IdLocal = idLocal, Clave = clave };
+        db.Configuracion.Add(fila);
+    }
+    fila.Valor = valor switch
+    {
+        bool b => b ? "1" : "0",
+        decimal d => d.ToString(CultureInfo.InvariantCulture),
+        _ => Convert.ToString(valor, CultureInfo.InvariantCulture) ?? ""
+    };
+}
+
+static decimal DecimalConfig(string valor, decimal defecto) =>
+    decimal.TryParse(valor, NumberStyles.Any, CultureInfo.InvariantCulture, out var resultado) ? resultado : defecto;
+
+static bool BoolConfig(string valor) => valor is "1" or "true" or "True";
+
+static int IntConfig(string valor, int defecto) =>
+    int.TryParse(valor, NumberStyles.Integer, CultureInfo.InvariantCulture, out var resultado) && resultado >= 1 ? resultado : defecto;
+
+static async Task<List<PagoSolicitado>> MetodoUnico(AppDbContext db, string descripcion, decimal total)
+{
+    if (string.IsNullOrWhiteSpace(descripcion))
+        throw new ErrorNegocio("Elegí un medio de pago.");
+    var medio = await db.MetodosPago.FirstOrDefaultAsync(m => m.Activo && m.Descripcion == descripcion);
+    if (medio == null)
+        throw new ErrorNegocio("El medio de pago no existe o está inactivo.");
+    return [new PagoSolicitado(medio.Id, total)];
+}
+
+static async Task<List<int>> LocalesAccesibles(AppDbContext db, SesionActual sesion)
+{
+    if (sesion.IdUsuario == null) return [];
+    return await db.UsuarioLocales.Where(x => x.IdUsuario == sesion.IdUsuario).Select(x => x.IdLocal).ToListAsync();
+}
+
+static async Task<bool> PerteneceAlLocal(AppDbContext db, int idUsuario, int idLocal) =>
+    await db.UsuarioLocales.AnyAsync(x => x.IdUsuario == idUsuario && x.IdLocal == idLocal);
+
+static async Task<IResult> CambiarEstadoUsuario(int id, bool activo, AppDbContext db, SesionActual sesion)
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (sesion.IdUsuario == id) return Results.BadRequest("No podés desactivar tu propio usuario.");
+    var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
+    if (usuario == null || !await PerteneceAlLocal(db, id, sesion.IdLocal.Value)) return Results.NotFound();
+    if (!PuedeEditarUsuario(sesion.Rol, usuario.Rol, usuario.Rol)) return Results.Forbid();
+    usuario.Activo = activo;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { usuario.Id, usuario.Activo });
+}
+
+static bool PuedeCrearUsuario(string? rol, string rolObjetivo) =>
+    Permisos.PuedeAdministrarUsuarios(rol ?? "") &&
+    Permisos.EsRolGestionable(rolObjetivo) &&
+    (rolObjetivo != Roles.Socio || Permisos.PuedeAsignarSocio(rol ?? ""));
+
+static bool PuedeEditarUsuario(string? rol, string rolActual, string rolNuevo) =>
+    Permisos.PuedeAdministrarUsuarios(rol ?? "") &&
+    Permisos.EsRolGestionable(rolActual) &&
+    Permisos.EsRolGestionable(rolNuevo) &&
+    (rolNuevo != Roles.Socio || Permisos.PuedeAsignarSocio(rol ?? "")) &&
+    (rol != Roles.Socio || rolActual == Roles.Empleado);
+
+static string? ValidarUsuarioPedido(UsuarioPedido pedido, bool requiereClave)
+{
+    if (string.IsNullOrWhiteSpace(pedido.Nombre) || string.IsNullOrWhiteSpace(pedido.NombreUsuario))
+        return "Nombre y usuario son obligatorios.";
+    if (!Permisos.EsRolGestionable(pedido.Rol))
+        return "El rol no es válido.";
+    if (pedido.IdsLocal.Distinct().Count() == 0)
+        return "Asigná al menos un local.";
+    if (requiereClave && string.IsNullOrWhiteSpace(pedido.Clave))
+        return "La clave es obligatoria.";
+    if (!string.IsNullOrWhiteSpace(pedido.Clave) && pedido.Clave.Length < 4)
+        return "La clave debe tener al menos 4 caracteres.";
+    return null;
 }
 
 static void CargarEnvLocal()

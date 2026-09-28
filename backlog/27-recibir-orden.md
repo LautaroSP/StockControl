@@ -25,14 +25,14 @@ Si vino de menos o de más: se ajusta “cantidad recibida” antes de confirmar
 
 ## Criterios de aceptación
 
-- [ ] Solo dueño y socio (misma pestaña que 26). El empleado sigue sumando stock a mano (12).
-- [ ] Generar orden no mueve stock. Recibir sí.
-- [ ] Confirmación antes de sumar.
-- [ ] Cantidad recibida editable; default = pedida.
-- [ ] Suma stock solo de productos comunes. Sector y genérico no (no deberían estar en la orden).
-- [ ] Una orden recibida no se puede recibir de nuevo.
-- [ ] Queda registro: usuario, fecha, cantidades pedidas y recibidas.
-- [ ] Stock es del **local actual**.
+- [x] Solo dueño y socio (misma pestaña que 26). El empleado sigue sumando stock a mano (12).
+- [x] Generar orden no mueve stock. Recibir sí.
+- [x] Confirmación antes de sumar.
+- [x] Cantidad recibida editable; default = pedida.
+- [x] Suma stock solo de productos comunes. Sector y genérico no (no deberían estar en la orden).
+- [x] Una orden recibida no se puede recibir de nuevo.
+- [x] Queda registro: usuario, fecha, cantidades pedidas y recibidas.
+- [x] Stock es del **local actual**.
 
 ## Fuera
 

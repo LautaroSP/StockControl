@@ -65,4 +65,30 @@ public class PermisosTests
         Assert.True(Permisos.PuedeModificarPrecioEmpleado(Roles.Empleado, true));
         Assert.False(Permisos.PuedeModificarPrecioEmpleado(Roles.Socio, true));
     }
+
+    [Fact]
+    public void Empleado_no_ve_estadisticas()
+    {
+        Assert.False(Permisos.PuedeVerEstadisticas(Roles.Empleado));
+        Assert.True(Permisos.PuedeVerEstadisticas(Roles.Dueno));
+        Assert.True(Permisos.PuedeVerEstadisticas(Roles.Socio));
+        Assert.True(Permisos.PuedeVerEstadisticas(Roles.Admin));
+    }
+
+    [Fact]
+    public void Empleado_no_imprime_carteles()
+    {
+        Assert.False(Permisos.PuedeImprimirCarteles(Roles.Empleado));
+        Assert.True(Permisos.PuedeImprimirCarteles(Roles.Dueno));
+        Assert.True(Permisos.PuedeImprimirCarteles(Roles.Socio));
+    }
+
+    [Fact]
+    public void Solo_dueno_y_socio_administran_proveedores()
+    {
+        Assert.True(Permisos.PuedeAdministrarProveedores(Roles.Dueno));
+        Assert.True(Permisos.PuedeAdministrarProveedores(Roles.Socio));
+        Assert.False(Permisos.PuedeAdministrarProveedores(Roles.Admin));
+        Assert.False(Permisos.PuedeAdministrarProveedores(Roles.Empleado));
+    }
 }

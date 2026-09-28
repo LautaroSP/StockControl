@@ -24,3 +24,22 @@ export const cajaGuard: CanActivateFn = () => {
   if (!sesion.hayCaja()) return router.parseUrl('/elegir-caja');
   return true;
 };
+
+export const duenoGuard: CanActivateFn = () => {
+  const sesion = inject(SesionService);
+  const router = inject(Router);
+  if (!sesion.hayToken()) return router.parseUrl('/login');
+  if (!sesion.idLocal()) return router.parseUrl('/locales');
+  if (!sesion.esDueno()) return router.parseUrl('/caja');
+  return true;
+};
+
+export const proveedoresGuard: CanActivateFn = () => {
+  const sesion = inject(SesionService);
+  const router = inject(Router);
+  if (!sesion.hayToken()) return router.parseUrl('/login');
+  if (!sesion.idLocal()) return router.parseUrl('/locales');
+  if (!sesion.puedeGestionarProveedores()) return router.parseUrl('/caja');
+  return true;
+};
+

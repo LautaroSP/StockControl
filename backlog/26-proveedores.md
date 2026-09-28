@@ -69,17 +69,17 @@ Botón aparte en la ficha: **Contactar** (mismo `wa.me` sin el pedido, o con un 
 
 ## Criterios de aceptación
 
-- [ ] Pestaña Proveedores solo dueño y socio. Empleado no la ve.
-- [ ] ABM proveedor: nombre, tipo de productos, teléfono WhatsApp.
-- [ ] No borrar proveedor con órdenes; se desactiva.
-- [ ] Descargar plantilla Excel (Codigo, Nombre de producto, Costo, Cantidad).
-- [ ] Importar Excel → tabla de revisión; precio = costo × ganancia × IVA; confirmar crea/actualiza productos del local ligados a ese proveedor.
-- [ ] Código duplicado en el local: actualiza, no crea otro.
-- [ ] Listado → ficha con última orden y Repetir.
-- [ ] Nueva orden: buscar productos de ese proveedor, setear cantidad, ver Producto · Cantidad.
-- [ ] Generar orden: WhatsApp (`wa.me` + Enviar a mano) y/o Excel y/o PDF. La orden se guarda igual si WhatsApp falla.
-- [ ] Excel/PDF de salida con local, proveedor, fecha y líneas.
-- [ ] Un proveedor, muchas órdenes; una orden, un proveedor. Datos del **local actual**.
+- [x] Pestaña Proveedores solo dueño y socio. Empleado no la ve.
+- [x] ABM proveedor: nombre, tipo de productos, teléfono WhatsApp.
+- [x] No borrar proveedor con órdenes; se desactiva.
+- [x] Descargar plantilla Excel (Codigo, Nombre de producto, Costo, Cantidad).
+- [x] Importar Excel → tabla de revisión; precio = costo × ganancia × IVA; confirmar crea/actualiza productos del local ligados a ese proveedor.
+- [x] Código duplicado en el local: actualiza, no crea otro.
+- [x] Listado → ficha con última orden y Repetir.
+- [x] Nueva orden: buscar productos de ese proveedor, setear cantidad, ver Producto · Cantidad.
+- [x] Generar orden: WhatsApp (`wa.me` + Enviar a mano) y/o Excel y/o PDF. La orden se guarda igual si WhatsApp falla.
+- [x] Excel/PDF de salida con local, proveedor, fecha y líneas.
+- [x] Un proveedor, muchas órdenes; una orden, un proveedor. Datos del **local actual**.
 
 ## Fuera (v1)
 

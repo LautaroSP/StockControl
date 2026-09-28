@@ -14,7 +14,11 @@ namespace StockControl.Domain
         public string Nombre { get; set; } = string.Empty;
         public decimal Cantidad { get; set; }
         public decimal Precio { get; set; }
+        public decimal CostoVenta { get; set; }
         public decimal Subtotal { get; set; }
+        public int EsSector { get; set; }
+        public int EsGenerico { get; set; }
+        public int ClasificacionRegistrada { get; set; }
         public InformeVentaDetalle()
         {
 

@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { ApiService, ConfiguracionLocalDto } from '../servicios/api.service';
+import { ApiService, ConfiguracionLocalDto, PlantillasCartelDto, TamanoCartel } from '../servicios/api.service';
 import { SesionService } from '../servicios/sesion.service';
 
 @Component({
@@ -44,6 +44,25 @@ import { SesionService } from '../servicios/sesion.service';
       <h2>Cajas</h2>
       <label class="field">Cantidad de cajas/puestos <input class="wide" type="number" min="1" max="50" [(ngModel)]="form.cantidadCajas" /></label>
 
+      <h2>Carteles</h2>
+      @for (t of tamanos; track t) {
+        <div class="row" style="align-items:center; margin-bottom:8px">
+          <strong style="width:70px">{{ t === 'grande' ? 'Grande' : 'Chico' }}</strong>
+          @if (plantillas[t]) {
+            <img [src]="plantillas[t]" alt="Plantilla {{ t }}" style="height:48px; border:1px solid var(--line); border-radius:4px" />
+            <span class="meta">Plantilla propia</span>
+            <button class="btn" type="button" (click)="quitarPlantilla(t)">Usar genérica</button>
+          } @else {
+            <span class="meta">Plantilla genérica</span>
+          }
+          <label class="btn">
+            Subir {{ t }}
+            <input type="file" accept="image/png,image/jpeg" hidden (change)="subirPlantilla(t, $event)" />
+          </label>
+        </div>
+      }
+      <p class="hint">PNG o JPG de hasta 1 MB. Se usa de fondo en ese tamaño de cartel.</p>
+
       <div class="row" style="margin-top:16px">
         <button class="btn btn-primary grow" type="button" (click)="guardar()">Guardar configuración</button>
       </div>
@@ -58,6 +77,8 @@ export class ConfiguracionComponent implements OnInit {
     cantidadCajas: 1, recalcularPrecios: false
   };
   original = { factorGanancia: 1, iva: 1.21 };
+  readonly tamanos: TamanoCartel[] = ['grande', 'chico'];
+  plantillas: PlantillasCartelDto = { grande: null, chico: null };
   error = '';
   mensaje = '';
 
@@ -74,6 +95,44 @@ export class ConfiguracionComponent implements OnInit {
         this.original = { factorGanancia: r.factorGanancia, iva: r.iva };
       },
       error: (e) => (this.error = this.mensajeError(e, 'No se pudo cargar la configuración.'))
+    });
+    this.api.plantillasCartel().subscribe({
+      next: (r) => (this.plantillas = r),
+      error: (e) => (this.error = this.mensajeError(e, 'No se pudieron cargar las plantillas de cartel.'))
+    });
+  }
+
+  subirPlantilla(tamano: TamanoCartel, evento: Event): void {
+    const input = evento.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    input.value = '';
+    if (!archivo) return;
+    if (archivo.size > 1024 * 1024) {
+      this.error = 'La imagen no puede superar 1 MB.';
+      return;
+    }
+    const lector = new FileReader();
+    lector.onload = () => {
+      this.api.subirPlantillaCartel(tamano, String(lector.result)).subscribe({
+        next: (r) => {
+          this.plantillas = { ...this.plantillas, [tamano]: r.plantilla };
+          this.error = '';
+          this.mensaje = `Plantilla ${tamano} guardada.`;
+        },
+        error: (e) => (this.error = this.mensajeError(e, 'No se pudo subir la plantilla.'))
+      });
+    };
+    lector.readAsDataURL(archivo);
+  }
+
+  quitarPlantilla(tamano: TamanoCartel): void {
+    this.api.quitarPlantillaCartel(tamano).subscribe({
+      next: () => {
+        this.plantillas = { ...this.plantillas, [tamano]: null };
+        this.error = '';
+        this.mensaje = `Cartel ${tamano}: vuelve a la plantilla genérica.`;
+      },
+      error: (e) => (this.error = this.mensajeError(e, 'No se pudo quitar la plantilla.'))
     });
   }
 

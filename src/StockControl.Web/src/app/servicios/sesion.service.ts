@@ -46,6 +46,7 @@ export class SesionService {
   readonly esDuenoTitular = computed(() => this.rol() === 'dueno' || this.rol() === 'admin');
   readonly puedeGestionarUsuarios = computed(() => this.rol() === 'dueno' || this.rol() === 'socio' || this.rol() === 'admin');
   readonly puedeConfigurarLocal = computed(() => this.rol() === 'dueno' || this.rol() === 'socio');
+  readonly puedeGestionarProveedores = computed(() => this.rol() === 'dueno' || this.rol() === 'socio');
   readonly hayCaja = computed(() => this.nroCaja() > 0);
 
   guardarLogin(token: string, rol: string, nombre: string): void {

@@ -25,6 +25,10 @@ public class AppDbContext : DbContext
     public DbSet<Caja> Cajas => Set<Caja>();
     public DbSet<OcupacionCaja> OcupacionesCaja => Set<OcupacionCaja>();
     public DbSet<Configuracion> Configuracion => Set<Configuracion>();
+    public DbSet<PlantillaCartel> PlantillasCartel => Set<PlantillaCartel>();
+    public DbSet<Proveedor> Proveedores => Set<Proveedor>();
+    public DbSet<OrdenCompra> OrdenesCompra => Set<OrdenCompra>();
+    public DbSet<OrdenCompraLinea> OrdenesCompraLineas => Set<OrdenCompraLinea>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -161,6 +165,54 @@ public class AppDbContext : DbContext
             e.ToTable("Configuracion");
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.IdLocal, x.Clave }).IsUnique();
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<PlantillaCartel>(e =>
+        {
+            e.ToTable("PlantillasCartel");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Tamano).HasMaxLength(10);
+            e.Property(x => x.TipoContenido).HasMaxLength(40);
+            e.HasIndex(x => new { x.IdLocal, x.Tamano }).IsUnique();
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<Proveedor>(e =>
+        {
+            e.ToTable("Proveedores");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Nombre).HasMaxLength(200);
+            e.Property(x => x.TipoProductos).HasMaxLength(200);
+            e.Property(x => x.Telefono).HasMaxLength(30);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<OrdenCompra>(e =>
+        {
+            e.ToTable("OrdenesCompra");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.NombreUsuario).HasMaxLength(80);
+            e.Property(x => x.NombreUsuarioRecepcion).HasMaxLength(80);
+            e.Property(x => x.FechaRecepcion).IsConcurrencyToken();
+            e.Ignore(x => x.Recibida);
+            e.HasIndex(x => new { x.IdLocal, x.IdProveedor, x.Fecha });
+            e.HasMany(x => x.Lineas).WithOne().HasForeignKey(l => l.IdOrdenCompra);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<OrdenCompraLinea>(e =>
+        {
+            e.ToTable("OrdenesCompraLineas");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Codigo).HasMaxLength(80);
+            e.Property(x => x.Nombre).HasMaxLength(200);
+            e.Property(x => x.Cantidad).HasPrecision(14, 3);
+            e.Property(x => x.CantidadRecibida).HasPrecision(14, 3);
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
     }

@@ -13,5 +13,9 @@ namespace StockControl.Domain
         public decimal Total { get; set; }
         public string MetodoPago { get; set; }
         public int CantidadVentas { get; set; }
+        public decimal Ganancia { get; set; }
+        public decimal GenericosOSector { get; set; }
+        public decimal PagoProveedor { get; set; }
+        public string IdCierre { get; set; }
     }
 }

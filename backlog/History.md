@@ -8,9 +8,9 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 
 ## Siguiente
 
-**#20 · 17 Estadísticas**
+**#24 · 02 Pago por local**
 
-Después: 19 Carteles → **26 Proveedores** → **27 Recibir orden** → 02 Pago por local → 22 Cobro del abono → 03 Admin → 04 Contratar local → **21 QR (última)**.
+Después: 22 Cobro del abono → 03 Admin → 04 Contratar local → **21 QR (última)**.
 
 ## Tablero
 
@@ -35,10 +35,10 @@ Después: 19 Carteles → **26 Proveedores** → **27 Recibir orden** → 02 Pag
 | 17 | 10 | [Informes de ventas](10-informes-de-ventas.md) | sí | Ventas por puesto + detalle. Sin listado de cierres (eso es 25) |
 | 18 | 25 | [Consulta de cajas cerradas](25-consulta-cajas-cerradas.md) | sí | Desglose + ventas del cierre |
 | 19 | 18 | [Ticket](18-ticket.md) | sí | Diálogo de impresión del navegador. POS-58 / POS-80 / A4. Sin agente ESC/POS |
-| 20 | 17 | [Estadísticas](17-estadisticas.md) | no | |
-| 21 | 19 | [Carteles](19-carteles.md) | no | |
-| 22 | 26 | [Proveedores y órdenes](26-proveedores.md) | no | Dueño/socio. Catálogo Excel + pedido WhatsApp/Excel/PDF |
-| 23 | 27 | [Recibir orden](27-recibir-orden.md) | no | Marcar recibida y sumar stock. Depende de 26 |
+| 20 | 17 | [Estadísticas](17-estadisticas.md) | sí | Rendimiento mensual/rango, top productos, margen, grupos, comparativa y ventas del día |
+| 21 | 19 | [Carteles](19-carteles.md) | sí | Impresión por navegador; genérica CSS; plantilla propia por local. Requiere migración `PlantillasCartel` |
+| 22 | 26 | [Proveedores y órdenes](26-proveedores.md) | sí | ClosedXML en API; PDF por navegador; wa.me con 549 (celular AR). Requiere migración `Proveedores` |
+| 23 | 27 | [Recibir orden](27-recibir-orden.md) | sí | Recepción única; cantidad recibida editable; requiere migración `RecepcionOrden` |
 | 24 | 02 | [Pago por local](02-pago-por-local.md) | no | Hay `EstadoAbono` / vence en el local; no bloquea caja vencida ni panel admin |
 | 25 | 22 | [Cobro del abono](22-cobro-abono-servicio.md) | no | QR tuyo / “ya pagué”. Distinto del QR de mostrador (21) |
 | 26 | 03 | [Admin: alta de locales](03-admin-alta-locales.md) | no | |
@@ -47,6 +47,10 @@ Después: 19 Carteles → **26 Proveedores** → **27 Recibir orden** → 02 Pag
 
 ## Log
 
+- 2026-09-28 · 27 Recibir orden · sí · Marcar recibida desde la ficha del proveedor; suma stock de productos comunes; guarda pedido vs recibido, quién y cuándo
+- 2026-09-28 · 26 Proveedores · sí · ABM + catálogo Excel (revisar/confirmar, suma stock) + órdenes por WhatsApp/Excel/PDF con Repetir
+- 2026-09-28 · 19 Carteles · sí · Grande 6 / chico 30 por A4 vía diálogo de impresión; plantilla genérica CSS o imagen propia por local
+- 2026-09-12 · 17 Estadísticas · sí · Métricas de ventas, top productos, mix de pagos, margen, grupos, sucursales y ventas del día
 - 2026-09-10 · 18 Ticket · sí · Impresión por diálogo del navegador; formatos POS 58/80 y A4
 - 2026-09-10 · 08 Varios carritos · sí · 4 pestañas fijas F1–F4, extras con +/×
 - 2026-09-10 · 10 / 25 · ajuste · Informes = ventas + cerrar caja; Cajas = historial de cierres y detalle de ventas

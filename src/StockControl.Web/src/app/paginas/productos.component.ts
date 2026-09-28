@@ -1,19 +1,21 @@
 import { Component, OnInit } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ApiService, GrupoListaDto, ProductoDto } from '../servicios/api.service';
 import { SesionService } from '../servicios/sesion.service';
 
 @Component({
   selector: 'sc-productos',
   standalone: true,
-  imports: [FormsModule, NgTemplateOutlet],
+  imports: [FormsModule, NgTemplateOutlet, RouterLink],
   template: `
     <div class="topbar">
       <h1>Productos</h1>
       <div class="row">
         @if (sesion.esDueno()) {
           <button class="btn btn-primary" type="button" (click)="nuevo()">Nuevo producto</button>
+          <a class="btn" routerLink="/carteles">Carteles</a>
         }
         <button class="btn" type="button" [disabled]="!elegido" (click)="abrirStock()">Sumar stock</button>
       </div>

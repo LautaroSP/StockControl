@@ -172,3 +172,86 @@ public class UnificarCajasPedido
     [Required, MinLength(2)]
     public List<int> IdsCierre { get; set; } = new();
 }
+
+public class CartelesPedido
+{
+    [Required, MinLength(1), MaxLength(300)]
+    public List<int> IdsProducto { get; set; } = new();
+
+    [Required, MaxLength(10)]
+    public string Tamano { get; set; } = "grande";
+}
+
+public class PlantillaCartelPedido
+{
+    /// <summary>Base64 de la imagen (acepta el prefijo data:image/...;base64,).</summary>
+    [Required, MaxLength(1_500_000)]
+    public string Imagen { get; set; } = "";
+}
+
+public class ProveedorPedido
+{
+    [Required, MaxLength(200)]
+    public string Nombre { get; set; } = "";
+
+    [MaxLength(200)]
+    public string TipoProductos { get; set; } = "";
+
+    [MaxLength(30)]
+    public string Telefono { get; set; } = "";
+}
+
+public class ArchivoExcelPedido
+{
+    /// <summary>Base64 del .xlsx (acepta el prefijo data:...;base64,).</summary>
+    [Required, MaxLength(3_000_000)]
+    public string Archivo { get; set; } = "";
+}
+
+public class FilaCatalogoPedido
+{
+    public int Fila { get; set; }
+
+    [MaxLength(80)]
+    public string Codigo { get; set; } = "";
+
+    [MaxLength(200)]
+    public string Nombre { get; set; } = "";
+
+    public decimal? Costo { get; set; }
+    public decimal? Cantidad { get; set; }
+}
+
+public class ConfirmarCatalogoPedido
+{
+    [Required, MaxLength(2000)]
+    public List<FilaCatalogoPedido> Filas { get; set; } = new();
+}
+
+public class LineaOrdenCompraPedido
+{
+    public int IdProducto { get; set; }
+
+    [Range(0.001, 999999)]
+    public decimal Cantidad { get; set; }
+}
+
+public class LineaRecibidaPedido
+{
+    public int IdLinea { get; set; }
+
+    [Range(0, 999999)]
+    public decimal Cantidad { get; set; }
+}
+
+public class RecibirOrdenPedido
+{
+    [MaxLength(500)]
+    public List<LineaRecibidaPedido> Lineas { get; set; } = new();
+}
+
+public class OrdenCompraPedido
+{
+    [Required, MinLength(1), MaxLength(500)]
+    public List<LineaOrdenCompraPedido> Lineas { get; set; } = new();
+}

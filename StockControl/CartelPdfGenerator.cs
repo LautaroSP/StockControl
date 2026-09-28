@@ -67,7 +67,7 @@ namespace StockControl
             {
                 for (int i = 0; i < items.Count; i += porHoja)
                 {
-                    var pageItems = items.Skip(i).Take(porHoja).ToList();
+                    var pageItems = CompletarHoja(items.Skip(i).Take(porHoja).ToList(), porHoja);
                     using var pageBitmap = RenderPage(pageItems, plantilla, cartelW, cartelH, cols, rows, culture);
                     var ms = new MemoryStream();
                     pageBitmap.Save(ms, ImageFormat.Jpeg);
@@ -109,8 +109,10 @@ namespace StockControl
             int gap = MmToPx(GapMm);
             int cartelW = MmToPx(cartelWMm);
             int cartelH = MmToPx(cartelHMm);
+            AjustarParaQueEntre(ref cartelW, ref cartelH, pageW, pageH, margin, gap, cols, rows);
 
             var bmp = new Bitmap(pageW, pageH);
+            bmp.SetResolution(Dpi, Dpi);
             using var g = Graphics.FromImage(bmp);
             g.Clear(Color.White);
             g.SmoothingMode = SmoothingMode.HighQuality;
@@ -264,6 +266,42 @@ namespace StockControl
                 size -= 0.5f;
             }
             return minSize;
+        }
+
+        private static List<CartelItem> CompletarHoja(List<CartelItem> pageItems, int porHoja)
+        {
+            if (pageItems.Count == 0 || pageItems.Count == porHoja)
+                return pageItems;
+
+            var completa = new List<CartelItem>(porHoja);
+            completa.AddRange(pageItems);
+            int indice = 0;
+            while (completa.Count < porHoja)
+            {
+                completa.Add(pageItems[indice % pageItems.Count]);
+                indice++;
+            }
+            return completa;
+        }
+
+        private static void AjustarParaQueEntre(
+            ref int cartelW,
+            ref int cartelH,
+            int pageW,
+            int pageH,
+            int margin,
+            int gap,
+            int cols,
+            int rows)
+        {
+            int maxW = (pageW - 2 * margin - (cols - 1) * gap) / cols;
+            int maxH = (pageH - 2 * margin - (rows - 1) * gap) / rows;
+            if (cartelW <= maxW && cartelH <= maxH)
+                return;
+
+            float escala = Math.Min(maxW / (float)cartelW, maxH / (float)cartelH);
+            cartelW = Math.Max(1, (int)Math.Floor(cartelW * escala));
+            cartelH = Math.Max(1, (int)Math.Floor(cartelH * escala));
         }
 
         private static int MmToPx(float mm) => (int)Math.Round(mm / 25.4f * Dpi);

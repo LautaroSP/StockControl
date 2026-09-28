@@ -34,6 +34,8 @@ namespace StockControl
             txtIVA.Enabled = false;
             txtIVA.Text = StockMain.IVA.ToString();
             _cargandoInfo = false;
+            if (!esEdicion)
+                Shown += (_, _) => txtCodigo.Focus();
         }
         public frmProducto(string codigo, ProductoRepository prodRep, bool nuevoCodigo)
         {
@@ -45,6 +47,7 @@ namespace StockControl
             txtIVA.Enabled = false;
             txtIVA.Text = StockMain.IVA.ToString();
             txtCodigo.Text = codigo;
+            Shown += (_, _) => txtNombre.Focus();
         }
         private void CargarInformacionDelProducto()
         {
@@ -98,8 +101,10 @@ namespace StockControl
             {
                 if (esEdicion)
                 {
+                    decimal cantidadAnterior = _prod.Cantidad;
                     if (AsignarValoresAProd())
                     {
+                        RegistrarEntradaDeStock(cantidadAnterior);
                         _prodRepository.Actualizar(_prod);
                         this.DialogResult = DialogResult.OK;
                         Close();
@@ -112,6 +117,7 @@ namespace StockControl
                     {
                         if (AsignarValoresAProd())
                         {
+                            RegistrarEntradaDeStock(0);
                             _prodRepository.Insertar(_prod);
                             this.DialogResult = DialogResult.OK;
                             Close();
@@ -202,6 +208,18 @@ namespace StockControl
             return true;
 
         }
+
+        private void RegistrarEntradaDeStock(decimal cantidadAnterior)
+        {
+            if (_prod.ProductoSector == 1)
+                return;
+
+            decimal delta = _prod.Cantidad - cantidadAnterior;
+            if (delta <= 0)
+                return;
+
+            new MovimientoStockRepository().Insertar(_prod.Codigo, delta);
+        }
         private bool TryParseDecimal(string input, out decimal value)
         {
             input = input.Trim();
@@ -219,23 +237,13 @@ namespace StockControl
 
         private void chkGananciaProd_CheckedChanged(object sender, EventArgs e)
         {
+            txtGanancia.Enabled = chkGananciaProd.Checked;
+            txtIVA.Enabled = chkGananciaProd.Checked;
 
-            if (chkGananciaProd.Checked)
-            {
-                txtGanancia.Enabled = true;
-                txtIVA.Enabled = true;
+            if (_actualizando || _cargandoInfo)
+                return;
 
-                if (_cargandoInfo) return;
-                CalcularCosto();
-            }
-            else
-            {
-                txtGanancia.Enabled = false;
-                txtIVA.Enabled = false;
-
-                if (_cargandoInfo) return;
-                CalcularCosto();
-            }
+            CalcularCosto();
         }
 
         private void txtGanancia_TextChanged(object sender, EventArgs e)

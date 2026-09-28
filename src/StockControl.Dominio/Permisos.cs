@@ -20,6 +20,12 @@ public static class Permisos
     public static bool PuedeVerCostoEnInforme(string rol) =>
         EsDuenoOperativo(rol);
 
+    public static bool PuedeVerEstadisticas(string rol) =>
+        EsDuenoOperativo(rol);
+
+    public static bool PuedeImprimirCarteles(string rol) =>
+        EsDuenoOperativo(rol);
+
     public static bool PuedeAdministrarGrupos(string rol) =>
         EsDuenoOperativo(rol);
 
@@ -27,6 +33,9 @@ public static class Permisos
         rol is Roles.Dueno or Roles.Socio;
 
     public static bool PuedeConfigurarLocal(string rol) =>
+        rol is Roles.Dueno or Roles.Socio;
+
+    public static bool PuedeAdministrarProveedores(string rol) =>
         rol is Roles.Dueno or Roles.Socio;
 
     public static bool PuedeAdministrarMetodosPago(string rol) =>

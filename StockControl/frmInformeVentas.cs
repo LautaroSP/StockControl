@@ -18,26 +18,41 @@ namespace StockControl
     {
         private List<InformeVenta> informeVentas = new();
         private InformeVentaRepository _informeVentaRepository = new InformeVentaRepository();
+        private PagoProveedorRepository _pagoProveedorRepository = new PagoProveedorRepository();
+        private MovimientoStockRepository _movimientoStockRepository = new MovimientoStockRepository();
+        private ProductoRepository _productoRepository = new ProductoRepository();
         private List<Caja> Cajas = new();
         private List<Caja> cajasFiltradas = new();
+        private List<CajaProducto> productosCierre = new();
         public static List<ItemSeleccionado> ticket = new();
         private string lastSortColumn = null;
         private bool lastSortAsc = false;
         private string lastSortColumnCajas;
         private bool lastSortAscCajas = true;
+        private string lastSortColumnProductos;
+        private bool lastSortAscProductos = true;
         public frmInformeVentas()
         {
             InitializeComponent();
             this.Icon = new Icon("Resources\\stockIcon.ico");
             dataGridView1.ReadOnly = true;
             dtCajas.ReadOnly = true;
+            dtCajas.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dtCajas.MultiSelect = false;
+            dtProductos.ReadOnly = true;
+            dtProductos.AllowUserToAddRows = false;
+            dtProductos.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dtProductos.MultiSelect = false;
             dataGridView1.ColumnHeaderMouseClick += dataGridView1_ColumnHeaderMouseClick;
+            dtCajas.CellClick += dtCajas_CellClick;
+            dtProductos.ColumnHeaderMouseClick += dtProductos_ColumnHeaderMouseClick;
 
             LoadData();
         }
 
         private void LoadData()
         {
+            _informeVentaRepository.RecalcularSubtotales();
             informeVentas = _informeVentaRepository.ListarInformeVenta();
             informeVentas.ForEach(x =>
             {
@@ -57,13 +72,42 @@ namespace StockControl
             dataGridView1.Columns["IdInformeVenta"].Visible = false;
             dataGridView1.Columns["MultipleMetodoDePago"].Visible = false;
             dataGridView1.Columns["DetalleAdjunto"].Visible = false;
+            if (dataGridView1.Columns["IdGrupo"] != null)
+                dataGridView1.Columns["IdGrupo"].Visible = false;
             dataGridView1.Columns["MultipleMetodoDePagoStr"].HeaderText = "Método de Pago Múltiple";
             dataGridView1.Columns["DetalleAdjuntoStr"].HeaderText = "Detalle Adjunto";
             dataGridView1.Columns["Fecha"].DefaultCellStyle.Format = "dd/MM/yyyy HH:mm:ss";
             dataGridView1.Columns["Total"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
             dataGridView1.Columns["Total"].DefaultCellStyle.Format = "C2";
+            dataGridView1.Columns["subTotal"].HeaderText = "Subtotal";
             dataGridView1.Columns["subTotal"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
             dataGridView1.Columns["subTotal"].DefaultCellStyle.Format = "C2";
+            if (dataGridView1.Columns["Descuento"] != null)
+            {
+                dataGridView1.Columns["Descuento"].HeaderText = "Descuento %";
+                dataGridView1.Columns["Descuento"].DefaultCellStyle.Format = "0'%'";
+            }
+            if (dataGridView1.Columns["PrecioCosto"] != null)
+                dataGridView1.Columns["PrecioCosto"].HeaderText = "Precio al costo";
+
+            string[] orden =
+            {
+                "Fecha",
+                "MetodoPago",
+                "subTotal",
+                "Descuento",
+                "Total",
+                "PrecioCosto",
+                "MultipleMetodoDePagoStr",
+                "DetalleAdjuntoStr"
+            };
+            int indice = 0;
+            foreach (var nombre in orden)
+            {
+                if (dataGridView1.Columns[nombre] != null)
+                    dataGridView1.Columns[nombre].DisplayIndex = indice++;
+            }
+
             foreach (DataGridViewColumn column in dataGridView1.Columns)
                 column.SortMode = DataGridViewColumnSortMode.Programmatic;
 
@@ -177,38 +221,13 @@ namespace StockControl
 
             if (result == DialogResult.No) return;
 
-            Cursor = Cursors.WaitCursor;
-            var informesDelDia = _informeVentaRepository.ListarParaCerrarCaja();
-            List<Caja> informeCajaCerrada = informesDelDia.GroupBy(i => i.MetodoPago)
-                                           .Select(g => new Caja
-                                           {
-                                               MetodoPago = g.Key,
-                                               Total = g.Sum(i => i.Total),
-                                               CantidadVentas = g.Count()
-                                           }).ToList();
+            CerrarCaja(DateTime.Now, restarPagosProveedor: true);
+        }
 
-            var informeTotalDia = informeCajaCerrada.Sum(i => i.Total);
-
-
-            if (informeCajaCerrada.Count == 0)
-            {
-                MessageBox.Show("No hay ventas para cerrar la caja del día de hoy.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                Cursor = Cursors.Default;
-                return;
-            }
-            informeCajaCerrada.Add(new Caja
-            {
-                MetodoPago = "Total",
-                Total = informeTotalDia,
-                CantidadVentas = informesDelDia.Count
-            });
-            _informeVentaRepository.InsertarCajaCerradaPorLista(informeCajaCerrada);
-
-            CargarDtCajas();
-            Cursor = Cursors.Default;
-            MessageBox.Show("Caja cerrada correctamente.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            tabInformes.SelectedTab = tabPage2;
-
+        private void btnPagoProveedor_Click(object sender, EventArgs e)
+        {
+            using var form = new frmPagoProveedor();
+            form.ShowDialog();
         }
 
         private void CargarDtCajas()
@@ -286,13 +305,49 @@ namespace StockControl
         {
             if (grid.Columns["IdCaja"] != null)
                 grid.Columns["IdCaja"].Visible = false;
+            if (grid.Columns["IdCierre"] != null)
+                grid.Columns["IdCierre"].Visible = false;
             if (grid.Columns["CantidadVentas"] != null)
                 grid.Columns["CantidadVentas"].HeaderText = "Cantidad de ventas";
-            if (grid.Columns["Total"] != null)
+            if (grid.Columns["MetodoPago"] != null)
+                grid.Columns["MetodoPago"].HeaderText = "Método de pago";
+            FormatearDinero(grid, "Total");
+            FormatearDinero(grid, "Ganancia");
+            FormatearDinero(grid, "GenericosOSector");
+            FormatearDinero(grid, "PagoProveedor");
+            if (grid.Columns["GenericosOSector"] != null)
+                grid.Columns["GenericosOSector"].HeaderText = "Genéricos o sector";
+            if (grid.Columns["PagoProveedor"] != null)
+                grid.Columns["PagoProveedor"].HeaderText = "Pago a proveedores";
+            if (grid.Columns["Ganancia"] != null)
+                grid.Columns["Ganancia"].HeaderText = "Ganancia";
+
+            OrdenarColumnas(grid,
+                "Fecha",
+                "MetodoPago",
+                "CantidadVentas",
+                "GenericosOSector",
+                "PagoProveedor",
+                "Total",
+                "Ganancia");
+        }
+
+        private static void OrdenarColumnas(DataGridView grid, params string[] nombres)
+        {
+            int indice = 0;
+            foreach (var nombre in nombres)
             {
-                grid.Columns["Total"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
-                grid.Columns["Total"].DefaultCellStyle.Format = "C2";
+                if (grid.Columns[nombre] != null)
+                    grid.Columns[nombre].DisplayIndex = indice++;
             }
+        }
+
+        private static void FormatearDinero(DataGridView grid, string columna)
+        {
+            if (grid.Columns[columna] == null)
+                return;
+            grid.Columns[columna].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
+            grid.Columns[columna].DefaultCellStyle.Format = "C2";
         }
 
         private void chkTodos_CheckedChanged(object sender, EventArgs e)
@@ -422,46 +477,176 @@ namespace StockControl
                     if (result == DialogResult.No)
                         return;
 
-                    Cursor = Cursors.WaitCursor;
-
-                    var informesDelDia = _informeVentaRepository.ListarParaCerrarCaja(fechaSeleccionada);
-
-                    if (informesDelDia.Count == 0)
-                    {
-                        MessageBox.Show("No hay ventas para esa fecha.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        Cursor = Cursors.Default;
-                        return;
-                    }
-
-                    var informeCajaCerrada = informesDelDia
-                        .GroupBy(i => i.MetodoPago)
-                        .Select(g => new Caja
-                        {
-                            Fecha = fechaSeleccionada,
-                            MetodoPago = g.Key,
-                            Total = g.Sum(i => i.Total),
-                            CantidadVentas = g.Count()
-                        }).ToList();
-
-                    var informeTotalDia = informeCajaCerrada.Sum(i => i.Total);
-
-                    informeCajaCerrada.Add(new Caja
-                    {
-                        Fecha = fechaSeleccionada,
-                        MetodoPago = "Total",
-                        Total = informeTotalDia,
-                        CantidadVentas = informesDelDia.Count
-                    });
-
-                    _informeVentaRepository.InsertarCajaCerradaPorLista(informeCajaCerrada);
-
-                    CargarDtCajas();
-                    Cursor = Cursors.Default;
-
-                    MessageBox.Show("Caja cerrada correctamente.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    tabInformes.SelectedTab = tabPage2;
+                    CerrarCaja(fechaSeleccionada, restarPagosProveedor: false);
                 }
             }
+        }
+
+        private void CerrarCaja(DateTime fecha, bool restarPagosProveedor)
+        {
+            Cursor = Cursors.WaitCursor;
+            var informes = restarPagosProveedor
+                ? _informeVentaRepository.ListarParaCerrarCaja()
+                : _informeVentaRepository.ListarParaCerrarCaja(fecha.Date);
+            var pagos = restarPagosProveedor
+                ? _pagoProveedorRepository.ListarDelDia(fecha.Date)
+                : new List<PagoProveedor>();
+
+            if (informes.Count == 0 && pagos.Count == 0)
+            {
+                MessageBox.Show(
+                    restarPagosProveedor
+                        ? "No hay ventas para cerrar la caja del día de hoy."
+                        : "No hay ventas para esa fecha.",
+                    "Aviso",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                Cursor = Cursors.Default;
+                return;
+            }
+
+            var detalles = _informeVentaRepository.ListarDetallesDe(informes.Select(i => i.IdInformeVenta));
+            var detallesPorInforme = detalles
+                .GroupBy(d => d.IdInformeVenta)
+                .ToDictionary(g => g.Key, g => g.ToList());
+            var productos = _productoRepository.Listar()
+                .Where(p => !string.IsNullOrEmpty(p.Codigo))
+                .GroupBy(p => p.Codigo, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            DateTime desdeElDiaSiguiente = fecha.Date.AddDays(1);
+            string idCierre = Guid.NewGuid().ToString("N");
+            var resultado = CierreCaja.Calcular(
+                informes,
+                detallesPorInforme,
+                pagos,
+                productos,
+                _informeVentaRepository.SumarCantidadVendidaDesde(desdeElDiaSiguiente),
+                _movimientoStockRepository.SumarDesde(desdeElDiaSiguiente),
+                fecha,
+                idCierre,
+                restarPagosProveedor);
+
+            _informeVentaRepository.InsertarCajaCerradaPorLista(resultado.Cajas);
+            _informeVentaRepository.InsertarProductosCierre(resultado.Productos);
+            CargarDtCajas();
+            MostrarProductos(idCierre, fecha);
+            tabInformes.SelectedTab = tabPage4;
+            Cursor = Cursors.Default;
+            MessageBox.Show("Caja cerrada correctamente.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void dtCajas_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0)
+                return;
+            if (dtCajas.Rows[e.RowIndex].DataBoundItem is not Caja caja)
+                return;
+            if (string.IsNullOrEmpty(caja.IdCierre))
+            {
+                productosCierre = new List<CajaProducto>();
+                dtProductos.DataSource = null;
+                lblProductos.Text = "Esta caja no tiene el listado de productos.";
+                return;
+            }
+            MostrarProductos(caja.IdCierre, caja.Fecha);
+        }
+
+        private void MostrarProductos(string idCierre, DateTime fecha)
+        {
+            productosCierre = _informeVentaRepository.ListarProductosCierre(idCierre);
+            lblProductos.Text = $"Productos vendidos del {fecha:dd/MM/yyyy}";
+            EnlazarProductos();
+        }
+
+        private void EnlazarProductos()
+        {
+            dtProductos.DataSource = null;
+            dtProductos.DataSource = productosCierre;
+            ConfigurarColumnasProductos(dtProductos);
+        }
+
+        private void dtProductos_ColumnHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            var column = dtProductos.Columns[e.ColumnIndex];
+            var propName = column.DataPropertyName;
+            if (string.IsNullOrEmpty(propName))
+                return;
+
+            bool asc = lastSortColumnProductos != propName || !lastSortAscProductos;
+            productosCierre = asc
+                ? productosCierre.OrderBy(x => GetPropValue(x, propName)).ToList()
+                : productosCierre.OrderByDescending(x => GetPropValue(x, propName)).ToList();
+
+            EnlazarProductos();
+            foreach (DataGridViewColumn col in dtProductos.Columns)
+                col.HeaderCell.SortGlyphDirection = SortOrder.None;
+
+            var actual = dtProductos.Columns
+                .Cast<DataGridViewColumn>()
+                .FirstOrDefault(c => c.DataPropertyName == propName);
+            if (actual != null)
+                actual.HeaderCell.SortGlyphDirection = asc ? SortOrder.Ascending : SortOrder.Descending;
+
+            lastSortColumnProductos = propName;
+            lastSortAscProductos = asc;
+        }
+
+        private void ConfigurarColumnasProductos(DataGridView grid)
+        {
+            if (grid.Columns["IdCajaProducto"] != null)
+                grid.Columns["IdCajaProducto"].Visible = false;
+            if (grid.Columns["IdCierre"] != null)
+                grid.Columns["IdCierre"].Visible = false;
+            if (grid.Columns["Codigo"] != null)
+                grid.Columns["Codigo"].HeaderText = "Código";
+            if (grid.Columns["CantidadVendida"] != null)
+                grid.Columns["CantidadVendida"].HeaderText = "Cantidad de ventas";
+            if (grid.Columns["StockInicial"] != null)
+            {
+                grid.Columns["StockInicial"].HeaderText = "Stock inicial";
+                grid.Columns["StockInicial"].DefaultCellStyle.Format = "0.##";
+                grid.Columns["StockInicial"].DefaultCellStyle.NullValue = "";
+            }
+            if (grid.Columns["StockFinal"] != null)
+            {
+                grid.Columns["StockFinal"].HeaderText = "Stock final";
+                grid.Columns["StockFinal"].DefaultCellStyle.Format = "0.##";
+                grid.Columns["StockFinal"].DefaultCellStyle.NullValue = "";
+            }
+            if (grid.Columns["Ganancia"] != null)
+            {
+                grid.Columns["Ganancia"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
+                grid.Columns["Ganancia"].DefaultCellStyle.Format = "C2";
+                grid.Columns["Ganancia"].DefaultCellStyle.NullValue = "";
+            }
+            ReemplazarCheck(grid, "EsSector", "Sector");
+            ReemplazarCheck(grid, "EsGenerico", "Genérico");
+            foreach (DataGridViewColumn column in grid.Columns)
+                column.SortMode = DataGridViewColumnSortMode.Programmatic;
+        }
+
+        private static void ReemplazarCheck(DataGridView grid, string nombre, string titulo)
+        {
+            if (grid.Columns[nombre] == null)
+                return;
+            if (grid.Columns[nombre] is DataGridViewCheckBoxColumn)
+            {
+                grid.Columns[nombre].HeaderText = titulo;
+                return;
+            }
+
+            int index = grid.Columns[nombre].Index;
+            grid.Columns.Remove(nombre);
+            grid.Columns.Insert(index, new DataGridViewCheckBoxColumn
+            {
+                Name = nombre,
+                DataPropertyName = nombre,
+                HeaderText = titulo,
+                TrueValue = 1,
+                FalseValue = 0,
+                SortMode = DataGridViewColumnSortMode.Programmatic
+            });
         }
         private void btnGenerarResumen_Click(object sender, EventArgs e)
         {
@@ -478,18 +663,26 @@ namespace StockControl
                 {
                     MetodoPago = g.Key,
                     Total = g.Sum(c => c.Total),
-                    CantidadVentas = g.Sum(c => c.CantidadVentas)
+                    CantidadVentas = g.Sum(c => c.CantidadVentas),
+                    Ganancia = g.Sum(c => c.Ganancia),
+                    GenericosOSector = g.Sum(c => c.GenericosOSector),
+                    PagoProveedor = g.Sum(c => c.PagoProveedor)
                 })
                 .OrderBy(c => c.MetodoPago)
                 .ToList();
 
             decimal totalMes = resumen.Sum(c => c.Total);
             int cantidadVentasMes = resumen.Sum(c => c.CantidadVentas);
+            decimal gananciaMes = resumen.Sum(c => c.Ganancia);
+            decimal pagosMes = resumen.Sum(c => c.PagoProveedor);
             resumen.Add(new Caja
             {
                 MetodoPago = "Total",
                 Total = totalMes,
-                CantidadVentas = cantidadVentasMes
+                CantidadVentas = cantidadVentasMes,
+                Ganancia = gananciaMes,
+                GenericosOSector = resumen.Sum(c => c.GenericosOSector),
+                PagoProveedor = pagosMes
             });
 
             dtResumen.DataSource = null;
@@ -497,12 +690,12 @@ namespace StockControl
 
             dtResumen.Columns["IdCaja"].Visible = false;
             dtResumen.Columns["Fecha"].Visible = false;
-            dtResumen.Columns["MetodoPago"].HeaderText = "Método de Pago";
-            dtResumen.Columns["CantidadVentas"].HeaderText = "Cantidad de ventas";
-            dtResumen.Columns["Total"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
-            dtResumen.Columns["Total"].DefaultCellStyle.Format = "C2";
+            if (dtResumen.Columns["IdCierre"] != null)
+                dtResumen.Columns["IdCierre"].Visible = false;
+            ConfigurarColumnasCajas(dtResumen);
 
-            lblTotalMes.Text = $"Total del mes: {totalMes.ToString("C2", new CultureInfo("es-AR"))}";
+            var cultura = new CultureInfo("es-AR");
+            lblTotalMes.Text = $"Total del mes: {totalMes.ToString("C2", cultura)}    Ganancia: {gananciaMes.ToString("C2", cultura)}    Pago a proveedores: {pagosMes.ToString("C2", cultura)}";
 
             if (resumen.Count == 1)
             {

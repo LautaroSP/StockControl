@@ -186,7 +186,7 @@ namespace StockControl
             var tamano = TamanoSeleccionado;
             int hojas = CartelPdfGenerator.CalcularHojas(seleccionados.Count, tamano);
             var confirm = MessageBox.Show(
-                $"Se van a generar {hojas} hoja(s) A4 con {seleccionados.Count} cartel(es).\n¿Continuar?",
+                $"Se van a generar {hojas} hoja(s) A4 con los {seleccionados.Count} cartel(es) elegidos.\nSi queda lugar, se repiten para completar el mosaico.\n¿Continuar?",
                 "Confirmar impresión",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);

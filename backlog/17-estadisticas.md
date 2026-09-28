@@ -23,8 +23,9 @@ Números del mes (y rango) por local, y si tiene varios, comparar.
 
 ## Criterios de aceptación
 
-- [ ] Solo el dueño entra a Estadísticas.
-- [ ] Filtro mes o desde–hasta.
-- [ ] Top productos ignora genéricos (o los muestra aparte). Sector cuenta por $ no por “unidades de stock”.
-- [ ] No muestra costo al empleado (no entra). Dueño sí puede ver margen (precio − costo) si hay costo cargado.
-- [ ] Los datos son del local elegido; “todos” suma sus sucursales, no las de otro dueño.
+- [x] Solo el dueño entra a Estadísticas.
+- [x] Filtro mes o desde–hasta.
+- [x] Top productos ignora genéricos (o los muestra aparte). Sector cuenta por $ no por “unidades de stock”.
+- [x] No muestra costo al empleado (no entra). Dueño sí puede ver margen (precio − costo) si hay costo cargado.
+- [x] Los datos son del local elegido; “todos” suma sus sucursales, no las de otro dueño.
+- [x] Pestaña de ventas del día: consolida todas las cajas, muestra código, producto, cantidad de ventas y stock restante ordenado descendentemente.

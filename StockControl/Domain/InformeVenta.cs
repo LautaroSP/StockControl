@@ -19,6 +19,7 @@ namespace StockControl.Domain
         public decimal subTotal { get; set; } = 0;
         public decimal Descuento { get; set; } = 0;
         public string PrecioCosto { get; set; } = string.Empty;
+        public int IdGrupo { get; set; }
 
     }
 }

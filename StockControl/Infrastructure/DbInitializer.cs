@@ -81,6 +81,40 @@ namespace StockControl.Infrastructure
                 );";
             cmd.ExecuteNonQuery();
 
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS PagosProveedor (
+                    IdPagoProveedor INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Fecha DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+                    Proveedor TEXT NOT NULL,
+                    Monto REAL NOT NULL,
+                    MetodoPago TEXT NOT NULL
+                );";
+            cmd.ExecuteNonQuery();
+
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS MovimientosStock (
+                    IdMovimientoStock INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Fecha DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+                    Codigo TEXT NOT NULL,
+                    Cantidad REAL NOT NULL
+                );";
+            cmd.ExecuteNonQuery();
+
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS CajaProductos (
+                    IdCajaProducto INTEGER PRIMARY KEY AUTOINCREMENT,
+                    IdCierre TEXT NOT NULL,
+                    Codigo TEXT NOT NULL,
+                    Nombre TEXT NOT NULL,
+                    CantidadVendida REAL NOT NULL,
+                    StockInicial REAL NULL,
+                    StockFinal REAL NULL,
+                    Ganancia REAL NULL,
+                    EsSector INTEGER NOT NULL DEFAULT 0,
+                    EsGenerico INTEGER NOT NULL DEFAULT 0
+                );";
+            cmd.ExecuteNonQuery();
+
             try
             {
                 cmd.CommandText = "ALTER TABLE Productos ADD COLUMN ProductoSector INTEGER NOT NULL DEFAULT 0;";
@@ -218,6 +252,78 @@ namespace StockControl.Infrastructure
             catch (SqliteException ex)
             {
                 // La columna ya existe, no hacer nada
+            }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE InformeVentaDetalle ADD COLUMN CostoVenta REAL NOT NULL DEFAULT 0;";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException)
+            {
+            }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE InformeVentaDetalle ADD COLUMN EsSector INTEGER NOT NULL DEFAULT 0;";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException)
+            {
+            }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE InformeVentaDetalle ADD COLUMN EsGenerico INTEGER NOT NULL DEFAULT 0;";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException)
+            {
+            }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE InformeVentaDetalle ADD COLUMN ClasificacionRegistrada INTEGER NOT NULL DEFAULT 0;";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException)
+            {
+            }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE InformeVenta ADD COLUMN IdGrupo INTEGER NOT NULL DEFAULT 0;";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException)
+            {
+            }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE Cajas ADD COLUMN Ganancia REAL NOT NULL DEFAULT 0;";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException)
+            {
+            }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE Cajas ADD COLUMN GenericosOSector REAL NOT NULL DEFAULT 0;";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException)
+            {
+            }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE Cajas ADD COLUMN PagoProveedor REAL NOT NULL DEFAULT 0;";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException)
+            {
+            }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE Cajas ADD COLUMN IdCierre TEXT;";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException)
+            {
             }
         }
     }

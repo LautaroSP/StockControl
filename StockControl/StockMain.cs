@@ -678,19 +678,33 @@ namespace StockControl
                 costo = "No";
             
             List<InformeVentaDetalle> informeDetalles = new();
+            decimal subtotalLista = SubtotalDeLista();
 
             if (chkMultiPago.Checked && multiplesMetodos.Count > 0)
             {
                 bool detalleAsignado = false;
-                foreach (var metodo in multiplesMetodos)
+                int idGrupo = 0;
+                decimal sumaMontos = multiplesMetodos.Sum(m => m.Monto);
+                decimal subtotalAcumulado = 0;
+                for (int i = 0; i < multiplesMetodos.Count; i++)
                 {
-                    idInformeVenta = _informeVentaRepository.InsertarInformeVenta(metodo.Monto, metodo.Descripcion, true, !detalleAsignado, descuento, costo);
+                    var metodo = multiplesMetodos[i];
+                    decimal subtotalParte = i == multiplesMetodos.Count - 1
+                        ? subtotalLista - subtotalAcumulado
+                        : (sumaMontos == 0
+                            ? 0
+                            : Math.Round(subtotalLista * metodo.Monto / sumaMontos, 2, MidpointRounding.AwayFromZero));
+                    subtotalAcumulado += subtotalParte;
+                    idInformeVenta = _informeVentaRepository.InsertarInformeVenta(metodo.Monto, metodo.Descripcion, true, !detalleAsignado, descuento, costo, idGrupo, subtotalParte);
+                    if (idGrupo == 0)
+                    {
+                        idGrupo = idInformeVenta;
+                        _informeVentaRepository.AsignarIdGrupo(idInformeVenta, idGrupo);
+                    }
                     if (!detalleAsignado)
                     {
                         foreach (var item in _carrito)
-                        {
-                            informeDetalles.Add(new InformeVentaDetalle(item, idInformeVenta));
-                        }
+                            informeDetalles.Add(CrearDetalle(item, idInformeVenta));
                         detalleAsignado = true;
                     }
 
@@ -698,16 +712,55 @@ namespace StockControl
             }
             else
             {
-                idInformeVenta = _informeVentaRepository.InsertarInformeVenta(total, MetodoDePago, false, true, descuento, costo);
+                idInformeVenta = _informeVentaRepository.InsertarInformeVenta(total, MetodoDePago, false, true, descuento, costo, 0, subtotalLista);
+                _informeVentaRepository.AsignarIdGrupo(idInformeVenta, idInformeVenta);
                 foreach (var item in _carrito)
-                {
-                    informeDetalles.Add(new InformeVentaDetalle(item, idInformeVenta));
-                }
+                    informeDetalles.Add(CrearDetalle(item, idInformeVenta));
             }
 
             foreach (var informe in informeDetalles)
                 _informeVentaRepository.InsertarInformeVentaDetalle(informe);
 
+        }
+
+        private decimal SubtotalDeLista()
+        {
+            decimal subtotal = 0;
+            foreach (var item in _carrito)
+            {
+                if (item.Codigo != null && item.Codigo.Contains("GENERIC"))
+                {
+                    subtotal += item.Cantidad * item.Precio;
+                    continue;
+                }
+
+                var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
+                if (producto == null || producto.ProductoSector == 1 || chkCosto.Checked)
+                    subtotal += item.Cantidad * item.Precio;
+                else
+                    subtotal += item.Cantidad * producto.Precio;
+            }
+
+            return Math.Round(subtotal, 2, MidpointRounding.AwayFromZero);
+        }
+
+        private InformeVentaDetalle CrearDetalle(ItemSeleccionado item, int idInformeVenta)
+        {
+            var detalle = new InformeVentaDetalle(item, idInformeVenta);
+            detalle.ClasificacionRegistrada = 1;
+            if (item.Codigo != null && item.Codigo.Contains("GENERIC"))
+            {
+                detalle.EsGenerico = 1;
+                return detalle;
+            }
+
+            var producto = productos.FirstOrDefault(x => x.Id == item.IdProducto);
+            if (producto == null)
+                return detalle;
+
+            detalle.CostoVenta = producto.Costo;
+            detalle.EsSector = producto.ProductoSector == 1 ? 1 : 0;
+            return detalle;
         }
 
         private Producto? VerificarStockDisponible()
@@ -1546,6 +1599,7 @@ namespace StockControl
             GuardarEstadoSesion();
             _sesionActual = _sesiones[tabCarritos.SelectedIndex];
             RestaurarEstadoSesion();
+            BeginInvoke(new Action(VolverAScanner));
         }
 
         private void btnAgregarCarrito_Click(object sender, EventArgs e)

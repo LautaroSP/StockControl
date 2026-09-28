@@ -39,6 +39,7 @@ namespace StockControl
             btnCopiarTicket = new Button();
             btnImprimirTicket = new Button();
             btnCerrarCaja = new Button();
+            btnPagoProveedor = new Button();
             tabPage2 = new TabPage();
             chkTodos = new CheckBox();
             dtCajas = new DataGridView();
@@ -49,12 +50,17 @@ namespace StockControl
             btnGenerarResumen = new Button();
             dtResumen = new DataGridView();
             lblTotalMes = new Label();
+            tabPage4 = new TabPage();
+            lblProductos = new Label();
+            dtProductos = new DataGridView();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dtResumen).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dtProductos).BeginInit();
             tabInformes.SuspendLayout();
             tabPage1.SuspendLayout();
             tabPage2.SuspendLayout();
             tabPage3.SuspendLayout();
+            tabPage4.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dtCajas).BeginInit();
             SuspendLayout();
             // 
@@ -108,6 +114,7 @@ namespace StockControl
             tabInformes.Controls.Add(tabPage1);
             tabInformes.Controls.Add(tabPage2);
             tabInformes.Controls.Add(tabPage3);
+            tabInformes.Controls.Add(tabPage4);
             tabInformes.Location = new Point(7, 12);
             tabInformes.Name = "tabInformes";
             tabInformes.SelectedIndex = 0;
@@ -116,6 +123,7 @@ namespace StockControl
             // 
             // tabPage1
             // 
+            tabPage1.Controls.Add(btnPagoProveedor);
             tabPage1.Controls.Add(btnCerrarCajaAnterior);
             tabPage1.Controls.Add(btnCopiarTicket);
             tabPage1.Controls.Add(btnImprimirTicket);
@@ -175,6 +183,17 @@ namespace StockControl
             btnCerrarCaja.Text = "Cerrar Caja";
             btnCerrarCaja.UseVisualStyleBackColor = true;
             btnCerrarCaja.Click += btnCerrarCaja_Click;
+            // 
+            // btnPagoProveedor
+            // 
+            btnPagoProveedor.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            btnPagoProveedor.Location = new Point(166, 369);
+            btnPagoProveedor.Name = "btnPagoProveedor";
+            btnPagoProveedor.Size = new Size(140, 23);
+            btnPagoProveedor.TabIndex = 8;
+            btnPagoProveedor.Text = "Pago a proveedor";
+            btnPagoProveedor.UseVisualStyleBackColor = true;
+            btnPagoProveedor.Click += btnPagoProveedor_Click;
             // 
             // tabPage2
             // 
@@ -286,6 +305,39 @@ namespace StockControl
             lblTotalMes.Text = "Total del mes: $0,00";
             lblTotalMes.TextAlign = ContentAlignment.MiddleLeft;
             // 
+            // tabPage4
+            // 
+            tabPage4.Controls.Add(dtProductos);
+            tabPage4.Controls.Add(lblProductos);
+            tabPage4.Location = new Point(4, 24);
+            tabPage4.Name = "tabPage4";
+            tabPage4.Padding = new Padding(3);
+            tabPage4.Size = new Size(768, 398);
+            tabPage4.TabIndex = 3;
+            tabPage4.Text = "Productos vendidos";
+            tabPage4.UseVisualStyleBackColor = true;
+            // 
+            // lblProductos
+            // 
+            lblProductos.AutoSize = true;
+            lblProductos.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold | FontStyle.Italic, GraphicsUnit.Point, 0);
+            lblProductos.ForeColor = SystemColors.HotTrack;
+            lblProductos.Location = new Point(6, 6);
+            lblProductos.Name = "lblProductos";
+            lblProductos.Size = new Size(280, 15);
+            lblProductos.TabIndex = 0;
+            lblProductos.Text = "Seleccioná una caja cerrada para ver los productos.";
+            // 
+            // dtProductos
+            // 
+            dtProductos.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            dtProductos.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dtProductos.Location = new Point(6, 28);
+            dtProductos.Name = "dtProductos";
+            dtProductos.ReadOnly = true;
+            dtProductos.Size = new Size(756, 360);
+            dtProductos.TabIndex = 1;
+            // 
             // frmInformeVentas
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -302,8 +354,11 @@ namespace StockControl
             tabPage2.PerformLayout();
             tabPage3.ResumeLayout(false);
             tabPage3.PerformLayout();
+            tabPage4.ResumeLayout(false);
+            tabPage4.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)dtCajas).EndInit();
             ((System.ComponentModel.ISupportInitialize)dtResumen).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dtProductos).EndInit();
             ResumeLayout(false);
         }
 
@@ -329,5 +384,9 @@ namespace StockControl
         private Button btnGenerarResumen;
         private DataGridView dtResumen;
         private Label lblTotalMes;
+        private Button btnPagoProveedor;
+        private TabPage tabPage4;
+        private Label lblProductos;
+        private DataGridView dtProductos;
     }
 }

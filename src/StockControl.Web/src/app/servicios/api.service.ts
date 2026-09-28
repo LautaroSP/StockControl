@@ -92,8 +92,9 @@ export class ApiService {
     return this.http.post<{ token: string }>(`${this.base}/locales/${id}/entrar`, {});
   }
 
-  productos(q = '', opts?: { sector?: boolean; codigo?: string; idGrupo?: number; sinGrupo?: boolean; stockBajo?: boolean }) {
+  productos(q = '', opts?: { sector?: boolean; codigo?: string; idGrupo?: number; sinGrupo?: boolean; stockBajo?: boolean; idProveedor?: number }) {
     let params = new HttpParams().set('tamano', 100);
+    if (opts?.idProveedor) params = params.set('idProveedor', String(opts.idProveedor));
     if (q) params = params.set('q', q);
     if (opts?.codigo) params = params.set('codigo', opts.codigo);
     if (opts?.sector === true) params = params.set('sector', 'true').set('tipo', 'sector');
@@ -336,6 +337,187 @@ export class ApiService {
       idsProducto
     });
   }
+
+  generarCarteles(idsProducto: number[], tamano: TamanoCartel) {
+    return this.http.post<CartelesDto>(`${this.base}/carteles`, { idsProducto, tamano });
+  }
+
+  plantillasCartel() {
+    return this.http.get<PlantillasCartelDto>(`${this.base}/carteles/plantillas`);
+  }
+
+  subirPlantillaCartel(tamano: TamanoCartel, imagen: string) {
+    return this.http.put<{ tamano: TamanoCartel; plantilla: string }>(`${this.base}/carteles/plantillas/${tamano}`, { imagen });
+  }
+
+  quitarPlantillaCartel(tamano: TamanoCartel) {
+    return this.http.delete(`${this.base}/carteles/plantillas/${tamano}`);
+  }
+
+  estadisticas(params?: { idLocal?: number; todos?: boolean; desde?: string; hasta?: string; mes?: string }) {
+    let p = new HttpParams();
+    if (params?.idLocal) p = p.set('idLocal', params.idLocal);
+    if (params?.todos) p = p.set('todos', 'true');
+    if (params?.desde) p = p.set('desde', params.desde);
+    if (params?.hasta) p = p.set('hasta', params.hasta);
+    if (params?.mes) p = p.set('mes', params.mes);
+    return this.http.get<EstadisticasRespuestaDto>(`${this.base}/estadisticas`, { params: p });
+  }
+
+  proveedores() {
+    return this.http.get<ProveedorListaDto[]>(`${this.base}/proveedores`);
+  }
+
+  proveedor(id: number) {
+    return this.http.get<ProveedorFichaDto>(`${this.base}/proveedores/${id}`);
+  }
+
+  crearProveedor(body: ProveedorFormDto) {
+    return this.http.post<ProveedorListaDto>(`${this.base}/proveedores`, body);
+  }
+
+  editarProveedor(id: number, body: ProveedorFormDto) {
+    return this.http.put<ProveedorListaDto>(`${this.base}/proveedores/${id}`, body);
+  }
+
+  eliminarProveedor(id: number) {
+    return this.http.delete<{ desactivado: boolean }>(`${this.base}/proveedores/${id}`);
+  }
+
+  activarProveedor(id: number) {
+    return this.http.post<ProveedorListaDto>(`${this.base}/proveedores/${id}/activar`, {});
+  }
+
+  plantillaProveedor() {
+    return this.http.get(`${this.base}/proveedores/plantilla`, { responseType: 'blob' });
+  }
+
+  revisarCatalogo(id: number, archivo: string) {
+    return this.http.post<RevisionCatalogoDto>(`${this.base}/proveedores/${id}/catalogo/revisar`, { archivo });
+  }
+
+  confirmarCatalogo(id: number, filas: FilaCatalogoDto[]) {
+    return this.http.post<{ creados: number; actualizados: number; invalidas: FilaInvalidaDto[] }>(
+      `${this.base}/proveedores/${id}/catalogo/confirmar`,
+      { filas }
+    );
+  }
+
+  crearOrdenCompra(id: number, lineas: { idProducto: number; cantidad: number }[]) {
+    return this.http.post<OrdenGeneradaDto>(`${this.base}/proveedores/${id}/ordenes`, { lineas });
+  }
+
+  excelOrdenCompra(id: number) {
+    return this.http.get(`${this.base}/ordenes-compra/${id}/excel`, { responseType: 'blob' });
+  }
+
+  ordenesProveedor(id: number, pagina = 1) {
+    const params = new HttpParams().set('pagina', pagina).set('tamano', 20);
+    return this.http.get<{ total: number; pagina: number; tamano: number; items: OrdenResumenDto[] }>(
+      `${this.base}/proveedores/${id}/ordenes`,
+      { params }
+    );
+  }
+
+  ordenCompra(id: number) {
+    return this.http.get<{ orden: OrdenCompraDto; nombreProveedor: string }>(`${this.base}/ordenes-compra/${id}`);
+  }
+
+  recibirOrden(id: number, lineas: { idLinea: number; cantidad: number }[]) {
+    return this.http.post<{ orden: OrdenCompraDto; productosActualizados: number; lineasSinProducto: number }>(
+      `${this.base}/ordenes-compra/${id}/recibir`,
+      { lineas }
+    );
+  }
+}
+
+export interface OrdenResumenDto {
+  id: number;
+  fecha: string;
+  nombreUsuario: string;
+  cantidadLineas: number;
+  recibida: boolean;
+  fechaRecepcion: string | null;
+  nombreUsuarioRecepcion: string;
+}
+
+export interface ProveedorFormDto {
+  nombre: string;
+  tipoProductos: string;
+  telefono: string;
+}
+
+export interface ProveedorListaDto extends ProveedorFormDto {
+  id: number;
+  activo: boolean;
+  cantidadProductos?: number;
+  ultimaOrden?: string | null;
+}
+
+export interface LineaOrdenCompraDto {
+  id?: number;
+  idProducto: number;
+  codigo: string;
+  nombre: string;
+  cantidad: number;
+  cantidadRecibida?: number | null;
+}
+
+export interface OrdenCompraDto {
+  id: number;
+  idProveedor: number;
+  fecha: string;
+  nombreUsuario: string;
+  recibida: boolean;
+  fechaRecepcion: string | null;
+  nombreUsuarioRecepcion: string;
+  lineas: LineaOrdenCompraDto[];
+}
+
+export interface ProveedorFichaDto extends ProveedorFormDto {
+  id: number;
+  activo: boolean;
+  urlContacto: string | null;
+  cantidadProductos: number;
+  ultimaOrden: OrdenCompraDto | null;
+}
+
+export interface OrdenGeneradaDto {
+  orden: OrdenCompraDto;
+  nombreLocal: string;
+  textoWhatsApp: string;
+  urlWhatsApp: string | null;
+}
+
+export interface FilaCatalogoDto {
+  fila: number;
+  codigo: string;
+  nombre: string;
+  costo: number | null;
+  cantidad: number | null;
+}
+
+export interface FilaRevisadaDto {
+  fila: number;
+  codigo: string;
+  nombre: string;
+  costo: number;
+  cantidad: number;
+  accion: 'crear' | 'actualizar';
+  precio: number;
+  aviso: string;
+}
+
+export interface FilaInvalidaDto {
+  fila: number;
+  codigo: string;
+  motivo: string;
+}
+
+export interface RevisionCatalogoDto {
+  filas: FilaCatalogoDto[];
+  validas: FilaRevisadaDto[];
+  invalidas: FilaInvalidaDto[];
 }
 
 export interface GrupoListaDto {
@@ -412,3 +594,101 @@ export interface CajaDetalleDto {
   tipoDesglose?: string;
   filas: { metodoPago: string; cantidadVentas: number; total: number }[];
 }
+
+export type TamanoCartel = 'grande' | 'chico';
+
+export interface CartelDto {
+  codigo: string;
+  nombre: string;
+  precio: number;
+}
+
+export interface CartelesDto {
+  tamano: TamanoCartel;
+  nombreLocal: string;
+  plantilla: string | null;
+  hojas: CartelDto[][];
+}
+
+export interface PlantillasCartelDto {
+  grande: string | null;
+  chico: string | null;
+}
+
+export interface ItemTopProductoDto {
+  idProducto?: number | null;
+  codigo: string;
+  nombre: string;
+  cantidad: number;
+  total: number;
+  esSector: boolean;
+}
+
+export interface ItemVentaDelDiaDto {
+  codigo: string;
+  nombre: string;
+  cantidadVentas: number;
+  stockRestante?: number | null;
+  esSector: boolean;
+  esGenerico: boolean;
+}
+
+export interface ItemMixPagoDto {
+  descripcion: string;
+  total: number;
+  porcentaje: number;
+  cantidadOperaciones: number;
+}
+
+export interface ItemVentaGrupoDto {
+  nombreGrupo: string;
+  cantidad: number;
+  total: number;
+  porcentaje: number;
+}
+
+export interface ItemComparacionLocalDto {
+  idLocal: number;
+  nombreLocal: string;
+  totalVendido: number;
+  cantidadTickets: number;
+  ticketPromedio: number;
+}
+
+export interface ItemStockBajoDto {
+  idProducto: number;
+  idLocal: number;
+  nombreLocal: string;
+  codigo: string;
+  nombre: string;
+  cantidad: number;
+  umbral: number;
+}
+
+export interface ResumenEstadisticasDto {
+  totalVendido: number;
+  cantidadTickets: number;
+  ticketPromedio: number;
+  margenEstimado: number;
+  porcentajeMargen: number;
+  masVendidoUnidades?: ItemTopProductoDto | null;
+  masVendidoDinero?: ItemTopProductoDto | null;
+  topPorUnidades: ItemTopProductoDto[];
+  topPorDinero: ItemTopProductoDto[];
+  mixMediosPago: ItemMixPagoDto[];
+  ventasPorGrupo: ItemVentaGrupoDto[];
+  comparativaSucursales: ItemComparacionLocalDto[];
+  stockBajo: ItemStockBajoDto[];
+  ventasDelDia: ItemVentaDelDiaDto[];
+}
+
+export interface EstadisticasRespuestaDto {
+  resumen: ResumenEstadisticasDto;
+  periodo: {
+    desde?: string;
+    hasta?: string;
+    hoy?: string;
+  };
+  locales: { idLocal: number; nombre: string }[];
+}
+

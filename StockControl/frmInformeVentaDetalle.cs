@@ -23,6 +23,14 @@ namespace StockControl
             dataGridView1.DataSource = _informeVentaDetalles;
             dataGridView1.Columns["IdInformeVentaDetalle"].Visible = false;
             dataGridView1.Columns["IdInformeVenta"].Visible = false;
+            if (dataGridView1.Columns["CostoVenta"] != null)
+                dataGridView1.Columns["CostoVenta"].Visible = false;
+            if (dataGridView1.Columns["EsSector"] != null)
+                dataGridView1.Columns["EsSector"].Visible = false;
+            if (dataGridView1.Columns["EsGenerico"] != null)
+                dataGridView1.Columns["EsGenerico"].Visible = false;
+            if (dataGridView1.Columns["ClasificacionRegistrada"] != null)
+                dataGridView1.Columns["ClasificacionRegistrada"].Visible = false;
             dataGridView1.Columns["Precio"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");
             dataGridView1.Columns["Precio"].DefaultCellStyle.Format = "C2";
             dataGridView1.Columns["Subtotal"].DefaultCellStyle.FormatProvider = new CultureInfo("es-AR");

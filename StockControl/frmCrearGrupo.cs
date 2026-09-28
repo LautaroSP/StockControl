@@ -22,6 +22,9 @@ namespace StockControl
         public frmCrearGrupo()
         {
             InitializeComponent();
+            txtGanancia.Enabled = false;
+            txtIVA.Enabled = false;
+            txtIVA.Text = StockMain.IVA.ToString();
         }
 
         private void btnAceptar_Click(object sender, EventArgs e)
@@ -132,18 +135,12 @@ namespace StockControl
 
         private void chkGananciaProd_CheckedChanged(object sender, EventArgs e)
         {
-            if (chkGananciaProd.Checked)
-            {
-                txtGanancia.Enabled = true;
-                txtIVA.Enabled = true;
-                CalcularCosto();
-            }
-            else
-            {
-                txtGanancia.Enabled = false;
-                txtIVA.Enabled = false;
-                CalcularCosto();
-            }
+            txtGanancia.Enabled = chkGananciaProd.Checked;
+            txtIVA.Enabled = chkGananciaProd.Checked;
+            if (_actualizando)
+                return;
+
+            CalcularCosto();
         }
         private void CalcularCosto()
         {

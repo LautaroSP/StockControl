@@ -342,6 +342,61 @@ table.data tr.clickable { cursor: pointer; }
 @page ticket-pos80 { size: 80mm auto; margin: 3mm; }
 @page ticket-a4 { size: A4; margin: 12mm; }
 
+.carteles-print { display: none; page: carteles; }
+.cartel-hoja {
+  width: 210mm;
+  height: 296mm;
+  box-sizing: border-box;
+  padding: 3mm;
+  display: grid;
+  grid-template-columns: repeat(3, 64mm);
+  grid-auto-rows: 114mm;
+  gap: 2.5mm;
+  align-content: start;
+  break-after: page;
+}
+.cartel-hoja:last-child { break-after: auto; }
+.cartel-hoja-chico {
+  grid-template-columns: repeat(6, 32mm);
+  grid-auto-rows: 56mm;
+  gap: 2mm;
+}
+.cartel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4mm;
+  padding: 4mm;
+  overflow: hidden;
+  text-align: center;
+  color: #000;
+  background: #fff center / 100% 100% no-repeat;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+  font-family: var(--font);
+}
+.cartel-generico { border: 0.4mm solid #000; justify-content: space-between; }
+.cartel-local { font-size: 11pt; font-weight: 600; }
+.cartel-nombre { font-size: 16pt; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+.cartel-precio { font-size: 40pt; font-weight: 800; white-space: nowrap; }
+.cartel-hoja-chico .cartel { gap: 1.5mm; padding: 1.5mm; }
+.cartel-hoja-chico .cartel-local { font-size: 5.5pt; }
+.cartel-hoja-chico .cartel-nombre { font-size: 7pt; }
+.cartel-hoja-chico .cartel-precio { font-size: 16pt; }
+
+@page carteles { size: A4; margin: 0; }
+
+.orden-print { display: none; page: orden; color: #000; font-family: var(--font); font-size: 11pt; }
+.orden-print h1 { font-size: 18pt; margin: 0 0 6mm; }
+.orden-print p { margin: 0 0 2mm; }
+.orden-print table { width: 100%; border-collapse: collapse; margin-top: 6mm; }
+.orden-print th, .orden-print td { border-bottom: 0.3mm solid #000; padding: 2mm; text-align: left; }
+.orden-print .num { text-align: right; }
+
+@page orden { size: A4; margin: 12mm; }
+
 .modal-back {
   position: fixed;
   inset: 0;
@@ -381,4 +436,6 @@ table.data tr.clickable { cursor: pointer; }
     background: #fff !important;
     color: #000 !important;
   }
+  .carteles-print, .orden-print { display: block !important; }
+  :has(> .orden-print) > :not(.orden-print) { display: none !important; }
 }

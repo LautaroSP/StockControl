@@ -11,6 +11,7 @@ public class Producto
     public decimal Precio { get; set; }
     public bool ProductoSector { get; set; }
     public int IdGrupoProducto { get; set; }
+    public int IdProveedor { get; set; }
     public bool GananciaIndividual { get; set; }
     public decimal ValorGanancia { get; set; }
     public DateTimeOffset? FechaModificacion { get; set; }

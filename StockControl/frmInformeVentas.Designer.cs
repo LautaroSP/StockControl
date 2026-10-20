@@ -31,6 +31,8 @@ namespace StockControl
         {
             dataGridView1 = new DataGridView();
             label1 = new Label();
+            lblDia = new Label();
+            dtpDia = new DateTimePicker();
             btnEliminar = new Button();
             btnSalir = new Button();
             tabInformes = new TabControl();
@@ -68,9 +70,9 @@ namespace StockControl
             // 
             dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Location = new Point(6, 21);
+            dataGridView1.Location = new Point(6, 30);
             dataGridView1.Name = "dataGridView1";
-            dataGridView1.Size = new Size(756, 342);
+            dataGridView1.Size = new Size(756, 333);
             dataGridView1.TabIndex = 0;
             dataGridView1.CellContentDoubleClick += dataGridView1_CellDoubleClick;
             dataGridView1.CellDoubleClick += dataGridView1_CellDoubleClick;
@@ -85,6 +87,24 @@ namespace StockControl
             label1.Size = new Size(104, 15);
             label1.TabIndex = 1;
             label1.Text = "Informes de venta";
+            // 
+            // lblDia
+            // 
+            lblDia.AutoSize = true;
+            lblDia.Location = new Point(140, 4);
+            lblDia.Name = "lblDia";
+            lblDia.Size = new Size(28, 15);
+            lblDia.TabIndex = 8;
+            lblDia.Text = "Día";
+            // 
+            // dtpDia
+            // 
+            dtpDia.Format = DateTimePickerFormat.Custom;
+            dtpDia.CustomFormat = "dd/MM/yyyy";
+            dtpDia.Location = new Point(170, 1);
+            dtpDia.Name = "dtpDia";
+            dtpDia.Size = new Size(110, 23);
+            dtpDia.TabIndex = 9;
             // 
             // btnEliminar
             // 
@@ -128,6 +148,8 @@ namespace StockControl
             tabPage1.Controls.Add(btnCopiarTicket);
             tabPage1.Controls.Add(btnImprimirTicket);
             tabPage1.Controls.Add(btnCerrarCaja);
+            tabPage1.Controls.Add(dtpDia);
+            tabPage1.Controls.Add(lblDia);
             tabPage1.Controls.Add(label1);
             tabPage1.Controls.Add(btnSalir);
             tabPage1.Controls.Add(dataGridView1);
@@ -366,6 +388,8 @@ namespace StockControl
 
         private DataGridView dataGridView1;
         private Label label1;
+        private Label lblDia;
+        private DateTimePicker dtpDia;
         private Button btnEliminar;
         private Button btnSalir;
         private TabControl tabInformes;

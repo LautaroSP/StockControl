@@ -1,5 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
-import type { PagoVenta } from './api.service';
+import type { AbonoDto, PagoVenta } from './api.service';
 
 const TOKEN = 'sc_token';
 const ROL = 'sc_rol';
@@ -37,6 +37,7 @@ export class SesionService {
   readonly idLocal = signal(Number(localStorage.getItem(LOCAL) || '0'));
   readonly nombreLocal = signal(localStorage.getItem(LOCAL_NOMBRE) ?? '');
   readonly nroCaja = signal(Number(localStorage.getItem(CAJA) || '0'));
+  readonly abono = signal<AbonoDto | null>(null);
   private carritoPendiente: LineaCarritoPendiente[] | null = null;
   private carritos: CarritoCaja[] | null = null;
   private indiceCarrito = 0;
@@ -86,6 +87,7 @@ export class SesionService {
   limpiarLocal(): void {
     this.idLocal.set(0);
     this.nombreLocal.set('');
+    this.abono.set(null);
     localStorage.removeItem(LOCAL);
     localStorage.removeItem(LOCAL_NOMBRE);
     this.limpiarCaja();

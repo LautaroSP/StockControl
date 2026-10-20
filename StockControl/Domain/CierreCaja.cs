@@ -17,7 +17,9 @@ namespace StockControl.Domain
             IReadOnlyDictionary<string, decimal> agregadoDespuesPorCodigo,
             DateTime fecha,
             string idCierre,
-            bool restarPagosProveedor)
+            bool restarPagosProveedor,
+            decimal porcentajeSector,
+            decimal porcentajeGenericos)
         {
             var gananciaPorMetodo = new Dictionary<string, decimal>();
             var genericosPorMetodo = new Dictionary<string, decimal>();
@@ -27,7 +29,7 @@ namespace StockControl.Domain
 
             foreach (var grupo in Agrupar(informes))
             {
-                var (ganancia, genericos) = TotalesTicket(grupo, detalles, productosPorCodigo);
+                var (ganancia, genericos) = TotalesTicket(grupo, detalles, productosPorCodigo, porcentajeSector, porcentajeGenericos);
                 decimal totalMedios = grupo.Sum(g => g.Total);
                 foreach (var informe in grupo)
                 {
@@ -102,7 +104,7 @@ namespace StockControl.Domain
             return new ResultadoCierre
             {
                 Cajas = cajas,
-                Productos = ArmarProductos(detalles, productosPorCodigo, vendidoDespuesPorCodigo, agregadoDespuesPorCodigo, idCierre)
+                Productos = ArmarProductos(detalles, productosPorCodigo, vendidoDespuesPorCodigo, agregadoDespuesPorCodigo, idCierre, porcentajeSector, porcentajeGenericos)
             };
         }
 
@@ -113,7 +115,9 @@ namespace StockControl.Domain
             IReadOnlyDictionary<string, Producto> productosPorCodigo,
             IReadOnlyDictionary<string, decimal> vendidoDespuesPorCodigo,
             IReadOnlyDictionary<string, decimal> agregadoDespuesPorCodigo,
-            string idCierre)
+            string idCierre,
+            decimal porcentajeSector,
+            decimal porcentajeGenericos)
         {
             var acumulados = new Dictionary<string, AcumuladoProducto>(StringComparer.OrdinalIgnoreCase);
             foreach (var lineas in detalles.Values)
@@ -141,9 +145,15 @@ namespace StockControl.Domain
                         acumulado.Nombre = producto.Nombre;
 
                     if (generico)
+                    {
                         acumulado.Generico = true;
+                        acumulado.Ganancia += linea.Precio * linea.Cantidad * porcentajeGenericos / 100m;
+                    }
                     else if (sector)
+                    {
                         acumulado.Sector = true;
+                        acumulado.Ganancia += linea.Precio * linea.Cantidad * porcentajeSector / 100m;
+                    }
                     else
                     {
                         acumulado.Normal = true;
@@ -155,7 +165,7 @@ namespace StockControl.Domain
             var productos = new List<CajaProducto>();
             foreach (var acumulado in acumulados.Values.OrderBy(a => a.Nombre))
             {
-                bool sinGanancia = acumulado.Generico || (acumulado.Sector && !acumulado.Normal);
+                bool sinStock = acumulado.Generico || (acumulado.Sector && !acumulado.Normal);
                 var fila = new CajaProducto
                 {
                     IdCierre = idCierre,
@@ -164,10 +174,10 @@ namespace StockControl.Domain
                     CantidadVendida = acumulado.Cantidad,
                     EsGenerico = acumulado.Generico && !acumulado.Normal ? 1 : 0,
                     EsSector = acumulado.Sector && !acumulado.Normal ? 1 : 0,
-                    Ganancia = sinGanancia ? null : Dinero(acumulado.Ganancia)
+                    Ganancia = Dinero(acumulado.Ganancia)
                 };
 
-                if (!sinGanancia && productosPorCodigo.TryGetValue(acumulado.Codigo, out var producto))
+                if (!sinStock && productosPorCodigo.TryGetValue(acumulado.Codigo, out var producto))
                 {
                     decimal vendidoDespues = vendidoDespuesPorCodigo.GetValueOrDefault(acumulado.Codigo);
                     decimal agregadoDespues = agregadoDespuesPorCodigo.GetValueOrDefault(acumulado.Codigo);
@@ -222,7 +232,9 @@ namespace StockControl.Domain
         private static (decimal ganancia, decimal genericos) TotalesTicket(
             IReadOnlyList<InformeVenta> grupo,
             IReadOnlyDictionary<int, List<InformeVentaDetalle>> detalles,
-            IReadOnlyDictionary<string, Producto> productosPorCodigo)
+            IReadOnlyDictionary<string, Producto> productosPorCodigo,
+            decimal porcentajeSector,
+            decimal porcentajeGenericos)
         {
             decimal ganancia = 0;
             decimal genericos = 0;
@@ -234,8 +246,17 @@ namespace StockControl.Domain
                 foreach (var linea in lineas)
                 {
                     productosPorCodigo.TryGetValue(linea.Codigo ?? string.Empty, out var producto);
-                    if (EsGenerico(linea) || EsSector(linea, producto))
-                        genericos += linea.Precio * linea.Cantidad;
+                    decimal monto = linea.Precio * linea.Cantidad;
+                    if (EsGenerico(linea))
+                    {
+                        genericos += monto;
+                        ganancia += monto * porcentajeGenericos / 100m;
+                    }
+                    else if (EsSector(linea, producto))
+                    {
+                        genericos += monto;
+                        ganancia += monto * porcentajeSector / 100m;
+                    }
                     else
                         ganancia += (linea.Precio - CostoDe(linea, producto)) * linea.Cantidad;
                 }

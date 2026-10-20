@@ -62,5 +62,5 @@ Cubrir al menos: cobrar, stock (rígido / no), cierre de caja, descuento sobre m
 - **Modo oscuro** (tarjeta 23): colores solo por variables CSS. Toggle + `localStorage`; si no hay dato, `prefers-color-scheme`. Incluirlo al armar Angular, no como parche después.
 - **Sobre nosotros**: texto real del negocio, no lorem. Si no hay copy, pedirlo; no inventar una empresa.
 - **Contacto**: formulario corto, datos de contacto visibles, botón volver.
-- **FAQs**: sección con preguntas reales (precio $ 9.999, trial, empleados, locales).
+- **FAQs**: sección con preguntas reales (precio $ 14.999, trial, empleados, locales).
 - HTTPS no se implementa en Angular: lo fuerza el reverse proxy.

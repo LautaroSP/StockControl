@@ -411,7 +411,7 @@ export class EstadisticasComponent implements OnInit {
   pestana: 'general' | 'dia' = 'dia';
   vistaTop: 'unidades' | 'dinero' = 'unidades';
 
-  locales: LocalDto[] = [];
+  locales: Pick<LocalDto, 'idLocal' | 'nombre'>[] = [];
   localSeleccionado: string | number = '';
 
   modoPeriodo: 'mes' | 'rango' = 'mes';
@@ -450,7 +450,7 @@ export class EstadisticasComponent implements OnInit {
   ngOnInit(): void {
     this.localSeleccionado = this.sesion.idLocal() || '';
     this.api.locales().subscribe({
-      next: (ls) => {
+      next: ({ items: ls }) => {
         this.locales = ls;
         if (!this.localSeleccionado && ls.length > 0) {
           this.localSeleccionado = ls[0].idLocal;
@@ -545,7 +545,7 @@ export class EstadisticasComponent implements OnInit {
           ventasDelDia: []
         };
         if (resp.locales && resp.locales.length > 0 && this.locales.length === 0) {
-          this.locales = resp.locales.map((l) => ({ ...l, estadoAbono: 'al_dia' }));
+          this.locales = resp.locales;
         }
       },
       error: (err) => {

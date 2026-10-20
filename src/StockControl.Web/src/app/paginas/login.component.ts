@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '../servicios/api.service';
 import { SesionService } from '../servicios/sesion.service';
 import { TemaService } from '../servicios/tema.service';
@@ -8,13 +8,13 @@ import { TemaService } from '../servicios/tema.service';
 @Component({
   selector: 'sc-login',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   template: `
     <div class="auth">
       <div class="panel auth-card">
         <div class="brand" style="border:0;padding:0 0 8px">
           <strong>StockControl</strong>
-          <span>Argentina · $ 9.999 / mes por local</span>
+          <span>Argentina · $ 14.999 / mes por local</span>
         </div>
         <h1>Entrar</h1>
         <p class="meta">Usuario y contraseña del local.</p>
@@ -32,6 +32,7 @@ import { TemaService } from '../servicios/tema.service';
           }
           <button class="btn btn-primary wide" type="submit" [disabled]="cargando">Entrar</button>
         </form>
+        <p class="meta" style="margin-top:12px">¿No tenés cuenta? <a routerLink="/registro">Registrate</a></p>
         <p class="meta" style="margin-top:16px">
           <button class="btn" type="button" (click)="tema.alternar()">
             {{ tema.tema() === 'oscuro' ? 'Modo claro' : 'Modo oscuro' }}

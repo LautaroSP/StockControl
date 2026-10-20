@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using System.Threading.RateLimiting;
 using System.Globalization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -10,6 +11,7 @@ using StockControl.Api.Auth;
 using StockControl.Api.Contratos;
 using StockControl.Api.Datos;
 using StockControl.Api.Importacion;
+using StockControl.Api.Pagos;
 using StockControl.Dominio;
 
 CargarEnvLocal();
@@ -24,6 +26,11 @@ builder.Services.AddDbContext<AppDbContext>(o =>
                 ?? throw new InvalidOperationException("Falta ConnectionStrings:Default")));
 builder.Services.AddSingleton<JwtServicio>();
 builder.Services.AddSingleton<PasswordHasher<Usuario>>();
+builder.Services.AddHttpClient<ClienteMercadoPago>(c =>
+{
+    c.BaseAddress = new Uri("https://api.mercadopago.com/");
+    c.Timeout = TimeSpan.FromSeconds(15);
+});
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
     {
@@ -49,6 +56,9 @@ builder.Services.AddRateLimiter(o =>
         c.Window = TimeSpan.FromMinutes(1);
         c.QueueLimit = 0;
     });
+    o.AddPolicy("registro", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
@@ -104,6 +114,7 @@ app.Use(async (ctx, next) =>
 });
 
 const int maxPagina = 100;
+const string ErrorMercadoPago = "No se pudo iniciar el pago. Probá de nuevo o contactá a ventas.";
 
 app.MapPost("/auth/login", async (LoginPedido pedido, AppDbContext db, PasswordHasher<Usuario> hasher, JwtServicio jwt) =>
 {
@@ -116,13 +127,195 @@ app.MapPost("/auth/login", async (LoginPedido pedido, AppDbContext db, PasswordH
     return Results.Ok(new { token = jwt.Emitir(u, null), rol = u.Rol, nombre = string.IsNullOrWhiteSpace(u.Nombre) ? u.NombreUsuario : u.Nombre });
 }).RequireRateLimiting("api");
 
+app.MapPost("/registro", async (RegistroCuentaPedido pedido, AppDbContext db, PasswordHasher<Usuario> hasher, JwtServicio jwt) =>
+{
+    if (!string.IsNullOrEmpty(pedido.Sitio)) return Results.Ok();
+    try
+    {
+        ServicioRegistro.Validar(pedido, pedido.Clave);
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+    var (dueno, local) = ServicioRegistro.Armar(pedido, DateTimeOffset.UtcNow);
+    if (await db.Usuarios.IgnoreQueryFilters().AnyAsync(u => u.NombreUsuario == dueno.NombreUsuario || u.Email == dueno.Email))
+        return Results.Conflict("Ya existe una cuenta con ese usuario o mail.");
+    dueno.HashClave = hasher.HashPassword(dueno, pedido.Clave);
+
+    await using var transaccion = await db.Database.BeginTransactionAsync();
+    db.Locales.Add(local);
+    db.Usuarios.Add(dueno);
+    await db.SaveChangesAsync();
+    db.UsuarioLocales.Add(new UsuarioLocal { IdUsuario = dueno.Id, IdLocal = local.IdLocal });
+    db.MetodosPago.AddRange(ServicioRegistro.MediosIniciales.Select(m => new MetodoPago { IdLocal = local.IdLocal, Descripcion = m }));
+    await db.SaveChangesAsync();
+    await transaccion.CommitAsync();
+    return Results.Ok(new { token = jwt.Emitir(dueno, null), rol = dueno.Rol, nombre = dueno.Nombre });
+}).RequireRateLimiting("registro");
+
 app.MapGet("/locales", async (AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdUsuario == null) return Results.Unauthorized();
     var ids = await db.UsuarioLocales.Where(x => x.IdUsuario == sesion.IdUsuario).Select(x => x.IdLocal).ToListAsync();
-    var locales = await db.Locales.Where(l => ids.Contains(l.IdLocal)).ToListAsync();
-    return Results.Ok(locales.Select(l => new { l.IdLocal, l.Nombre, l.EstadoAbono, l.Vence }));
+    var locales = await db.Locales.Where(l => ids.Contains(l.IdLocal)).OrderBy(l => l.Nombre).ToListAsync();
+    var ahora = DateTimeOffset.UtcNow;
+    return Results.Ok(new
+    {
+        totalMensual = ServicioAbono.TotalMensual(locales.Count),
+        precioMensual = ServicioAbono.PrecioMensual,
+        items = locales.Select(l =>
+        {
+            var abono = ServicioAbono.Estado(l, ahora);
+            return new { l.IdLocal, l.Nombre, abono.Estado, abono.Vence, abono.DiasRestantes, abono.PuedeOperarCaja, debito = l.EstadoSuscripcion };
+        })
+    });
 }).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/locales/actual/abono", async (AppDbContext db, SesionActual sesion, IConfiguration config) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    var local = await db.Locales.FirstOrDefaultAsync(l => l.IdLocal == sesion.IdLocal);
+    if (local == null) return Results.NotFound();
+    var ahora = DateTimeOffset.UtcNow;
+    var abono = ServicioAbono.Estado(local, ahora);
+    var pagoPendiente = await AbonoPendiente(db, ahora) != null;
+    var email = await db.Usuarios.IgnoreQueryFilters().Where(u => u.Id == sesion.IdUsuario).Select(u => u.Email).FirstOrDefaultAsync();
+    return Results.Ok(new
+    {
+        abono.Estado,
+        abono.Vence,
+        abono.Limite,
+        abono.DiasRestantes,
+        abono.PuedeOperarCaja,
+        abono.EnGracia,
+        pagoPendiente,
+        debito = local.EstadoSuscripcion,
+        email = email ?? "",
+        precioMensual = ServicioAbono.PrecioMensual,
+        ventasWhatsApp = UrlContacto(config["Ventas:WhatsApp"] ?? "", $"Hola, quiero reactivar el local {local.Nombre}.")
+    });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/locales/actual/abono/pagar", async (AppDbContext db, SesionActual sesion, ClienteMercadoPago mp, ILoggerFactory logs) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
+    var local = await db.Locales.FirstAsync(l => l.IdLocal == sesion.IdLocal);
+    try
+    {
+        ServicioAbono.ValidarPagoManual(local);
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+    var ahora = DateTimeOffset.UtcNow;
+    var pendiente = await AbonoPendiente(db, ahora);
+    if (pendiente != null) return Results.Ok(new { urlPago = pendiente.UrlPago });
+    var abono = ServicioAbono.NuevoAbono(local.IdLocal, Abono.OrigenMp, ahora);
+    db.Abonos.Add(abono);
+    await db.SaveChangesAsync();
+    try
+    {
+        var preferencia = await mp.CrearPreferencia(abono, local.Nombre);
+        abono.IdPreferenciaMp = preferencia.Id;
+        abono.UrlPago = preferencia.UrlPago;
+        await db.SaveChangesAsync();
+        return Results.Ok(new { urlPago = abono.UrlPago });
+    }
+    catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
+    {
+        logs.CreateLogger("MercadoPago").LogError(ex, "No se pudo crear la preferencia del abono {IdAbono}", abono.Id);
+        abono.Estado = Abono.Rechazado;
+        await db.SaveChangesAsync();
+        return Results.Json(ErrorMercadoPago, statusCode: StatusCodes.Status502BadGateway);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/locales/actual/abono/debito", async (DebitoPedido pedido, AppDbContext db, SesionActual sesion, ClienteMercadoPago mp, ILoggerFactory logs) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
+    var mail = pedido.MailPagador?.Trim().ToLowerInvariant() ?? "";
+    if (mail.Length > 200 || !ServicioRegistro.EsMail(mail)) return Results.BadRequest("El mail de Mercado Pago no es válido.");
+    var local = await db.Locales.FirstAsync(l => l.IdLocal == sesion.IdLocal);
+    if (local.EstadoSuscripcion == ServicioAbono.DebitoActivo) return Results.Conflict("El débito automático ya está activo.");
+    try
+    {
+        if (local.IdSuscripcionMp != null && local.EstadoSuscripcion is ServicioAbono.DebitoPendiente or ServicioAbono.DebitoPausado)
+            await mp.CancelarSuscripcion(local.IdSuscripcionMp);
+        var suscripcion = await mp.CrearSuscripcion(local, mail, ServicioAbono.InicioDebito(local, DateTimeOffset.UtcNow));
+        local.IdSuscripcionMp = suscripcion.Id;
+        local.EstadoSuscripcion = ServicioAbono.DebitoPendiente;
+        await db.SaveChangesAsync();
+        return Results.Ok(new { urlPago = suscripcion.UrlPago });
+    }
+    catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
+    {
+        logs.CreateLogger("MercadoPago").LogError(ex, "No se pudo crear la suscripción del local {IdLocal}", local.IdLocal);
+        return Results.Json(ErrorMercadoPago, statusCode: StatusCodes.Status502BadGateway);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapDelete("/locales/actual/abono/debito", async (AppDbContext db, SesionActual sesion, ClienteMercadoPago mp, ILoggerFactory logs) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
+    var local = await db.Locales.FirstAsync(l => l.IdLocal == sesion.IdLocal);
+    if (local.IdSuscripcionMp == null || local.EstadoSuscripcion is ServicioAbono.SinDebito or ServicioAbono.DebitoCancelado)
+        return Results.BadRequest("No hay débito automático para cancelar.");
+    try
+    {
+        await mp.CancelarSuscripcion(local.IdSuscripcionMp);
+        local.EstadoSuscripcion = ServicioAbono.DebitoCancelado;
+        await db.SaveChangesAsync();
+        return Results.NoContent();
+    }
+    catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
+    {
+        logs.CreateLogger("MercadoPago").LogError(ex, "No se pudo cancelar la suscripción del local {IdLocal}", local.IdLocal);
+        return Results.Json("No se pudo cancelar el débito. Probá de nuevo.", statusCode: StatusCodes.Status502BadGateway);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/mercadopago/webhook", async (HttpRequest req, AppDbContext db, ClienteMercadoPago mp, IConfiguration config, ILoggerFactory logs) =>
+{
+    var log = logs.CreateLogger("MercadoPago");
+    string? tipo = req.Query["type"], id = req.Query["data.id"];
+    if (string.IsNullOrEmpty(tipo) || string.IsNullOrEmpty(id))
+    {
+        try
+        {
+            using var cuerpo = await JsonDocument.ParseAsync(req.Body);
+            var raiz = cuerpo.RootElement;
+            if (string.IsNullOrEmpty(tipo) && raiz.TryGetProperty("type", out var t)) tipo = t.ToString();
+            if (string.IsNullOrEmpty(id) && raiz.TryGetProperty("data", out var d) && d.TryGetProperty("id", out var i)) id = i.ToString();
+        }
+        catch (JsonException)
+        {
+            return Results.BadRequest();
+        }
+    }
+    if (!FirmaWebhook.EsValida(req.Headers["x-signature"], req.Headers["x-request-id"], id, config["MercadoPago:WebhookSecret"] ?? ""))
+        return Results.Unauthorized();
+    if (string.IsNullOrEmpty(id) || id.Length > 64) return Results.Ok();
+    try
+    {
+        await AvisosMercadoPago.Procesar(tipo, id, db, mp);
+        return Results.Ok();
+    }
+    catch (ErrorNegocio ex)
+    {
+        log.LogWarning("Aviso {Tipo} {Id} ignorado: {Motivo}", tipo, id, ex.Message);
+        return Results.Ok();
+    }
+    catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
+    {
+        log.LogWarning("Aviso {Tipo} {Id} ya procesado", tipo, id);
+        return Results.Ok();
+    }
+}).RequireRateLimiting("api");
 
 app.MapPost("/locales/{id:int}/entrar", async (int id, AppDbContext db, SesionActual sesion, JwtServicio jwt) =>
 {
@@ -201,6 +394,9 @@ app.MapPost("/productos", async (ProductoPedido pedido, AppDbContext db, SesionA
         return Results.BadRequest("Código y nombre son obligatorios.");
     if (await db.Productos.AnyAsync(p => p.Codigo == pedido.Codigo))
         return Results.Conflict("Ya existe un producto con ese código.");
+    var local = await db.Locales.FirstAsync(l => l.IdLocal == sesion.IdLocal);
+    var config = await LeerConfiguracionLocal(db, local);
+    var tieneGrupo = pedido.IdGrupoProducto is int idGrupo && idGrupo > 0;
     var p = new Producto
     {
         IdLocal = sesion.IdLocal.Value,
@@ -208,7 +404,7 @@ app.MapPost("/productos", async (ProductoPedido pedido, AppDbContext db, SesionA
         Nombre = pedido.Nombre,
         Cantidad = pedido.Cantidad,
         Costo = pedido.Costo,
-        Precio = pedido.Precio,
+        Precio = PrecioVenta.PrecioAlCrear(pedido.Costo, pedido.Precio, pedido.ProductoSector, tieneGrupo, config.FactorGanancia, config.Iva),
         ProductoSector = pedido.ProductoSector,
         FechaModificacion = DateTimeOffset.UtcNow,
         UsuarioModificacion = sesion.NombreUsuario ?? "sistema"
@@ -1019,6 +1215,9 @@ app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual 
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     if (sesion.NroCaja == null) return Results.BadRequest("Elegí una caja.");
+    var localVenta = await db.Locales.FirstAsync(l => l.IdLocal == sesion.IdLocal);
+    if (!ServicioAbono.Estado(localVenta, DateTimeOffset.UtcNow).PuedeOperarCaja)
+        return Results.Json("El local está vencido. Pagá el abono para seguir cobrando.", statusCode: StatusCodes.Status402PaymentRequired);
     if (pedido.CobrarAlCosto && !Permisos.PuedeCobrarAlCosto(sesion.Rol ?? ""))
         return Results.Forbid();
     var productos = await db.Productos.ToListAsync();
@@ -1601,6 +1800,15 @@ app.MapPost("/cajas/cerrar", async (CerrarCajaPedido pedido, AppDbContext db, Se
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.Run();
+
+static async Task<Abono?> AbonoPendiente(AppDbContext db, DateTimeOffset ahora)
+{
+    var desde = ahora.AddMinutes(-30);
+    return await db.Abonos
+        .Where(a => a.Estado == Abono.Pendiente && a.Origen == Abono.OrigenMp && a.UrlPago != null && a.FechaCreacion > desde)
+        .OrderByDescending(a => a.FechaCreacion)
+        .FirstOrDefaultAsync();
+}
 
 static async Task<int> CantidadCajasLocal(AppDbContext db)
 {

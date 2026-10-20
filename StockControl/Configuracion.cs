@@ -10,7 +10,10 @@ namespace StockControl
         private bool _CambioLocal = false;
         private bool _CambioGanancia = false;
         private bool _CambioIVA = false;
+        private bool _CambioGananciaSector = false;
+        private bool _CambioGananciaGenericos = false;
         private bool _CambioBdd = false;
+        private bool _cargando = true;
         private string _rutaBddPendiente = string.Empty;
         private ProductoRepository _rprod = new ProductoRepository();
 
@@ -18,6 +21,8 @@ namespace StockControl
         {
             InitializeComponent();
             CargarRutaBdd();
+            CargarPorcentajes();
+            _cargando = false;
         }
         public Configuracion(string nombreLocal, string factorGanancia, string IVA)
         {
@@ -26,6 +31,14 @@ namespace StockControl
             txtFactorGanancia.Text = factorGanancia;
             txtIVA.Text = IVA;
             CargarRutaBdd();
+            CargarPorcentajes();
+            _cargando = false;
+        }
+
+        private void CargarPorcentajes()
+        {
+            txtGananciaSector.Text = _configuracionRepository.ObtenerPorClave("GananciaSector");
+            txtGananciaGenericos.Text = _configuracionRepository.ObtenerPorClave("GananciaGenericos");
         }
 
         private void CargarRutaBdd()
@@ -132,6 +145,10 @@ namespace StockControl
                 else
                     MessageBox.Show("El IVA debe ser un numero decimal", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+            if (_CambioGananciaSector && !GuardarPorcentaje(txtGananciaSector, "GananciaSector", "La ganancia del sector", valor => StockMain.gananciaSector = valor))
+                return;
+            if (_CambioGananciaGenericos && !GuardarPorcentaje(txtGananciaGenericos, "GananciaGenericos", "La ganancia de genéricos", valor => StockMain.gananciaGenericos = valor))
+                return;
 
             if (_CambioIVA || _CambioGanancia)
             {
@@ -225,6 +242,43 @@ namespace StockControl
         private void txtIVA_TextChanged(object sender, EventArgs e)
         {
             _CambioIVA = true;
+        }
+
+        private void txtGananciaSector_TextChanged(object sender, EventArgs e)
+        {
+            if (!_cargando)
+                _CambioGananciaSector = true;
+        }
+
+        private void txtGananciaGenericos_TextChanged(object sender, EventArgs e)
+        {
+            if (!_cargando)
+                _CambioGananciaGenericos = true;
+        }
+
+        private bool GuardarPorcentaje(TextBox texto, string clave, string titulo, Action<decimal> aplicar)
+        {
+            if (!TryParsePorcentaje(texto.Text, out decimal valor))
+            {
+                MessageBox.Show($"{titulo} debe ser un porcentaje entre 0 y 100", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+
+            _configuracionRepository.Insertar(clave, string.IsNullOrWhiteSpace(texto.Text) ? "0" : texto.Text.Trim());
+            aplicar(valor);
+            this.DialogResult = DialogResult.OK;
+            return true;
+        }
+
+        private bool TryParsePorcentaje(string input, out decimal value)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                value = 0;
+                return true;
+            }
+
+            return TryParseDecimal(input, out value) && value >= 0 && value <= 100;
         }
     }
 

@@ -8,7 +8,7 @@
 
 Al cobrar, el cliente paga **en el local** con QR de Mercado Pago (o, más adelante, con Posnet).
 
-No es el cobro de tu abono (eso es la tarjeta 22: $ 9.999 a **tu** MP). Acá la plata va a la cuenta de **ese local**.
+No es el cobro de tu abono (eso es la tarjeta 22: $ 14.999 a **tu** MP). Acá la plata va a la cuenta de **ese local**.
 
 Va **al final** del backlog: hay que integrar un tercero y todavía no está cerrado cómo.
 

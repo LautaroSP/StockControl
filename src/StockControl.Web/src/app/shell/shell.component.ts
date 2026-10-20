@@ -1,15 +1,17 @@
-import { Component } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { Component, OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ApiService } from '../servicios/api.service';
 import { SesionService } from '../servicios/sesion.service';
 import { TemaService } from '../servicios/tema.service';
 
 @Component({
   selector: 'sc-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, DatePipe],
   template: `
     <div class="app">
-      <aside class="sidebar">
+      <aside class="sidebar" [class.abierto]="menuAbierto">
         <div class="brand">
           <strong>StockControl</strong>
           <span>{{ sesion.nombreLocal() }}</span>
@@ -17,7 +19,10 @@ import { TemaService } from '../servicios/tema.service';
             <span>Caja {{ sesion.nroCaja() }}</span>
           }
         </div>
-        <nav class="nav">
+        <button class="menu-btn" type="button" (click)="menuAbierto = !menuAbierto" [attr.aria-expanded]="menuAbierto" aria-label="Menú">
+          <span></span><span></span><span></span>
+        </button>
+        <nav class="nav" (click)="menuAbierto = false">
           <a routerLink="/caja" routerLinkActive="active">Caja</a>
           <a routerLink="/productos" routerLinkActive="active">Productos</a>
           @if (sesion.esDueno()) {
@@ -33,6 +38,7 @@ import { TemaService } from '../servicios/tema.service';
           }
           @if (sesion.puedeConfigurarLocal()) {
             <a routerLink="/configuracion" routerLinkActive="active">Configuración</a>
+            <a routerLink="/activar" routerLinkActive="active">Abono</a>
           }
           <a routerLink="/informes" routerLinkActive="active">Informes</a>
           <a routerLink="/cajas" routerLinkActive="active">Cajas</a>
@@ -48,14 +54,63 @@ import { TemaService } from '../servicios/tema.service';
         </div>
       </aside>
       <main class="main">
+        @if (sesion.abono(); as abono) {
+          @if (abono.enGracia) {
+            <div class="aviso-abono aviso-abono-vencido">
+              No pudimos cobrar el débito. La caja se bloquea el {{ abono.limite | date: 'dd/MM' }} a las {{ abono.limite | date: 'HH:mm' }}.
+              @if (sesion.puedeConfigurarLocal()) {
+                <a class="btn btn-primary" routerLink="/activar">Abono</a>
+              }
+            </div>
+          } @else {
+            @switch (abono.estado) {
+              @case ('trial') {
+                <div class="aviso-abono">
+                  Prueba: te quedan {{ abono.diasRestantes }} días.
+                  @if (sesion.puedeConfigurarLocal()) {
+                    <a class="btn btn-primary" routerLink="/activar">Pagar</a>
+                  }
+                </div>
+              }
+              @case ('por_vencer') {
+                @if (abono.debito !== 'activa') {
+                  <div class="aviso-abono">
+                    Tu abono vence el {{ abono.vence | date: 'dd/MM' }} a las {{ abono.vence | date: 'HH:mm' }}
+                    ({{ abono.diasRestantes }} {{ abono.diasRestantes === 1 ? 'día' : 'días' }}).
+                    @if (sesion.puedeConfigurarLocal()) {
+                      <a class="btn btn-primary" routerLink="/activar">Pagar</a>
+                    }
+                  </div>
+                }
+              }
+              @case ('vencido') {
+                <div class="aviso-abono aviso-abono-vencido">
+                  Local vencido: no se puede cobrar.
+                  @if (sesion.puedeConfigurarLocal()) {
+                    <a class="btn btn-primary" routerLink="/activar">Pagar</a>
+                  } @else {
+                    <a routerLink="/contacto">Contactá a ventas</a>
+                  }
+                </div>
+              }
+            }
+          }
+        }
         <router-outlet />
       </main>
     </div>
   `
 })
-export class ShellComponent {
+export class ShellComponent implements OnInit {
+  menuAbierto = false;
+
   constructor(
     readonly sesion: SesionService,
-    readonly tema: TemaService
+    readonly tema: TemaService,
+    private readonly api: ApiService
   ) {}
+
+  ngOnInit(): void {
+    this.api.abonoActual().subscribe({ next: (a) => this.sesion.abono.set(a) });
+  }
 }

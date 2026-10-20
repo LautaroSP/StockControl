@@ -15,8 +15,8 @@ public static class ImportadorSqlite
         var local = new Local
         {
             Nombre = nombreLocal,
-            EstadoAbono = "al_dia",
-            Vence = DateTimeOffset.UtcNow.AddDays(30)
+            EstadoAbono = ServicioAbono.AlDia,
+            Vence = ServicioAbono.VencePorPago(DateTimeOffset.UtcNow)
         };
         db.Locales.Add(local);
         await db.SaveChangesAsync();

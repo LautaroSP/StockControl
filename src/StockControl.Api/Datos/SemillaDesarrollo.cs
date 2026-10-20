@@ -21,8 +21,8 @@ public static class SemillaDesarrollo
         var local = new Local
         {
             Nombre = "Lo de Pepe — Almagro",
-            EstadoAbono = "al_dia",
-            Vence = DateTimeOffset.UtcNow.AddDays(30)
+            EstadoAbono = ServicioAbono.AlDia,
+            Vence = ServicioAbono.VencePorPago(DateTimeOffset.UtcNow)
         };
 
         db.Locales.Add(local);

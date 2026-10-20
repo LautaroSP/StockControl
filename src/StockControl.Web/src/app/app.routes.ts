@@ -20,6 +20,8 @@ import { CatalogoProveedorComponent } from './paginas/catalogo-proveedor.compone
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
+  { path: 'registro', loadComponent: () => import('./paginas/registro.component').then((m) => m.RegistroComponent) },
+  { path: 'contacto', loadComponent: () => import('./paginas/contacto.component').then(m => m.ContactoComponent) },
   { path: 'locales', component: LocalesComponent, canActivate: [sesionGuard] },
   { path: 'elegir-caja', component: ElegirCajaComponent, canActivate: [localGuard] },
   {
@@ -40,6 +42,11 @@ export const routes: Routes = [
       { path: 'medios-pago', component: MediosPagoComponent },
       { path: 'usuarios', component: UsuariosComponent },
       { path: 'configuracion', component: ConfiguracionComponent },
+      {
+        path: 'activar',
+        loadComponent: () => import('./paginas/activar.component').then((m) => m.ActivarComponent),
+        canActivate: [proveedoresGuard]
+      },
       { path: '', redirectTo: 'caja', pathMatch: 'full' }
     ]
   },

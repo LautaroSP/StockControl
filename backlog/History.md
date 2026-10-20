@@ -8,9 +8,9 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 
 ## Siguiente
 
-**#24 · 02 Pago por local**
+**#26 · 03 Admin: alta de locales**
 
-Después: 22 Cobro del abono → 03 Admin → 04 Contratar local → **21 QR (última)**.
+Después: 04 Contratar local → **21 QR (última)**.
 
 ## Tablero
 
@@ -39,14 +39,16 @@ Después: 22 Cobro del abono → 03 Admin → 04 Contratar local → **21 QR (ú
 | 21 | 19 | [Carteles](19-carteles.md) | sí | Impresión por navegador; genérica CSS; plantilla propia por local. Requiere migración `PlantillasCartel` |
 | 22 | 26 | [Proveedores y órdenes](26-proveedores.md) | sí | ClosedXML en API; PDF por navegador; wa.me con 549 (celular AR). Requiere migración `Proveedores` |
 | 23 | 27 | [Recibir orden](27-recibir-orden.md) | sí | Recepción única; cantidad recibida editable; requiere migración `RecepcionOrden` |
-| 24 | 02 | [Pago por local](02-pago-por-local.md) | no | Hay `EstadoAbono` / vence en el local; no bloquea caja vencida ni panel admin |
-| 25 | 22 | [Cobro del abono](22-cobro-abono-servicio.md) | no | QR tuyo / “ya pagué”. Distinto del QR de mostrador (21) |
+| 24 | 02 | [Pago por local](02-pago-por-local.md) | sí | Estado calculado por fecha; bloquea solo cobrar; aviso 5 días; $ 14.999. Resumen admin pasó a 03 |
+| 25 | 22 | [Cobro del abono](22-cobro-abono-servicio.md) | sí | Checkout Pro + débito automático (suscripción MP) con webhooks verificados; renovación desde el vencimiento; 3 días de gracia con débito; registro con trial. Requiere migración `Abonos` y secretos MP en entorno |
 | 26 | 03 | [Admin: alta de locales](03-admin-alta-locales.md) | no | |
 | 27 | 04 | [Dueño: contratar otro local](04-dueno-contratar-local.md) | no | Depende de 22 |
 | 28 | 21 | [Pasarela pagos QR MP](21-pasarela-pagos-qr.md) | no | **Última.** Cliente del kiosco paga en caja |
 
 ## Log
 
+- 2026-10-15 · 22 Cobro del abono · sí · Registro público (prueba 7 días o pagar); pago único Checkout Pro con QR; débito automático opcional con 3 días de gracia; webhook firmado
+- 2026-10-10 · 02 Pago por local · sí · $ 14.999/mes por local; vence mismo día del mes siguiente; aviso 5 días antes; vencido no cobra
 - 2026-09-28 · 27 Recibir orden · sí · Marcar recibida desde la ficha del proveedor; suma stock de productos comunes; guarda pedido vs recibido, quién y cuándo
 - 2026-09-28 · 26 Proveedores · sí · ABM + catálogo Excel (revisar/confirmar, suma stock) + órdenes por WhatsApp/Excel/PDF con Repetir
 - 2026-09-28 · 19 Carteles · sí · Grande 6 / chico 30 por A4 vía diálogo de impresión; plantilla genérica CSS o imagen propia por local

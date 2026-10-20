@@ -16,6 +16,11 @@ import { TemaService } from '../servicios/tema.service';
           <div>
             <h1>Mis locales</h1>
             <p class="meta">Hola {{ sesion.nombre() }}. Elegí sucursal para cobrar.</p>
+            @if (sesion.rol() === 'dueno' && locales.length) {
+              <p class="meta">
+                Tenés {{ locales.length }} {{ locales.length === 1 ? 'local' : 'locales' }} · $ {{ pesos(totalMensual) }} por mes
+              </p>
+            }
           </div>
           <div class="row">
             <button class="btn" type="button" (click)="tema.alternar()">
@@ -30,9 +35,14 @@ import { TemaService } from '../servicios/tema.service';
         <div class="cards">
           @for (l of locales; track l.idLocal) {
             <button class="panel card-local" type="button" (click)="entrar(l)">
-              <span class="badge">{{ l.estadoAbono === 'al_dia' ? 'Al día' : l.estadoAbono }}</span>
+              <span class="badge" [class.badge-vencido]="l.estado === 'vencido'" [class.badge-aviso]="l.estado === 'por_vencer'">
+                {{ etiqueta(l) }}
+              </span>
               <h2>{{ l.nombre }}</h2>
-              <p>Vence {{ l.vence ? (l.vence | date:'dd/MM/yyyy') : '—' }}</p>
+              <p>Vence {{ l.vence ? (l.vence | date: 'dd/MM/yyyy HH:mm') : '—' }}</p>
+              @if (l.debito === 'activa') {
+                <p class="meta">Débito automático</p>
+              }
             </button>
           }
         </div>
@@ -42,6 +52,7 @@ import { TemaService } from '../servicios/tema.service';
 })
 export class LocalesComponent implements OnInit {
   locales: LocalDto[] = [];
+  totalMensual = 0;
   error = '';
 
   constructor(
@@ -54,8 +65,9 @@ export class LocalesComponent implements OnInit {
   ngOnInit(): void {
     this.sesion.limpiarLocal();
     this.api.locales().subscribe({
-      next: (list) => {
-        this.locales = list;
+      next: (r) => {
+        this.locales = r.items;
+        this.totalMensual = r.totalMensual;
       },
       error: () => (this.error = 'No se pudieron cargar los locales.')
     });
@@ -65,13 +77,14 @@ export class LocalesComponent implements OnInit {
     this.api.entrar(local.idLocal).subscribe({
       next: (r) => {
         this.sesion.guardarLocal(r.token, local.idLocal, local.nombre);
+        const destino = local.estado === 'vencido' && this.sesion.puedeConfigurarLocal() ? '/activar' : '/caja';
         this.api.puestos().subscribe({
           next: (p) => {
             if (p.cantidad <= 1) {
               this.api.elegirPuesto(1).subscribe({
                 next: (e) => {
                   this.sesion.guardarCaja(e.token, e.nroCaja);
-                  void this.router.navigateByUrl('/caja');
+                  void this.router.navigateByUrl(destino);
                 },
                 error: (err) =>
                   (this.error = typeof err.error === 'string' ? err.error : 'No se pudo elegir la caja.')
@@ -85,6 +98,23 @@ export class LocalesComponent implements OnInit {
       },
       error: () => (this.error = 'No pudiste entrar a ese local.')
     });
+  }
+
+  etiqueta(local: LocalDto): string {
+    switch (local.estado) {
+      case 'trial':
+        return `Prueba · ${local.diasRestantes} días`;
+      case 'por_vencer':
+        return `Por vencer · ${local.diasRestantes} días`;
+      case 'vencido':
+        return 'Vencido';
+      default:
+        return 'Al día';
+    }
+  }
+
+  pesos(n: number): string {
+    return Math.trunc(n).toLocaleString('es-AR');
   }
 
   salir(): void {

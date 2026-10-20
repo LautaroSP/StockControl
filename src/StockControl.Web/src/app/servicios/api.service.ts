@@ -18,11 +18,42 @@ export interface ProductoDto {
   puedeModificarPrecio?: boolean;
 }
 
+export type EstadoAbono = 'trial' | 'al_dia' | 'por_vencer' | 'vencido';
+
+export type EstadoDebito = '' | 'pendiente' | 'activa' | 'pausada' | 'cancelada';
+
 export interface LocalDto {
   idLocal: number;
   nombre: string;
-  estadoAbono: string;
-  vence?: string;
+  estado: EstadoAbono;
+  vence: string | null;
+  diasRestantes: number;
+  puedeOperarCaja: boolean;
+  debito: EstadoDebito;
+}
+
+export interface AbonoDto {
+  estado: EstadoAbono;
+  vence: string | null;
+  limite: string | null;
+  diasRestantes: number;
+  puedeOperarCaja: boolean;
+  enGracia: boolean;
+  pagoPendiente: boolean;
+  debito: EstadoDebito;
+  email: string;
+  precioMensual: number;
+  ventasWhatsApp: string | null;
+}
+
+export interface RegistroPedidoDto {
+  nombre: string;
+  email: string;
+  nombreUsuario: string;
+  nombreLocal: string;
+  modalidad: 'prueba' | 'pagar';
+  clave: string;
+  sitio: string;
 }
 
 export interface ItemVenta {
@@ -85,7 +116,27 @@ export class ApiService {
   }
 
   locales() {
-    return this.http.get<LocalDto[]>(`${this.base}/locales`);
+    return this.http.get<{ totalMensual: number; precioMensual: number; items: LocalDto[] }>(`${this.base}/locales`);
+  }
+
+  registrar(pedido: RegistroPedidoDto) {
+    return this.http.post<{ token: string; rol: string; nombre: string }>(`${this.base}/registro`, pedido);
+  }
+
+  abonoActual() {
+    return this.http.get<AbonoDto>(`${this.base}/locales/actual/abono`);
+  }
+
+  pagarAbono() {
+    return this.http.post<{ urlPago: string }>(`${this.base}/locales/actual/abono/pagar`, {});
+  }
+
+  activarDebito(mailPagador: string) {
+    return this.http.post<{ urlPago: string }>(`${this.base}/locales/actual/abono/debito`, { mailPagador });
+  }
+
+  cancelarDebito() {
+    return this.http.delete(`${this.base}/locales/actual/abono/debito`);
   }
 
   entrar(id: number) {

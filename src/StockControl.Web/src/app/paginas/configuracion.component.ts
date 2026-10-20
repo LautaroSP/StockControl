@@ -64,7 +64,7 @@ import { SesionService } from '../servicios/sesion.service';
       <p class="hint">PNG o JPG de hasta 1 MB. Se usa de fondo en ese tamaño de cartel.</p>
 
       <div class="row" style="margin-top:16px">
-        <button class="btn btn-primary grow" type="button" (click)="guardar()">Guardar configuración</button>
+        <button class="btn btn-primary" type="button" (click)="guardar()">Guardar configuración</button>
       </div>
       @if (mensaje) { <p class="meta">{{ mensaje }}</p> }
     </section>

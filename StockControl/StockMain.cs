@@ -24,6 +24,8 @@ namespace StockControl
         private MetodoPagoRepository _metodoPagoRepository = new MetodoPagoRepository();
         public static decimal IVA;
         public static string factorIVA;
+        public static decimal gananciaSector;
+        public static decimal gananciaGenericos;
         private List<MetodoDePago> metodosDePago = new List<MetodoDePago>();
         private GrupoRepository _grupoRepository = new GrupoRepository();
         private bool editandoProductoSector = false;
@@ -97,6 +99,8 @@ namespace StockControl
                     IVA = result;
                 }
             }
+            gananciaSector = LeerPorcentaje("GananciaSector");
+            gananciaGenericos = LeerPorcentaje("GananciaGenericos");
             CargarMetodosPago();
             CargarProductos();
             Bitmap bmp = new Bitmap("Resources\\gear.png");
@@ -836,6 +840,14 @@ namespace StockControl
                 }
             }
         }
+        private decimal LeerPorcentaje(string clave)
+        {
+            string texto = _configuracionRepository.ObtenerPorClave(clave);
+            if (string.IsNullOrWhiteSpace(texto))
+                return 0;
+            return TryParseDecimal(texto, out decimal valor) && valor >= 0 && valor <= 100 ? valor : 0;
+        }
+
         private bool TryParseDecimal(string input, out decimal value)
         {
             input = input.Trim();

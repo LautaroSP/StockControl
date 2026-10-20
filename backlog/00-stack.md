@@ -96,7 +96,7 @@ No existe en el `.db` del escritorio; se crea al importar o al dar de alta:
 | `Locales` | Sucursal, estado abono (`trial` / `al_dia` / `vencido`), vence |
 | `Usuarios` | Login, rol, hash de clave |
 | `UsuarioLocales` | Ana en Almagro; Pedro en dos sucursales |
-| `Abonos` | Pagos de $ 9.999 (QR / marca admin) |
+| `Abonos` | Pagos de $ 14.999 (QR / marca admin) |
 
 Un `.db` importado = **1 cuenta + 1 local + 1 dueño** + todas las filas de producto/venta con ese `IdLocal`.
 

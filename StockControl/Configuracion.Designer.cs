@@ -38,6 +38,10 @@ namespace StockControl
             txtFactorGanancia = new TextBox();
             label3 = new Label();
             txtIVA = new TextBox();
+            lblGananciaSector = new Label();
+            txtGananciaSector = new TextBox();
+            lblGananciaGenericos = new Label();
+            txtGananciaGenericos = new TextBox();
             lblBaseDatos = new Label();
             txtRutaBdd = new TextBox();
             btnExaminarBdd = new Button();
@@ -64,7 +68,7 @@ namespace StockControl
             // 
             // btnGuardar
             // 
-            btnGuardar.Location = new Point(12, 310);
+            btnGuardar.Location = new Point(12, 404);
             btnGuardar.Name = "btnGuardar";
             btnGuardar.Size = new Size(75, 23);
             btnGuardar.TabIndex = 2;
@@ -74,7 +78,7 @@ namespace StockControl
             // 
             // btnSalir
             // 
-            btnSalir.Location = new Point(93, 310);
+            btnSalir.Location = new Point(93, 404);
             btnSalir.Name = "btnSalir";
             btnSalir.Size = new Size(75, 23);
             btnSalir.TabIndex = 3;
@@ -131,11 +135,47 @@ namespace StockControl
             txtIVA.TabIndex = 9;
             txtIVA.TextChanged += txtIVA_TextChanged;
             // 
+            // lblGananciaSector
+            // 
+            lblGananciaSector.AutoSize = true;
+            lblGananciaSector.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold | FontStyle.Italic);
+            lblGananciaSector.Location = new Point(13, 176);
+            lblGananciaSector.Name = "lblGananciaSector";
+            lblGananciaSector.Size = new Size(148, 20);
+            lblGananciaSector.TabIndex = 14;
+            lblGananciaSector.Text = "Ganancia sector %";
+            // 
+            // txtGananciaSector
+            // 
+            txtGananciaSector.Location = new Point(13, 199);
+            txtGananciaSector.Name = "txtGananciaSector";
+            txtGananciaSector.Size = new Size(289, 23);
+            txtGananciaSector.TabIndex = 15;
+            txtGananciaSector.TextChanged += txtGananciaSector_TextChanged;
+            // 
+            // lblGananciaGenericos
+            // 
+            lblGananciaGenericos.AutoSize = true;
+            lblGananciaGenericos.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold | FontStyle.Italic);
+            lblGananciaGenericos.Location = new Point(13, 230);
+            lblGananciaGenericos.Name = "lblGananciaGenericos";
+            lblGananciaGenericos.Size = new Size(184, 20);
+            lblGananciaGenericos.TabIndex = 16;
+            lblGananciaGenericos.Text = "Ganancia genéricos %";
+            // 
+            // txtGananciaGenericos
+            // 
+            txtGananciaGenericos.Location = new Point(13, 253);
+            txtGananciaGenericos.Name = "txtGananciaGenericos";
+            txtGananciaGenericos.Size = new Size(289, 23);
+            txtGananciaGenericos.TabIndex = 17;
+            txtGananciaGenericos.TextChanged += txtGananciaGenericos_TextChanged;
+            // 
             // lblBaseDatos
             // 
             lblBaseDatos.AutoSize = true;
             lblBaseDatos.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold | FontStyle.Italic);
-            lblBaseDatos.Location = new Point(13, 180);
+            lblBaseDatos.Location = new Point(13, 290);
             lblBaseDatos.Name = "lblBaseDatos";
             lblBaseDatos.Size = new Size(105, 20);
             lblBaseDatos.TabIndex = 10;
@@ -143,7 +183,7 @@ namespace StockControl
             // 
             // txtRutaBdd
             // 
-            txtRutaBdd.Location = new Point(13, 203);
+            txtRutaBdd.Location = new Point(13, 313);
             txtRutaBdd.Name = "txtRutaBdd";
             txtRutaBdd.ReadOnly = true;
             txtRutaBdd.Size = new Size(289, 23);
@@ -151,7 +191,7 @@ namespace StockControl
             // 
             // btnExaminarBdd
             // 
-            btnExaminarBdd.Location = new Point(13, 232);
+            btnExaminarBdd.Location = new Point(13, 342);
             btnExaminarBdd.Name = "btnExaminarBdd";
             btnExaminarBdd.Size = new Size(90, 25);
             btnExaminarBdd.TabIndex = 12;
@@ -161,7 +201,7 @@ namespace StockControl
             // 
             // btnUsarRaizBdd
             // 
-            btnUsarRaizBdd.Location = new Point(109, 232);
+            btnUsarRaizBdd.Location = new Point(109, 342);
             btnUsarRaizBdd.Name = "btnUsarRaizBdd";
             btnUsarRaizBdd.Size = new Size(90, 25);
             btnUsarRaizBdd.TabIndex = 13;
@@ -173,7 +213,11 @@ namespace StockControl
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(314, 345);
+            ClientSize = new Size(314, 440);
+            Controls.Add(txtGananciaGenericos);
+            Controls.Add(lblGananciaGenericos);
+            Controls.Add(txtGananciaSector);
+            Controls.Add(lblGananciaSector);
             Controls.Add(btnUsarRaizBdd);
             Controls.Add(btnExaminarBdd);
             Controls.Add(txtRutaBdd);
@@ -206,6 +250,10 @@ namespace StockControl
         private TextBox txtFactorGanancia;
         private Label label3;
         private TextBox txtIVA;
+        private Label lblGananciaSector;
+        private TextBox txtGananciaSector;
+        private Label lblGananciaGenericos;
+        private TextBox txtGananciaGenericos;
         private Label lblBaseDatos;
         private TextBox txtRutaBdd;
         private Button btnExaminarBdd;

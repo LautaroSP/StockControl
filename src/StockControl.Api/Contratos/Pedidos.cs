@@ -255,3 +255,18 @@ public class OrdenCompraPedido
     [Required, MinLength(1), MaxLength(500)]
     public List<LineaOrdenCompraPedido> Lineas { get; set; } = new();
 }
+
+public class RegistroCuentaPedido : RegistroPedido
+{
+    [Required, MaxLength(200)]
+    public string Clave { get; set; } = "";
+
+    /// <summary>Campo oculto contra bots: una persona lo deja vacío.</summary>
+    public string? Sitio { get; set; }
+}
+
+public class DebitoPedido
+{
+    [Required, MaxLength(200)]
+    public string MailPagador { get; set; } = "";
+}

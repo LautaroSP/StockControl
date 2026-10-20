@@ -5,6 +5,10 @@ public static class PrecioVenta
     public static decimal CalcularLista(decimal costo, decimal factorGanancia, decimal iva) =>
         Math.Round(costo * factorGanancia * iva, 2, MidpointRounding.AwayFromZero);
 
+    /// <summary>Alta de un producto común sin precio: costo × factor × IVA. Sector, grupo o un precio cargado se respetan.</summary>
+    public static decimal PrecioAlCrear(decimal costo, decimal precio, bool sector, bool tieneGrupo, decimal factorGanancia, decimal iva) =>
+        sector || tieneGrupo || precio > 0 ? precio : CalcularLista(costo, factorGanancia, iva);
+
     /// <summary>
     /// Descuento sobre el margen (precio − costo), no sobre el precio entero.
     /// Ej: 1500 − 1000 = 500; 50% → 1500 − 250 = 1250.

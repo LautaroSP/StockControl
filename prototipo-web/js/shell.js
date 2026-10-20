@@ -70,8 +70,8 @@
       : "";
     const quien = esEmpleado() ? "Ana · empleado" : "Jorge · dueño";
     const pie = esTrial()
-      ? `${quien}<br />Prueba · queda 4 días<br /><a href="plan.html" style="color:#fff">Activar $ 9.999</a>`
-      : `${quien}<br />$ 9.999 / mes · vence ${loc.vence}`;
+      ? `${quien}<br />Prueba · queda 4 días<br /><a href="plan.html" style="color:#fff">Activar $ 14.999</a>`
+      : `${quien}<br />$ 14.999 / mes · vence ${loc.vence}`;
 
     return `
       <div class="brand">
@@ -108,7 +108,7 @@
         <a href="login.html">Salir / cambiar rol</a>
       </nav>
       <div class="sidebar-foot">
-        $ 9.999 por local.<br />
+        $ 14.999 por local.<br />
         Ventas: 11 5555-0101
       </div>`;
   }
@@ -118,7 +118,7 @@
     if (esTrial()) {
       return `<div class="banner trial">
         <span>Prueba de 7 días · te quedan <strong>4 días</strong> en ${local().nombre}. Un local, sin contratar otro.</span>
-        <a class="btn btn-primary" href="plan.html">Pagar $ 9.999</a>
+        <a class="btn btn-primary" href="plan.html">Pagar $ 14.999</a>
       </div>`;
     }
     return `<div class="banner ok">

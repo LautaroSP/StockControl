@@ -1,5 +1,6 @@
 import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ApiService, ItemVenta, MetodoPagoDto, ProductoDto, VentaDetalleDto } from '../servicios/api.service';
 import { CarritoCaja, LineaCarritoPendiente, SesionService } from '../servicios/sesion.service';
 import { TicketComponent } from './ticket.component';
@@ -9,7 +10,7 @@ const FIJOS = 4;
 @Component({
   selector: 'sc-caja',
   standalone: true,
-  imports: [FormsModule, TicketComponent],
+  imports: [FormsModule, RouterLink, TicketComponent],
   template: `
     <div class="topbar">
       <h1>Caja</h1>
@@ -26,6 +27,18 @@ const FIJOS = 4;
         <button class="btn" type="button" (click)="agregarGenerico()">Genérico</button>
       </div>
     </div>
+    @if (bloqueada()) {
+      <section class="panel pad caja-bloqueada">
+        <h2 style="margin:0 0 8px;font-size:18px">Local vencido</h2>
+        <p>No se puede cobrar hasta reactivar el abono ($ {{ precioMensual() }} por mes).</p>
+        <p class="meta">Podés seguir cerrando caja y consultando informes y productos.</p>
+        @if (sesion.puedeConfigurarLocal()) {
+          <a class="btn btn-primary" routerLink="/activar">Pagar</a>
+        } @else {
+          <a class="btn btn-primary" routerLink="/contacto">Contactar a ventas</a>
+        }
+      </section>
+    } @else {
     <div class="caja-grid">
       <section class="panel list-wrap">
         <div class="toolbar" style="padding:12px">
@@ -167,6 +180,7 @@ const FIJOS = 4;
         }
       </aside>
     </div>
+    }
     <div class="toast" [class.show]="toast">{{ toast }}</div>
     @if (ticket) {
       <sc-ticket [venta]="ticket" [nombreLocal]="nombreTicket" [formato]="formatoTicket" />
@@ -452,8 +466,17 @@ export class CajaComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.error = typeof err.error === 'string' ? err.error : 'No se pudo cobrar.';
         this.cobrando = false;
+        if (err.status === 402) this.api.abonoActual().subscribe({ next: (a) => this.sesion.abono.set(a) });
       }
     });
+  }
+
+  bloqueada(): boolean {
+    return this.sesion.abono()?.puedeOperarCaja === false;
+  }
+
+  precioMensual(): string {
+    return Math.trunc(this.sesion.abono()?.precioMensual ?? 0).toLocaleString('es-AR');
   }
 
   aplicarGrupo(grupo: string): void {

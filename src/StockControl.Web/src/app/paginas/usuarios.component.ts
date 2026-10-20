@@ -86,7 +86,7 @@ export class UsuariosComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargar();
-    this.api.locales().subscribe({ next: (r) => (this.locales = r), error: () => (this.error = 'No se pudieron cargar los locales.') });
+    this.api.locales().subscribe({ next: (r) => (this.locales = r.items), error: () => (this.error = 'No se pudieron cargar los locales.') });
   }
 
   cargar(): void {

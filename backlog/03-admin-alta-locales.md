@@ -19,6 +19,7 @@ Vos das de alta un local y lo asociás a un dueño. El dueño no crea sucursales
 - [ ] Alta de local obliga a un dueño existente o crea el dueño en el mismo paso.
 - [ ] Editar vencimiento / marcar pago recibido (transferencia, efectivo, “hablé con ventas”).
 - [ ] Ver y editar el teléfono de “Contactá a ventas” que ve el dueño (tarjeta 22).
-- [ ] Poder dejar un local en trial 7 días o al día 30 días sin pasar por el QR.
+- [ ] Poder dejar un local en trial 7 días o al día un mes (mismo día del mes siguiente, misma hora; `ServicioAbono.VencePorPago`) sin pasar por el QR.
 - [ ] No se mezcla el catálogo ni las ventas entre locales.
 - [ ] Admin puede desactivar un local (deuda, baja) sin borrar el histórico.
+- [ ] Admin ve el mes ≈ locales pagos × $ 14.999 (los trial no cuentan como cobrado). Viene de la tarjeta 02.

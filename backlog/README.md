@@ -3,7 +3,7 @@
 **Estado y orden:** [History.md](History.md). Consultar ahí, no rearmar el tablero.
 
 Una tarjeta = un archivo. El dueño puede todo lo del empleado, y más.
-Se paga **$ 9.999 / mes por local** (Argentina). El dueño **no** da de alta locales: paga o habla con ventas.
+Se paga **$ 14.999 / mes por local** (Argentina). El dueño **no** da de alta locales: paga o habla con ventas.
 
 ## Roles
 

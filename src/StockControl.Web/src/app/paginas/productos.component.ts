@@ -122,9 +122,9 @@ import { SesionService } from '../servicios/sesion.service';
           <label class="field">Código <input class="wide" [(ngModel)]="form.codigo" [disabled]="!!editando" /></label>
           <label class="field">Nombre <input class="wide" [(ngModel)]="form.nombre" /></label>
           <label class="field">Stock <input class="wide" type="number" [(ngModel)]="form.cantidad" /></label>
-          <label class="field">Costo <input class="wide" type="number" [(ngModel)]="form.costo" /></label>
-          <label class="field">Precio <input class="wide" type="number" [(ngModel)]="form.precio" /></label>
-          <label class="check"><input type="checkbox" [(ngModel)]="form.productoSector" /> Producto sector</label>
+          <label class="field">Costo <input class="wide" type="number" [ngModel]="form.costo" (ngModelChange)="cambiarCosto($event)" /></label>
+          <label class="field">Precio <input class="wide" type="number" [(ngModel)]="form.precio" [disabled]="form.productoSector || !!form.idGrupoProducto" /></label>
+          <label class="check"><input type="checkbox" [ngModel]="form.productoSector" (ngModelChange)="cambiarSector($event)" /> Producto sector</label>
           @if (!form.productoSector) {
             <p class="meta" style="margin:8px 0 4px">Grupo: {{ form.nombreGrupo || 'Sin grupo' }}</p>
             <div class="row">
@@ -206,6 +206,8 @@ export class ProductosComponent implements OnInit {
   gruposAbiertos = false;
   editando: ProductoDto | null = null;
   cantidadStock = 1;
+  factorGanancia = 1;
+  iva = 1.21;
   form: Partial<ProductoDto> = {
     codigo: '',
     nombre: '',
@@ -224,6 +226,15 @@ export class ProductosComponent implements OnInit {
 
   ngOnInit(): void {
     this.api.gruposFiltro().subscribe({ next: (r) => (this.gruposFiltro = r) });
+    if (this.sesion.esDueno()) {
+      this.api.configuracionLocal().subscribe({
+        next: (c) => {
+          this.factorGanancia = Number(c.factorGanancia) || 1;
+          this.iva = Number(c.iva) || 1.21;
+          if (this.formAbierto) this.aplicarPrecioCalculado();
+        }
+      });
+    }
     this.cargar();
   }
 
@@ -305,6 +316,29 @@ export class ProductosComponent implements OnInit {
       nombreGrupo: null
     };
     this.formAbierto = true;
+  }
+
+  cambiarCosto(costo: number | string): void {
+    this.form.costo = Number(costo) || 0;
+    this.aplicarPrecioCalculado();
+  }
+
+  cambiarSector(sector: boolean): void {
+    this.form.productoSector = sector;
+    if (sector) {
+      this.form.precio = 0;
+      this.form.costo = 0;
+      this.form.idGrupoProducto = 0;
+      this.form.nombreGrupo = null;
+      return;
+    }
+    this.aplicarPrecioCalculado();
+  }
+
+  private aplicarPrecioCalculado(): void {
+    if (this.form.productoSector || this.form.idGrupoProducto) return;
+    const costo = Number(this.form.costo) || 0;
+    this.form.precio = Math.round(costo * this.factorGanancia * this.iva * 100) / 100;
   }
 
   editar(p: ProductoDto): void {

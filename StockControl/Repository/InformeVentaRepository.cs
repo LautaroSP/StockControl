@@ -71,14 +71,21 @@ namespace StockControl.Repository
 
         public List<InformeVentaDetalle> ListarDetallesDe(IEnumerable<int> ids)
         {
-            var lista = ids.ToList();
+            var lista = ids.Distinct().ToList();
             if (lista.Count == 0)
                 return new List<InformeVentaDetalle>();
 
+            const int tamano = 500;
+            var detalles = new List<InformeVentaDetalle>();
             using var con = GetConnection();
-            return con.Query<InformeVentaDetalle>(
-                "SELECT * FROM InformeVentaDetalle WHERE IdInformeVenta IN @ids",
-                new { ids = lista }).ToList();
+            for (int i = 0; i < lista.Count; i += tamano)
+            {
+                var tanda = lista.Skip(i).Take(tamano).ToList();
+                detalles.AddRange(con.Query<InformeVentaDetalle>(
+                    "SELECT * FROM InformeVentaDetalle WHERE IdInformeVenta IN @ids",
+                    new { ids = tanda }));
+            }
+            return detalles;
         }
 
         public Dictionary<string, decimal> SumarCantidadVendidaDesde(DateTime desde)
@@ -155,9 +162,9 @@ namespace StockControl.Repository
                 new { idCierre }).ToList();
         }
 
-        public void RecalcularSubtotales()
+        public void RecalcularSubtotales(DateTime fecha)
         {
-            var informes = ListarInformeVenta();
+            var informes = ListarParaCerrarCaja(fecha.Date);
             if (informes.Count == 0)
                 return;
 

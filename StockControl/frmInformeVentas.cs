@@ -46,14 +46,17 @@ namespace StockControl
             dataGridView1.ColumnHeaderMouseClick += dataGridView1_ColumnHeaderMouseClick;
             dtCajas.CellClick += dtCajas_CellClick;
             dtProductos.ColumnHeaderMouseClick += dtProductos_ColumnHeaderMouseClick;
+            dtpDia.Value = DateTime.Today;
+            dtpDia.ValueChanged += (_, _) => LoadData();
 
             LoadData();
         }
 
         private void LoadData()
         {
-            _informeVentaRepository.RecalcularSubtotales();
-            informeVentas = _informeVentaRepository.ListarInformeVenta();
+            var dia = dtpDia.Value.Date;
+            _informeVentaRepository.RecalcularSubtotales(dia);
+            informeVentas = _informeVentaRepository.ListarParaCerrarCaja(dia);
             informeVentas.ForEach(x =>
             {
                 x.DetalleAdjuntoStr = x.DetalleAdjunto == 1 ? "Sí" : "No";
@@ -525,7 +528,9 @@ namespace StockControl
                 _movimientoStockRepository.SumarDesde(desdeElDiaSiguiente),
                 fecha,
                 idCierre,
-                restarPagosProveedor);
+                restarPagosProveedor,
+                StockMain.gananciaSector,
+                StockMain.gananciaGenericos);
 
             _informeVentaRepository.InsertarCajaCerradaPorLista(resultado.Cajas);
             _informeVentaRepository.InsertarProductosCierre(resultado.Productos);

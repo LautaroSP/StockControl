@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService, MetodoPagoDto } from '../servicios/api.service';
+import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
 
 @Component({
@@ -41,7 +42,7 @@ export class MediosPagoComponent implements OnInit {
   medios: MetodoPagoDto[] = [];
   error = '';
 
-  constructor(private readonly api: ApiService, private readonly router: Router, private readonly sesion: SesionService) {}
+  constructor(private readonly api: ApiService, private readonly router: Router, private readonly sesion: SesionService, private readonly dialogo: DialogoService) {}
 
   ngOnInit(): void {
     if (!this.sesion.esDueno()) {
@@ -55,20 +56,20 @@ export class MediosPagoComponent implements OnInit {
     this.api.mediosPago().subscribe({ next: (r) => (this.medios = r), error: () => (this.error = 'No se pudieron cargar los medios.') });
   }
 
-  crear(): void {
-    const descripcion = prompt('Descripción del medio de pago', 'Transferencia')?.trim();
+  async crear(): Promise<void> {
+    const descripcion = (await this.dialogo.pedir('Descripción del medio de pago', 'Transferencia'))?.trim();
     if (!descripcion) return;
     this.api.crearMedioPago(descripcion).subscribe({ next: () => this.cargar(), error: (e) => (this.error = this.mensaje(e)) });
   }
 
-  editar(medio: MetodoPagoDto): void {
-    const descripcion = prompt('Descripción del medio de pago', medio.descripcion)?.trim();
+  async editar(medio: MetodoPagoDto): Promise<void> {
+    const descripcion = (await this.dialogo.pedir('Descripción del medio de pago', medio.descripcion))?.trim();
     if (!descripcion || descripcion === medio.descripcion) return;
     this.api.editarMedioPago(medio.id, descripcion).subscribe({ next: () => this.cargar(), error: (e) => (this.error = this.mensaje(e)) });
   }
 
-  desactivar(medio: MetodoPagoDto): void {
-    if (!confirm(`¿Desactivar ${medio.descripcion}?`)) return;
+  async desactivar(medio: MetodoPagoDto): Promise<void> {
+    if (!await this.dialogo.confirmar(`¿Desactivar ${medio.descripcion}?`)) return;
     this.api.desactivarMedioPago(medio.id).subscribe({ next: () => this.cargar(), error: (e) => (this.error = this.mensaje(e)) });
   }
 

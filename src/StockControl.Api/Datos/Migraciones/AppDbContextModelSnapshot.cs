@@ -30,10 +30,24 @@ namespace StockControl.Api.Datos.Migraciones
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Canal")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("");
+
                     b.Property<string>("Estado")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<string>("EstadoAnterior")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasDefaultValue("");
 
                     b.Property<DateTimeOffset?>("FechaAcreditacion")
                         .HasColumnType("timestamp with time zone");
@@ -80,6 +94,23 @@ namespace StockControl.Api.Datos.Migraciones
                     b.HasIndex("IdLocal", "Estado", "FechaCreacion");
 
                     b.ToTable("Abonos", (string)null);
+                });
+
+            modelBuilder.Entity("StockControl.Dominio.Ajuste", b =>
+                {
+                    b.Property<string>("Clave")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("Valor")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Clave");
+
+                    b.ToTable("Ajustes", (string)null);
                 });
 
             modelBuilder.Entity("StockControl.Dominio.Caja", b =>
@@ -310,6 +341,11 @@ namespace StockControl.Api.Datos.Migraciones
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("IdLocal"));
 
+                    b.Property<bool>("Activo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("EstadoAbono")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -341,6 +377,42 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasFilter("\"IdSuscripcionMp\" IS NOT NULL");
 
                     b.ToTable("Locales", (string)null);
+                });
+
+            modelBuilder.Entity("StockControl.Dominio.MensajeContacto", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Correo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("Creado")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("Leido")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Mensaje")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Leido");
+
+                    b.ToTable("MensajesContacto", (string)null);
                 });
 
             modelBuilder.Entity("StockControl.Dominio.MetodoPago", b =>

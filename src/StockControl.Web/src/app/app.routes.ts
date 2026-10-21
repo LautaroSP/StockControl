@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { cajaGuard, duenoGuard, localGuard, proveedoresGuard, sesionGuard } from './guards/sesion.guard';
+import { adminGuard, cajaGuard, duenoGuard, localGuard, proveedoresGuard, sesionGuard } from './guards/sesion.guard';
 import { LoginComponent } from './paginas/login.component';
 import { LocalesComponent } from './paginas/locales.component';
 import { ElegirCajaComponent } from './paginas/elegir-caja.component';
@@ -19,9 +19,11 @@ import { ProveedorComponent } from './paginas/proveedor.component';
 import { CatalogoProveedorComponent } from './paginas/catalogo-proveedor.component';
 
 export const routes: Routes = [
+  { path: '', pathMatch: 'full', loadComponent: () => import('./paginas/landing.component').then((m) => m.LandingComponent) },
   { path: 'login', component: LoginComponent },
   { path: 'registro', loadComponent: () => import('./paginas/registro.component').then((m) => m.RegistroComponent) },
   { path: 'contacto', loadComponent: () => import('./paginas/contacto.component').then(m => m.ContactoComponent) },
+  { path: 'admin', loadComponent: () => import('./paginas/admin.component').then(m => m.AdminComponent), canActivate: [adminGuard] },
   { path: 'locales', component: LocalesComponent, canActivate: [sesionGuard] },
   { path: 'elegir-caja', component: ElegirCajaComponent, canActivate: [localGuard] },
   {

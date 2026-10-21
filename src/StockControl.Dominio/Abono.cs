@@ -5,6 +5,7 @@ public class Abono
     public const string Pendiente = "pendiente";
     public const string Aprobado = "aprobado";
     public const string Rechazado = "rechazado";
+    public const string Anulado = "anulado";
 
     public const string OrigenMp = "mp";
     public const string OrigenDebito = "debito";
@@ -14,7 +15,9 @@ public class Abono
     public int IdLocal { get; set; }
     public decimal Importe { get; set; }
     public string Estado { get; set; } = Pendiente;
+    public string EstadoAnterior { get; set; } = "";
     public string Origen { get; set; } = OrigenMp;
+    public string Canal { get; set; } = "";
     public string? IdPreferenciaMp { get; set; }
     public string? UrlPago { get; set; }
     public string? IdPagoMp { get; set; }

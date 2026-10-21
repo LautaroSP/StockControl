@@ -1,7 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ApiService } from '../servicios/api.service';
+import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
 import { TemaService } from '../servicios/tema.service';
 
@@ -50,7 +51,7 @@ import { TemaService } from '../servicios/tema.service';
           <button class="btn btn-ghost" type="button" (click)="tema.alternar()">
             {{ tema.tema() === 'oscuro' ? 'Modo claro' : 'Modo oscuro' }}
           </button>
-          <a class="btn btn-ghost" routerLink="/login" (click)="sesion.salir()">Salir</a>
+          <button class="btn btn-ghost" type="button" (click)="salir()">Salir</button>
         </div>
       </aside>
       <main class="main">
@@ -107,10 +108,18 @@ export class ShellComponent implements OnInit {
   constructor(
     readonly sesion: SesionService,
     readonly tema: TemaService,
-    private readonly api: ApiService
+    private readonly api: ApiService,
+    private readonly router: Router,
+    private readonly dialogo: DialogoService
   ) {}
 
   ngOnInit(): void {
     this.api.abonoActual().subscribe({ next: (a) => this.sesion.abono.set(a) });
+  }
+
+  async salir(): Promise<void> {
+    if (!await this.dialogo.confirmar('¿Cerrar la sesión?')) return;
+    this.sesion.salir();
+    void this.router.navigateByUrl('/login');
   }
 }

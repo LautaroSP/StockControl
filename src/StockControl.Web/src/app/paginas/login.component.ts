@@ -21,7 +21,7 @@ import { TemaService } from '../servicios/tema.service';
         <form (ngSubmit)="entrar()">
           <label class="field">
             Usuario
-            <input class="wide" name="usuario" [(ngModel)]="usuario" autocomplete="username" />
+            <input class="wide" type="text" name="usuario" [(ngModel)]="usuario" autocomplete="username" />
           </label>
           <label class="field">
             Clave
@@ -55,7 +55,7 @@ export class LoginComponent {
     readonly tema: TemaService
   ) {
     if (sesion.hayToken())
-      router.navigateByUrl(sesion.idLocal() ? '/caja' : '/locales');
+      router.navigateByUrl(sesion.rol() === 'admin' ? '/admin' : sesion.idLocal() ? '/caja' : '/locales');
   }
 
   entrar(): void {
@@ -64,7 +64,7 @@ export class LoginComponent {
     this.api.login(this.usuario.trim(), this.clave).subscribe({
       next: (r) => {
         this.sesion.guardarLogin(r.token, r.rol, r.nombre);
-        this.router.navigateByUrl('/locales');
+        this.router.navigateByUrl(r.rol === 'admin' ? '/admin' : '/locales');
       },
       error: (err) => {
         this.error = err.status === 0

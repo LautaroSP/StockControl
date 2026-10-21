@@ -7,6 +7,7 @@ import {
   VentaDetalleDto,
   VentaListaDto
 } from '../servicios/api.service';
+import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
 import { TicketComponent } from './ticket.component';
 
@@ -189,7 +190,8 @@ export class InformesComponent implements OnInit {
   constructor(
     private readonly api: ApiService,
     private readonly router: Router,
-    readonly sesion: SesionService
+    readonly sesion: SesionService,
+    private readonly dialogo: DialogoService
   ) {}
 
   ngOnInit(): void {
@@ -266,9 +268,9 @@ export class InformesComponent implements OnInit {
     });
   }
 
-  anular(): void {
+  async anular(): Promise<void> {
     if (!this.detalle || !this.sesion.esDueno()) return;
-    if (!confirm('¿Anular esta venta y devolver stock?')) return;
+    if (!await this.dialogo.confirmar('¿Anular esta venta y devolver stock?')) return;
     this.api.anularVenta(this.detalle.idInformeVenta).subscribe({
       next: () => {
         this.detalle = null;
@@ -334,11 +336,10 @@ export class InformesComponent implements OnInit {
         const otras = abiertas.filter((c) => c.nroCaja !== this.sesion.nroCaja() && c.tickets > 0);
         if (otras.length > 0) {
           const puestos = otras.map((c) => `Caja ${c.nroCaja}`).join(', ');
-          if (confirm(`Hay cajas sin cerrar además de su puesto (${puestos}). ¿Desea cerrarlas?`)) {
-            cerrar(true, true);
-          } else {
-            cerrar(false);
-          }
+          void this.dialogo.confirmar(`Hay cajas sin cerrar además de su puesto (${puestos}). ¿Desea cerrarlas?`).then((ok) => {
+            if (ok) cerrar(true, true);
+            else cerrar(false);
+          });
           return;
         }
         cerrar(false);
@@ -347,9 +348,9 @@ export class InformesComponent implements OnInit {
     });
   }
 
-  private ejecutarCierre(fecha: string | undefined, todas: boolean, confirmado: boolean): void {
+  private async ejecutarCierre(fecha: string | undefined, todas: boolean, confirmado: boolean): Promise<void> {
     const msg = fecha ? `¿Cerrar la caja del ${fechaVisible(fecha)}?` : '¿Cerrar la caja de hoy?';
-    if (!confirmado && !confirm(msg)) return;
+    if (!confirmado && !await this.dialogo.confirmar(msg)) return;
     this.api.cerrarCaja(fecha, this.desglose, todas).subscribe({
       next: (r) => {
         this.cierre = {

@@ -47,6 +47,9 @@ public static class Permisos
     public static bool PuedeAdministrarUsuarios(string rol) =>
         EsDuenoOperativo(rol);
 
+    public static bool PuedeAdministrarPlataforma(string rol) =>
+        ServicioAdmin.PuedeEntrar(rol);
+
     public static bool PuedeAsignarSocio(string rol) =>
         rol is Roles.Dueno or Roles.Admin;
 

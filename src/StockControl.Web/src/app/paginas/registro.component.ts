@@ -20,7 +20,7 @@ import { SesionService } from '../servicios/sesion.service';
         <form (ngSubmit)="registrar()">
           <label class="field">
             Tu nombre
-            <input class="wide" name="nombre" [(ngModel)]="pedido.nombre" maxlength="120" autocomplete="name" />
+            <input class="wide" type="text" name="nombre" [(ngModel)]="pedido.nombre" maxlength="120" autocomplete="name" />
           </label>
           <label class="field">
             Mail
@@ -28,7 +28,7 @@ import { SesionService } from '../servicios/sesion.service';
           </label>
           <label class="field">
             Usuario
-            <input class="wide" name="usuario" [(ngModel)]="pedido.nombreUsuario" maxlength="80" autocomplete="username" />
+            <input class="wide" type="text" name="usuario" [(ngModel)]="pedido.nombreUsuario" maxlength="80" autocomplete="username" />
           </label>
           <label class="field">
             Contraseña (mínimo 8)
@@ -40,9 +40,9 @@ import { SesionService } from '../servicios/sesion.service';
           </label>
           <label class="field">
             Nombre del local
-            <input class="wide" name="local" [(ngModel)]="pedido.nombreLocal" maxlength="200" />
+            <input class="wide" type="text" name="local" [(ngModel)]="pedido.nombreLocal" maxlength="200" />
           </label>
-          <input class="campo-oculto" name="sitio" [(ngModel)]="pedido.sitio" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <input class="campo-oculto" type="text" name="sitio" [(ngModel)]="pedido.sitio" tabindex="-1" autocomplete="off" aria-hidden="true" />
           <div class="row" style="margin:8px 0 12px">
             <label class="row" style="gap:6px">
               <input type="radio" name="modalidad" value="prueba" [(ngModel)]="pedido.modalidad" />

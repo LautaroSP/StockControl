@@ -8,6 +8,13 @@ export const sesionGuard: CanActivateFn = () => {
   return sesion.hayToken() ? true : router.parseUrl('/login');
 };
 
+export const adminGuard: CanActivateFn = () => {
+  const sesion = inject(SesionService);
+  const router = inject(Router);
+  if (!sesion.hayToken()) return router.parseUrl('/login');
+  return sesion.rol() === 'admin' ? true : router.parseUrl('/locales');
+};
+
 export const localGuard: CanActivateFn = () => {
   const sesion = inject(SesionService);
   const router = inject(Router);

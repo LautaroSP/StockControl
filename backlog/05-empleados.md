@@ -14,6 +14,7 @@ No hay límite de empleados. No cambia el abono.
 ## Criterios de aceptación
 
 - [x] Dueño y socio: listado de usuarios (nombre, usuario, rol, locales, activo sí/no).
+- [x] El listado es de la cuenta: no importa el local abierto, se ven todos los empleados y socios, y cada uno entra a uno o más locales.
 - [x] Alta: usuario, contraseña, rol y locales asignados (uno o varios).
 - [x] El dueño puede asignar el rol socio; el socio no puede crear ni promover socios.
 - [x] Dueño y socio pueden desactivar un empleado sin borrar el histórico de ventas de esa persona.

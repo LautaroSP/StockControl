@@ -35,8 +35,9 @@ public class ClienteMercadoPago
     public static int? IdAbono(string? referencia) =>
         referencia != null && referencia.StartsWith("abono-") && int.TryParse(referencia[6..], out var id) ? id : null;
 
-    public async Task<PreferenciaMp> CrearPreferencia(Abono abono, string nombreLocal)
+    public async Task<PreferenciaMp> CrearPreferencia(Abono abono, string nombreLocal, string? vuelta = null)
     {
+        var url = string.IsNullOrWhiteSpace(vuelta) ? UrlActivar() : vuelta;
         var json = await Enviar(HttpMethod.Post, "checkout/preferences", new
         {
             items = new[]
@@ -45,7 +46,7 @@ public class ClienteMercadoPago
             },
             external_reference = ReferenciaAbono(abono.Id),
             notification_url = $"{Url("App:UrlApi")}/mercadopago/webhook",
-            back_urls = new { success = UrlActivar(), pending = UrlActivar(), failure = UrlActivar() },
+            back_urls = new { success = url, pending = url, failure = url },
             auto_return = "approved",
             payment_methods = new { installments = 1 }
         });

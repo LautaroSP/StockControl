@@ -119,8 +119,8 @@ import { SesionService } from '../servicios/sesion.service';
       <div class="modal">
         <h2 style="margin:0 0 8px;font-size:18px">{{ editando ? 'Editar producto' : 'Nuevo producto' }}</h2>
         @if (sesion.esDueno()) {
-          <label class="field">Código <input class="wide" [(ngModel)]="form.codigo" [disabled]="!!editando" /></label>
-          <label class="field">Nombre <input class="wide" [(ngModel)]="form.nombre" /></label>
+          <label class="field">Código <input class="wide" type="text" [(ngModel)]="form.codigo" [disabled]="!!editando" /></label>
+          <label class="field">Nombre <input class="wide" type="text" [(ngModel)]="form.nombre" /></label>
           <label class="field">Stock <input class="wide" type="number" [(ngModel)]="form.cantidad" /></label>
           <label class="field">Costo <input class="wide" type="number" [ngModel]="form.costo" (ngModelChange)="cambiarCosto($event)" /></label>
           <label class="field">Precio <input class="wide" type="number" [(ngModel)]="form.precio" [disabled]="form.productoSector || !!form.idGrupoProducto" /></label>

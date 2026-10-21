@@ -219,6 +219,80 @@ public class ServicioAbonoTests
     }
 
     [Fact]
+    public void Pago_del_admin_deja_el_local_al_dia_un_mes()
+    {
+        var local = Local(Ahora.AddDays(4), ServicioAbono.Trial);
+
+        var abono = ServicioAbono.RegistrarPagoAdmin(local, Ahora, ServicioAdmin.CanalTransferencia);
+
+        Assert.Equal(Abono.OrigenAdmin, abono.Origen);
+        Assert.Equal(Abono.Aprobado, abono.Estado);
+        Assert.Null(abono.IdPagoMp);
+        Assert.Equal(ServicioAbono.PrecioMensual, abono.Importe);
+        Assert.Equal(ServicioAbono.Trial, abono.EstadoAnterior);
+        Assert.Equal(ServicioAdmin.CanalTransferencia, abono.Canal);
+        Assert.Equal(ServicioAbono.AlDia, local.EstadoAbono);
+        Assert.Equal(ServicioAbono.VencePorPago(Ahora), local.Vence);
+    }
+
+    [Fact]
+    public void Anular_pago_admin_vuelve_al_trial_y_al_vencimiento_anterior()
+    {
+        var vence = Ahora.AddDays(4);
+        var local = Local(vence, ServicioAbono.Trial);
+        var abono = ServicioAbono.RegistrarPagoAdmin(local, Ahora, ServicioAdmin.CanalTransferencia);
+
+        ServicioAbono.AnularPagoAdmin(local, abono);
+
+        Assert.Equal(Abono.Anulado, abono.Estado);
+        Assert.Equal(ServicioAbono.Trial, local.EstadoAbono);
+        Assert.Equal(vence, local.Vence);
+    }
+
+    [Fact]
+    public void Anular_dos_veces_el_mismo_pago_no_cambia_el_local()
+    {
+        var vence = Ahora.AddDays(4);
+        var local = Local(vence, ServicioAbono.Trial);
+        var abono = ServicioAbono.RegistrarPagoAdmin(local, Ahora, ServicioAdmin.CanalTransferencia);
+        ServicioAbono.AnularPagoAdmin(local, abono);
+
+        var error = Assert.Throws<ErrorNegocio>(() => ServicioAbono.AnularPagoAdmin(local, abono));
+
+        Assert.Equal("No hay un pago para anular.", error.Message);
+        Assert.Equal(vence, local.Vence);
+        Assert.Equal(ServicioAbono.Trial, local.EstadoAbono);
+    }
+
+    [Fact]
+    public void Anular_un_pago_de_mercado_pago_no_lo_permite()
+    {
+        var vence = Ahora.AddDays(20);
+        var local = Local(vence);
+        var abono = ServicioAbono.NuevoAbono(local.IdLocal, Abono.OrigenMp, Ahora);
+        abono.Estado = Abono.Aprobado;
+        abono.VenceNuevo = vence;
+
+        var error = Assert.Throws<ErrorNegocio>(() => ServicioAbono.AnularPagoAdmin(local, abono));
+
+        Assert.Equal("Ese pago lo hizo Mercado Pago.", error.Message);
+        Assert.Equal(vence, local.Vence);
+        Assert.Equal(Abono.Aprobado, abono.Estado);
+    }
+
+    [Fact]
+    public void Pago_del_admin_con_debito_activo_no_cambia_el_vencimiento()
+    {
+        var vence = Ahora.AddDays(10);
+        var local = ConDebito(vence);
+
+        var error = Assert.Throws<ErrorNegocio>(() => ServicioAbono.RegistrarPagoAdmin(local, Ahora, ServicioAdmin.CanalEfectivo));
+
+        Assert.Equal("Cancelá el débito automático para pagar este mes.", error.Message);
+        Assert.Equal(vence, local.Vence);
+    }
+
+    [Fact]
     public void Sin_debito_activo_se_puede_pagar_este_mes()
     {
         var local = ConDebito(Ahora.AddDays(10), ServicioAbono.DebitoCancelado);
@@ -255,5 +329,45 @@ public class ServicioAbonoTests
     public void Estado_de_suscripcion_desconocido_da_error()
     {
         Assert.Throws<ErrorNegocio>(() => ServicioAbono.EstadoSuscripcionMp("raro"));
+    }
+
+    [Fact]
+    public void El_mes_suma_solo_los_locales_pagos()
+    {
+        string[] estados = [ServicioAbono.AlDia, ServicioAbono.PorVencer, ServicioAbono.Trial, ServicioAbono.Vencido];
+
+        Assert.Equal(ServicioAbono.PrecioMensual * 2, ServicioAbono.TotalDelMes(estados));
+    }
+
+    [Fact]
+    public void Acreditar_un_local_pendiente_lo_deja_al_dia_un_mes()
+    {
+        var local = ServicioAdmin.ContratarLocal("Sur");
+        local.IdLocal = 4;
+        var abono = ServicioAbono.NuevoAbono(local.IdLocal, Abono.OrigenMp, Ahora);
+        ServicioAbono.Acreditar(local, abono, Ahora, "mp-1");
+
+        Assert.Equal(ServicioAbono.AlDia, local.EstadoAbono);
+        Assert.Equal(ServicioAbono.VencePorPago(Ahora), local.Vence);
+        Assert.True(ServicioAbono.Estado(local, Ahora).PuedeOperarCaja);
+    }
+
+    [Fact]
+    public void Marcar_pago_de_un_local_pendiente_lo_deja_al_dia_un_mes()
+    {
+        var local = ServicioAdmin.ContratarLocal("Sur");
+        var abono = ServicioAbono.RegistrarPagoAdmin(local, Ahora, ServicioAdmin.CanalTransferencia);
+
+        Assert.Equal(ServicioAbono.AlDia, local.EstadoAbono);
+        Assert.Equal(ServicioAbono.VencePorPago(Ahora), local.Vence);
+        Assert.Equal(abono.VenceNuevo, local.Vence);
+    }
+
+    [Fact]
+    public void El_pendiente_no_suma_en_el_total_del_mes()
+    {
+        string[] estados = [ServicioAbono.Trial, ServicioAbono.Pendiente, ServicioAbono.AlDia];
+
+        Assert.Equal(ServicioAbono.PrecioMensual, ServicioAbono.TotalDelMes(estados));
     }
 }

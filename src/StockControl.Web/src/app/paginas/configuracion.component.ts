@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService, ConfiguracionLocalDto, PlantillasCartelDto, TamanoCartel } from '../servicios/api.service';
+import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
 
 @Component({
@@ -15,14 +16,19 @@ import { SesionService } from '../servicios/sesion.service';
     @if (error) { <p class="error">{{ error }}</p> }
     <section class="panel config-form">
       <h2>Datos del local</h2>
-      <label class="field">Nombre del local <input class="wide" [(ngModel)]="form.nombreLocal" /></label>
+      <label class="field">Nombre del local <input class="wide" type="text" [(ngModel)]="form.nombreLocal" /></label>
 
       <h2>Precios</h2>
       <div class="row">
         <label class="field grow">Factor de ganancia <input class="wide" type="number" min="0.0001" step="0.01" [(ngModel)]="form.factorGanancia" /></label>
         <label class="field grow">IVA <input class="wide" type="number" min="0" step="0.01" [(ngModel)]="form.iva" /></label>
       </div>
-      <p class="hint">El precio se calcula como costo × factor de ganancia × IVA.</p>
+      <p class="hint">El precio de lista se calcula como costo × factor de ganancia × IVA.</p>
+      <div class="row">
+        <label class="field grow">Factor sector <input class="wide" type="number" min="0.0001" step="0.01" [(ngModel)]="form.factorGananciaSector" /></label>
+        <label class="field grow">Factor genérico <input class="wide" type="number" min="0.0001" step="0.01" [(ngModel)]="form.factorGananciaGenerico" /></label>
+      </div>
+      <p class="hint">Sector y genérico se cobran a precio libre. La ganancia se estima como precio − precio / factor. Con 1 no se estima. Es de este local.</p>
 
       <h2>Stock</h2>
       <label class="check"><input type="checkbox" [(ngModel)]="form.stockRigido" /> No permitir vender sin stock suficiente</label>
@@ -72,7 +78,7 @@ import { SesionService } from '../servicios/sesion.service';
 })
 export class ConfiguracionComponent implements OnInit {
   form: ConfiguracionLocalDto & { recalcularPrecios: boolean } = {
-    nombreLocal: '', factorGanancia: 1, iva: 1.21, stockRigido: false, umbralStockBajo: 5,
+    nombreLocal: '', factorGanancia: 1, factorGananciaSector: 1, factorGananciaGenerico: 1, iva: 1.21, stockRigido: false, umbralStockBajo: 5,
     empleadoPuedeModificarPrecios: false, formatoTicket: 'POS-80', imprimirTicketAlCobrar: true,
     cantidadCajas: 1, recalcularPrecios: false
   };
@@ -82,7 +88,7 @@ export class ConfiguracionComponent implements OnInit {
   error = '';
   mensaje = '';
 
-  constructor(private readonly api: ApiService, private readonly router: Router, private readonly sesion: SesionService) {}
+  constructor(private readonly api: ApiService, private readonly router: Router, private readonly sesion: SesionService, private readonly dialogo: DialogoService) {}
 
   ngOnInit(): void {
     if (!this.sesion.puedeConfigurarLocal()) {
@@ -136,13 +142,13 @@ export class ConfiguracionComponent implements OnInit {
     });
   }
 
-  guardar(): void {
-    if (!this.form.nombreLocal.trim() || this.form.factorGanancia <= 0 || this.form.iva < 0 || this.form.umbralStockBajo < 0 || this.form.cantidadCajas < 1 || this.form.cantidadCajas > 50) {
+  async guardar(): Promise<void> {
+    if (!this.form.nombreLocal.trim() || this.form.factorGanancia <= 0 || this.form.factorGananciaSector <= 0 || this.form.factorGananciaGenerico <= 0 || this.form.iva < 0 || this.form.umbralStockBajo < 0 || this.form.cantidadCajas < 1 || this.form.cantidadCajas > 50) {
       this.error = 'Revisá los valores de configuración.';
       return;
     }
     const cambioPrecios = this.form.factorGanancia !== this.original.factorGanancia || this.form.iva !== this.original.iva;
-    const recalcular = cambioPrecios && confirm('Cambiaste el factor o el IVA. ¿Querés actualizar los precios de los productos?');
+    const recalcular = cambioPrecios && await this.dialogo.confirmar('Cambiaste el factor o el IVA. ¿Querés actualizar los precios de los productos?');
     this.api.guardarConfiguracionLocal({ ...this.form, recalcularPrecios: recalcular }).subscribe({
       next: (r) => {
         this.original = { factorGanancia: this.form.factorGanancia, iva: this.form.iva };

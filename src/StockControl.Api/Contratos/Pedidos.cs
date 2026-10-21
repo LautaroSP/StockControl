@@ -93,6 +93,73 @@ public class ResetearClavePedido
     public string Clave { get; set; } = "";
 }
 
+public class ContratarLocalPedido
+{
+    public string Nombre { get; set; } = "";
+}
+
+public class AltaLocalAdminPedido
+{
+    public string Nombre { get; set; } = "";
+    public int IdDueno { get; set; }
+    public string NombreDueno { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string NombreUsuario { get; set; } = "";
+    public string ClaveDueno { get; set; } = "";
+    public int IdLocalOrigen { get; set; }
+    public bool CopiarStock { get; set; }
+}
+
+public class PagoAdminPedido
+{
+    public string Clave { get; set; } = "";
+    public string Canal { get; set; } = "";
+}
+
+public class VencimientoAdminPedido
+{
+    public string Vence { get; set; } = "";
+    public string Clave { get; set; } = "";
+}
+
+public class TelefonoVentasPedido
+{
+    public string Telefono { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string Clave { get; set; } = "";
+}
+
+public class MensajeContactoPedido
+{
+    [MaxLength(120)]
+    public string Nombre { get; set; } = "";
+
+    [MaxLength(200)]
+    public string Correo { get; set; } = "";
+
+    [MaxLength(2000)]
+    public string Mensaje { get; set; } = "";
+
+    public string? Sitio { get; set; }
+}
+
+public class FormularioContactoPedido
+{
+    public bool Activo { get; set; }
+    public string Clave { get; set; } = "";
+}
+
+public class ClaveAdminPedido
+{
+    public string Clave { get; set; } = "";
+}
+
+public class CambioClaveAdminPedido
+{
+    public string Clave { get; set; } = "";
+    public string ClaveSecreta { get; set; } = "";
+}
+
 public class ConfiguracionLocalPedido
 {
     [Required, MaxLength(200)]
@@ -100,6 +167,12 @@ public class ConfiguracionLocalPedido
 
     [Range(0.0001, 999999)]
     public decimal FactorGanancia { get; set; }
+
+    [Range(0.0001, 999999)]
+    public decimal FactorGananciaSector { get; set; } = 1;
+
+    [Range(0.0001, 999999)]
+    public decimal FactorGananciaGenerico { get; set; } = 1;
 
     [Range(0, 999999)]
     public decimal Iva { get; set; }

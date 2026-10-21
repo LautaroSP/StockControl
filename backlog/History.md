@@ -8,9 +8,9 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 
 ## Siguiente
 
-**#26 · 03 Admin: alta de locales**
+**#29 · 29 Tienda online**
 
-Después: 04 Contratar local → **21 QR (última)**.
+Después: **21 QR (última)**.
 
 ## Tablero
 
@@ -41,12 +41,30 @@ Después: 04 Contratar local → **21 QR (última)**.
 | 23 | 27 | [Recibir orden](27-recibir-orden.md) | sí | Recepción única; cantidad recibida editable; requiere migración `RecepcionOrden` |
 | 24 | 02 | [Pago por local](02-pago-por-local.md) | sí | Estado calculado por fecha; bloquea solo cobrar; aviso 5 días; $ 14.999. Resumen admin pasó a 03 |
 | 25 | 22 | [Cobro del abono](22-cobro-abono-servicio.md) | sí | Checkout Pro + débito automático (suscripción MP) con webhooks verificados; renovación desde el vencimiento; 3 días de gracia con débito; registro con trial. Requiere migración `Abonos` y secretos MP en entorno |
-| 26 | 03 | [Admin: alta de locales](03-admin-alta-locales.md) | no | |
-| 27 | 04 | [Dueño: contratar otro local](04-dueno-contratar-local.md) | no | Depende de 22 |
-| 28 | 21 | [Pasarela pagos QR MP](21-pasarela-pagos-qr.md) | no | **Última.** Cliente del kiosco paga en caja |
+| 26 | 03 | [Admin: alta de locales](03-admin-alta-locales.md) | sí | Listado, alta con dueño nuevo, vencimiento, canal de pago, teléfono de ventas, baja del local y total del mes |
+| 27 | 04 | [Dueño: contratar otro local](04-dueno-contratar-local.md) | sí | Aunque el primero siga en prueba. El nuevo nace pendiente, sin trial, y no opera hasta el pago |
+| 28 | 28 | [Landing](28-landing.md) | sí | Inicio público con el recorrido, precio, contacto de ventas y términos. Ruta lazy |
+| 29 | 29 | [Tienda online](29-tienda-online.md) | no | Tienda pública por local, MP del local con 5 % de gestión, transferencia, envío por km. Preguntas abiertas en la tarjeta |
+| 30 | 21 | [Pasarela pagos QR MP](21-pasarela-pagos-qr.md) | no | **Última.** Cliente del kiosco paga en caja |
 
 ## Log
 
+- 2026-10-20 · 28 Landing · ajuste · El formulario de contacto se guarda; el admin lo marca leído y puede apagarlo
+- 2026-10-20 · 28 Landing · ajuste · El contacto muestra un mail genérico, editable desde el admin
+- 2026-10-20 · 05 Empleados · ajuste · Dueño y socio ven todos los usuarios de la cuenta, no solo los del local abierto
+- 2026-10-20 · 03 Admin alta de locales · ajuste · Al crear otro local se pueden copiar los productos; el stock se repite o queda en 0
+- 2026-10-20 · 03 Admin alta de locales · ajuste · El trial es uno por dueño; si ya tiene un local, el siguiente nace pendiente
+- 2026-10-20 · 28 Landing · sí · Inicio público: recorrido de la app, precio, contacto de ventas y términos
+- 2026-10-20 · 04 Dueño: contratar otro local · sí · El dueño pide otra sucursal sin trial; paga $ 14.999 o habla con ventas; no opera hasta que se acredite
+- 2026-10-20 · 03 Admin alta de locales · sí · Listado de locales, dueño en el alta, vencimiento, canal de pago, teléfono de ventas, baja y total del mes
+- 2026-10-20 · 29 Tienda online · no · alta de tarjeta (tienda pública, pedidos, 5 % de gestión, MP del local, transferencia, envío por km)
+- 2026-10-20 · 03 Admin alta de locales · parcial · Pago, anulación, bloqueo y baja piden la clave maestra
+- 2026-10-20 · 03 Admin alta de locales · parcial · Cambiar la clave pide la clave maestra
+- 2026-10-20 · 03 Admin alta de locales · parcial · El admin cambia la clave de dueños, admins, empleados y socios
+- 2026-10-20 · 03 Admin alta de locales · parcial · Anular el pago de admin y volver al vencimiento anterior
+- 2026-10-20 · 03 Admin alta de locales · parcial · Marcar el abono de un local como pago (un mes, sin Mercado Pago)
+- 2026-10-20 · 03 Admin alta de locales · parcial · Panel de dueños, alta de local, admin con clave secreta, bloqueo y baja
+- 2026-10-20 · 28 Landing · no · alta de tarjeta; la maqueta queda en prototipo-web
 - 2026-10-15 · 22 Cobro del abono · sí · Registro público (prueba 7 días o pagar); pago único Checkout Pro con QR; débito automático opcional con 3 días de gracia; webhook firmado
 - 2026-10-10 · 02 Pago por local · sí · $ 14.999/mes por local; vence mismo día del mes siguiente; aviso 5 días antes; vencido no cobra
 - 2026-09-28 · 27 Recibir orden · sí · Marcar recibida desde la ficha del proveedor; suma stock de productos comunes; guarda pedido vs recibido, quién y cuándo

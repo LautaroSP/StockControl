@@ -43,6 +43,7 @@ export class SesionService {
   private indiceCarrito = 0;
 
   readonly hayToken = computed(() => this.token().length > 0);
+  readonly esAdmin = computed(() => this.rol() === 'admin');
   readonly esDueno = computed(() => this.rol() === 'dueno' || this.rol() === 'socio' || this.rol() === 'admin');
   readonly esDuenoTitular = computed(() => this.rol() === 'dueno' || this.rol() === 'admin');
   readonly puedeGestionarUsuarios = computed(() => this.rol() === 'dueno' || this.rol() === 'socio' || this.rol() === 'admin');

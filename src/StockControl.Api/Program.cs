@@ -4,6 +4,7 @@ using System.Threading.RateLimiting;
 using System.Globalization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -59,6 +60,9 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("registro", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    o.AddPolicy("contacto", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
@@ -94,6 +98,8 @@ if (app.Environment.IsDevelopment())
     await db.Database.MigrateAsync();
     var claveSeed = builder.Configuration["SEED_CLAVE"] ?? "cambiar-seed";
     await SemillaDesarrollo.Ejecutar(db, claveSeed);
+    await AsegurarTelefonoVentas(db, builder.Configuration["Ventas:WhatsApp"]);
+    await AsegurarEmailVentas(db);
 }
 
 app.UseCors();
@@ -158,11 +164,11 @@ app.MapGet("/locales", async (AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdUsuario == null) return Results.Unauthorized();
     var ids = await db.UsuarioLocales.Where(x => x.IdUsuario == sesion.IdUsuario).Select(x => x.IdLocal).ToListAsync();
-    var locales = await db.Locales.Where(l => ids.Contains(l.IdLocal)).OrderBy(l => l.Nombre).ToListAsync();
+    var locales = await db.Locales.Where(l => ids.Contains(l.IdLocal) && l.Activo).OrderBy(l => l.Nombre).ToListAsync();
     var ahora = DateTimeOffset.UtcNow;
     return Results.Ok(new
     {
-        totalMensual = ServicioAbono.TotalMensual(locales.Count),
+        totalMensual = ServicioAbono.TotalMensual(locales.Count(l => l.EstadoAbono != ServicioAbono.Pendiente)),
         precioMensual = ServicioAbono.PrecioMensual,
         items = locales.Select(l =>
         {
@@ -170,6 +176,41 @@ app.MapGet("/locales", async (AppDbContext db, SesionActual sesion) =>
             return new { l.IdLocal, l.Nombre, abono.Estado, abono.Vence, abono.DiasRestantes, abono.PuedeOperarCaja, debito = l.EstadoSuscripcion };
         })
     });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/locales/contratar", async (ContratarLocalPedido pedido, AppDbContext db, SesionActual sesion, ClienteMercadoPago mp, ILoggerFactory logs, IConfiguration config) =>
+{
+    if (sesion.IdUsuario == null) return Results.Unauthorized();
+    if (sesion.Rol != Roles.Dueno) return Results.Forbid();
+    try
+    {
+        var local = ServicioAdmin.ContratarLocal(pedido.Nombre);
+        await using var transaccion = await db.Database.BeginTransactionAsync();
+        db.Locales.Add(local);
+        await db.SaveChangesAsync();
+        db.UsuarioLocales.Add(new UsuarioLocal { IdUsuario = sesion.IdUsuario.Value, IdLocal = local.IdLocal });
+        db.MetodosPago.AddRange(ServicioRegistro.MediosIniciales.Select(m => new MetodoPago { IdLocal = local.IdLocal, Descripcion = m }));
+        await db.SaveChangesAsync();
+        await transaccion.CommitAsync();
+        return await EmitirPagoContratacion(local, db, mp, logs, config);
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/locales/{id:int}/contratar/pago", async (int id, AppDbContext db, SesionActual sesion, ClienteMercadoPago mp, ILoggerFactory logs, IConfiguration config) =>
+{
+    if (sesion.IdUsuario == null) return Results.Unauthorized();
+    if (sesion.Rol != Roles.Dueno) return Results.Forbid();
+    var propio = await db.UsuarioLocales.AnyAsync(x => x.IdUsuario == sesion.IdUsuario && x.IdLocal == id);
+    if (!propio) return Results.Forbid();
+    var local = await db.Locales.FirstOrDefaultAsync(l => l.IdLocal == id && l.Activo);
+    if (local == null) return Results.NotFound();
+    if (local.EstadoAbono != ServicioAbono.Pendiente)
+        return Results.BadRequest("Ese local ya no está esperando el pago.");
+    return await EmitirPagoContratacion(local, db, mp, logs, config);
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapGet("/locales/actual/abono", async (AppDbContext db, SesionActual sesion, IConfiguration config) =>
@@ -193,7 +234,7 @@ app.MapGet("/locales/actual/abono", async (AppDbContext db, SesionActual sesion,
         debito = local.EstadoSuscripcion,
         email = email ?? "",
         precioMensual = ServicioAbono.PrecioMensual,
-        ventasWhatsApp = UrlContacto(config["Ventas:WhatsApp"] ?? "", $"Hola, quiero reactivar el local {local.Nombre}.")
+        ventasWhatsApp = UrlContacto(await TelefonoVentas(db), $"Hola, quiero reactivar el local {local.Nombre}.")
     });
 }).RequireAuthorization().RequireRateLimiting("api");
 
@@ -322,6 +363,10 @@ app.MapPost("/locales/{id:int}/entrar", async (int id, AppDbContext db, SesionAc
     if (sesion.IdUsuario == null) return Results.Unauthorized();
     var ok = await db.UsuarioLocales.AnyAsync(x => x.IdUsuario == sesion.IdUsuario && x.IdLocal == id);
     if (!ok) return Results.Forbid();
+    var local = await db.Locales.FirstOrDefaultAsync(l => l.IdLocal == id);
+    if (local == null || !local.Activo) return Results.BadRequest("Ese local está desactivado.");
+    if (local.EstadoAbono == ServicioAbono.Pendiente)
+        return Results.BadRequest("Este local se habilita cuando se acredite el pago.");
     var u = await db.Usuarios.IgnoreQueryFilters().FirstAsync(x => x.Id == sesion.IdUsuario);
     return Results.Ok(new { token = jwt.Emitir(u, id) });
 }).RequireAuthorization().RequireRateLimiting("api");
@@ -760,6 +805,8 @@ app.MapPut("/configuracion/local", async (ConfiguracionLocalPedido pedido, AppDb
     local.Nombre = pedido.NombreLocal.Trim();
     if (local.Nombre.Length == 0) return Results.BadRequest("El nombre del local es obligatorio.");
     GuardarConfiguracion(db, local.IdLocal, "FactorGanancia", pedido.FactorGanancia);
+    GuardarConfiguracion(db, local.IdLocal, "FactorGananciaSector", pedido.FactorGananciaSector);
+    GuardarConfiguracion(db, local.IdLocal, "FactorGananciaGenerico", pedido.FactorGananciaGenerico);
     GuardarConfiguracion(db, local.IdLocal, "IVA", pedido.Iva);
     GuardarConfiguracion(db, local.IdLocal, "StockRigido", pedido.StockRigido);
     GuardarConfiguracion(db, local.IdLocal, "UmbralStockBajo", pedido.UmbralStockBajo);
@@ -789,22 +836,33 @@ app.MapGet("/usuarios", async (AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     if (!Permisos.PuedeAdministrarUsuarios(sesion.Rol ?? "")) return Results.Forbid();
-    var locales = await LocalesAccesibles(db, sesion);
-    var idsUsuarios = await db.UsuarioLocales.Where(x => x.IdLocal == sesion.IdLocal)
-        .Select(x => x.IdUsuario).Distinct().ToListAsync();
-    var usuarios = await db.Usuarios.Where(u => idsUsuarios.Contains(u.Id) && (u.Rol == Roles.Empleado || u.Rol == Roles.Socio))
-        .OrderBy(u => u.Nombre).ThenBy(u => u.NombreUsuario).ToListAsync();
-    var asignaciones = await db.UsuarioLocales.Where(x => idsUsuarios.Contains(x.IdUsuario) && locales.Contains(x.IdLocal)).ToListAsync();
-    var nombresLocales = await db.Locales.Where(l => locales.Contains(l.IdLocal)).ToDictionaryAsync(l => l.IdLocal, l => l.Nombre);
-    return Results.Ok(usuarios.Select(u => new
+    var localesCuenta = await LocalesDeLaCuenta(db, sesion);
+    var locales = await db.Locales.AsNoTracking()
+        .Where(l => localesCuenta.Contains(l.IdLocal) && l.Activo)
+        .OrderBy(l => l.Nombre)
+        .ToListAsync();
+    var idsLocal = locales.Select(l => l.IdLocal).ToList();
+    var asignaciones = await db.UsuarioLocales.AsNoTracking().Where(x => idsLocal.Contains(x.IdLocal)).ToListAsync();
+    var idsUsuarios = asignaciones.Select(a => a.IdUsuario).Distinct().ToList();
+    var usuarios = await db.Usuarios.AsNoTracking()
+        .Where(u => idsUsuarios.Contains(u.Id) && (u.Rol == Roles.Empleado || u.Rol == Roles.Socio))
+        .OrderBy(u => u.Nombre).ThenBy(u => u.NombreUsuario)
+        .ToListAsync();
+    var nombres = locales.ToDictionary(l => l.IdLocal, l => l.Nombre);
+    return Results.Ok(new
     {
-        u.Id,
-        nombre = string.IsNullOrWhiteSpace(u.Nombre) ? u.NombreUsuario : u.Nombre,
-        u.NombreUsuario,
-        u.Rol,
-        u.Activo,
-        locales = asignaciones.Where(a => a.IdUsuario == u.Id).Select(a => new { a.IdLocal, nombre = nombresLocales[a.IdLocal] })
-    }));
+        locales = locales.Select(l => new { l.IdLocal, l.Nombre }),
+        usuarios = usuarios.Select(u => new
+        {
+            u.Id,
+            nombre = string.IsNullOrWhiteSpace(u.Nombre) ? u.NombreUsuario : u.Nombre,
+            u.NombreUsuario,
+            u.Rol,
+            u.Activo,
+            locales = asignaciones.Where(a => a.IdUsuario == u.Id && nombres.ContainsKey(a.IdLocal))
+                .Select(a => new { a.IdLocal, nombre = nombres[a.IdLocal] })
+        })
+    });
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapPost("/usuarios", async (UsuarioPedido pedido, AppDbContext db, SesionActual sesion, PasswordHasher<Usuario> hasher) =>
@@ -815,7 +873,7 @@ app.MapPost("/usuarios", async (UsuarioPedido pedido, AppDbContext db, SesionAct
     if (validacion != null) return Results.BadRequest(validacion);
     if (await db.Usuarios.AnyAsync(u => u.NombreUsuario == pedido.NombreUsuario.Trim()))
         return Results.Conflict("Ya existe ese nombre de usuario.");
-    var locales = await LocalesAccesibles(db, sesion);
+    var locales = await LocalesDeLaCuenta(db, sesion);
     var idsLocal = pedido.IdsLocal.Distinct().ToList();
     if (!idsLocal.All(locales.Contains)) return Results.Forbid();
     var usuario = new Usuario
@@ -838,19 +896,19 @@ app.MapPut("/usuarios/{id:int}", async (int id, UsuarioPedido pedido, AppDbConte
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
     if (usuario == null) return Results.NotFound();
-    if (!await PerteneceAlLocal(db, id, sesion.IdLocal.Value)) return Results.NotFound();
+    var locales = await LocalesDeLaCuenta(db, sesion);
+    if (!await EstaEnLaCuenta(db, id, locales)) return Results.NotFound();
     if (!PuedeEditarUsuario(sesion.Rol, usuario.Rol, pedido.Rol)) return Results.Forbid();
     var validacion = ValidarUsuarioPedido(pedido, false);
     if (validacion != null) return Results.BadRequest(validacion);
     if (await db.Usuarios.AnyAsync(u => u.Id != id && u.NombreUsuario == pedido.NombreUsuario.Trim()))
         return Results.Conflict("Ya existe ese nombre de usuario.");
-    var locales = await LocalesAccesibles(db, sesion);
     var idsLocal = pedido.IdsLocal.Distinct().ToList();
     if (!idsLocal.All(locales.Contains)) return Results.Forbid();
     usuario.Nombre = pedido.Nombre.Trim();
     usuario.NombreUsuario = pedido.NombreUsuario.Trim();
     usuario.Rol = pedido.Rol;
-    var actuales = await db.UsuarioLocales.Where(x => x.IdUsuario == id).ToListAsync();
+    var actuales = await db.UsuarioLocales.Where(x => x.IdUsuario == id && locales.Contains(x.IdLocal)).ToListAsync();
     db.UsuarioLocales.RemoveRange(actuales);
     db.UsuarioLocales.AddRange(idsLocal.Select(idLocal => new UsuarioLocal { IdUsuario = id, IdLocal = idLocal }));
     await db.SaveChangesAsync();
@@ -869,10 +927,436 @@ app.MapPost("/usuarios/{id:int}/resetear-clave", async (int id, ResetearClavePed
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
-    if (usuario == null || !await PerteneceAlLocal(db, id, sesion.IdLocal.Value)) return Results.NotFound();
+    var locales = await LocalesDeLaCuenta(db, sesion);
+    if (usuario == null || !await EstaEnLaCuenta(db, id, locales)) return Results.NotFound();
     if (!PuedeEditarUsuario(sesion.Rol, usuario.Rol, usuario.Rol)) return Results.Forbid();
     if (string.IsNullOrWhiteSpace(pedido.Clave) || pedido.Clave.Length < 4) return Results.BadRequest("La clave debe tener al menos 4 caracteres.");
     usuario.HashClave = hasher.HashPassword(usuario, pedido.Clave);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/admin/usuarios", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    var cuentas = await db.Usuarios.AsNoTracking()
+        .Where(u => u.Rol == Roles.Dueno || u.Rol == Roles.Admin)
+        .OrderBy(u => u.Nombre).ThenBy(u => u.NombreUsuario)
+        .Take(maxPagina)
+        .ToListAsync();
+    var ids = cuentas.Select(u => u.Id).ToList();
+    var vinculos = await db.UsuarioLocales.AsNoTracking().Where(x => ids.Contains(x.IdUsuario)).ToListAsync();
+    var idLocales = vinculos.Select(x => x.IdLocal).Distinct().ToList();
+    var locales = await db.Locales.AsNoTracking().Where(l => idLocales.Contains(l.IdLocal)).ToDictionaryAsync(l => l.IdLocal);
+    var ahora = DateTimeOffset.UtcNow;
+    return Results.Ok(cuentas.Select(u => new
+    {
+        u.Id,
+        nombre = string.IsNullOrWhiteSpace(u.Nombre) ? u.NombreUsuario : u.Nombre,
+        u.NombreUsuario,
+        u.Email,
+        u.Rol,
+        u.Activo,
+        locales = vinculos.Where(v => v.IdUsuario == u.Id && locales.ContainsKey(v.IdLocal)).Select(v =>
+        {
+            var local = locales[v.IdLocal];
+            var abono = ServicioAbono.Estado(local, ahora);
+            return new { local.IdLocal, local.Nombre, abono.Estado, abono.Vence };
+        })
+    }));
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/admin/usuarios/{id:int}/creados", async (int id, AppDbContext db, SesionActual sesion) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    var dueno = await db.Usuarios.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
+    if (dueno == null || !ServicioAdmin.EsCuentaRegistrada(dueno.Rol)) return Results.NotFound();
+    var idsLocal = await db.UsuarioLocales.Where(x => x.IdUsuario == id).Select(x => x.IdLocal).ToListAsync();
+    var idsUsuarios = await db.UsuarioLocales
+        .Where(x => idsLocal.Contains(x.IdLocal) && x.IdUsuario != id)
+        .Select(x => x.IdUsuario).Distinct().ToListAsync();
+    var creados = await db.Usuarios.AsNoTracking()
+        .Where(u => idsUsuarios.Contains(u.Id) && (u.Rol == Roles.Empleado || u.Rol == Roles.Socio))
+        .OrderBy(u => u.Nombre).ThenBy(u => u.NombreUsuario)
+        .Take(maxPagina)
+        .ToListAsync();
+    return Results.Ok(creados.Select(u => new
+    {
+        u.Id,
+        nombre = string.IsNullOrWhiteSpace(u.Nombre) ? u.NombreUsuario : u.Nombre,
+        u.NombreUsuario,
+        u.Rol,
+        u.Activo
+    }));
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/admin/usuarios/{id:int}/locales", async (int id, AltaLocalAdminPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
+    if (usuario == null) return Results.NotFound();
+    try
+    {
+        ServicioAdmin.ValidarDueno(usuario.Rol);
+        var yaTieneLocal = await db.UsuarioLocales.AnyAsync(x => x.IdUsuario == usuario.Id);
+        var local = ServicioAdmin.AltaLocal(pedido.Nombre, DateTimeOffset.UtcNow, yaTieneLocal);
+        await using var transaccion = await db.Database.BeginTransactionAsync();
+        db.Locales.Add(local);
+        await db.SaveChangesAsync();
+        db.UsuarioLocales.Add(new UsuarioLocal { IdUsuario = usuario.Id, IdLocal = local.IdLocal });
+        db.MetodosPago.AddRange(ServicioRegistro.MediosIniciales.Select(m => new MetodoPago { IdLocal = local.IdLocal, Descripcion = m }));
+        var copiados = await CopiarCatalogoAlLocal(db, usuario.Id, local.IdLocal, pedido, sesion.NombreUsuario ?? "admin");
+        await db.SaveChangesAsync();
+        await transaccion.CommitAsync();
+        return Results.Created($"/admin/usuarios/{id}/locales/{local.IdLocal}", new { local.IdLocal, local.Nombre, estado = local.EstadoAbono, local.Vence, cantidadProductos = copiados });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/admin/locales/{idLocal:int}/pago", async (int idLocal, PagoAdminPedido pedido, AppDbContext db, SesionActual sesion, IConfiguration config) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    var local = await db.Locales.FirstOrDefaultAsync(l => l.IdLocal == idLocal);
+    if (local == null) return Results.NotFound();
+    try
+    {
+        ServicioAdmin.ValidarClaveSecreta(pedido.Clave, config["Admin:Clave"]);
+        var abono = ServicioAbono.RegistrarPagoAdmin(local, DateTimeOffset.UtcNow, pedido.Canal);
+        db.Abonos.Add(abono);
+        await db.SaveChangesAsync();
+        return Results.Ok(new { local.IdLocal, estado = local.EstadoAbono, local.Vence, abono.Canal });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/admin/locales/{idLocal:int}/anular-pago", async (int idLocal, ClaveAdminPedido pedido, AppDbContext db, SesionActual sesion, IConfiguration config) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    var local = await db.Locales.FirstOrDefaultAsync(l => l.IdLocal == idLocal);
+    if (local == null) return Results.NotFound();
+    var abono = await db.Abonos.IgnoreQueryFilters()
+        .Where(a => a.IdLocal == idLocal && a.Estado == Abono.Aprobado)
+        .OrderByDescending(a => a.FechaAcreditacion)
+        .ThenByDescending(a => a.Id)
+        .FirstOrDefaultAsync();
+    try
+    {
+        ServicioAdmin.ValidarClaveSecreta(pedido.Clave, config["Admin:Clave"]);
+        ServicioAbono.AnularPagoAdmin(local, abono);
+        await db.SaveChangesAsync();
+        return Results.Ok(new { local.IdLocal, estado = local.EstadoAbono, local.Vence });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/admin/locales", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    var ahora = DateTimeOffset.UtcNow;
+    var locales = await db.Locales.AsNoTracking().OrderBy(l => l.Nombre).ToListAsync();
+    var ids = locales.Select(l => l.IdLocal).ToList();
+    var vinculos = await db.UsuarioLocales.AsNoTracking().Where(v => ids.Contains(v.IdLocal)).ToListAsync();
+    var idsUsuarios = vinculos.Select(v => v.IdUsuario).Distinct().ToList();
+    var usuarios = await db.Usuarios.AsNoTracking()
+        .Where(u => idsUsuarios.Contains(u.Id))
+        .Select(u => new { u.Id, u.Nombre, u.NombreUsuario, u.Rol })
+        .ToListAsync();
+    var pares = vinculos.Select(v =>
+    {
+        var rol = usuarios.FirstOrDefault(u => u.Id == v.IdUsuario)?.Rol ?? "";
+        return (v.IdLocal, Rol: rol);
+    }).ToList();
+    var estados = locales.Where(l => l.Activo).Select(l => ServicioAbono.Estado(l, ahora).Estado).ToList();
+    var telefono = await TelefonoVentas(db);
+    return Results.Ok(new
+    {
+        totalMes = ServicioAbono.TotalDelMes(estados),
+        precioMensual = ServicioAbono.PrecioMensual,
+        localesPagos = estados.Count(ServicioAbono.CuentaEnElMes),
+        telefono = ServicioAdmin.MostrarTelefono(telefono),
+        email = await EmailVentas(db),
+        items = locales.Take(maxPagina).Select(l =>
+        {
+            var abono = ServicioAbono.Estado(l, ahora);
+            var idDueno = vinculos
+                .Where(v => v.IdLocal == l.IdLocal)
+                .Select(v => usuarios.FirstOrDefault(u => u.Id == v.IdUsuario && u.Rol == Roles.Dueno))
+                .FirstOrDefault(u => u != null);
+            var dueno = idDueno;
+            var cliente = dueno == null ? "" : string.IsNullOrWhiteSpace(dueno.Nombre) ? dueno.NombreUsuario : dueno.Nombre;
+            return new
+            {
+                l.IdLocal,
+                l.Nombre,
+                l.Activo,
+                cliente,
+                abono.Estado,
+                abono.Vence,
+                empleados = ServicioAdmin.Empleados(pares, l.IdLocal)
+            };
+        })
+    });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/admin/locales", async (AltaLocalAdminPedido pedido, AppDbContext db, SesionActual sesion, PasswordHasher<Usuario> hasher) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    try
+    {
+        Usuario? nuevo = null;
+        Usuario dueno;
+        var yaTieneLocal = false;
+        if (pedido.IdDueno > 0)
+        {
+            dueno = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == pedido.IdDueno) ?? throw new ErrorNegocio("Elegí un dueño.");
+            ServicioAdmin.ValidarDueno(dueno.Rol);
+            yaTieneLocal = await db.UsuarioLocales.AnyAsync(x => x.IdUsuario == dueno.Id);
+        }
+        else
+        {
+            nuevo = ServicioAdmin.NuevoDueno(pedido.NombreDueno, pedido.Email, pedido.NombreUsuario, pedido.ClaveDueno);
+            if (await db.Usuarios.AnyAsync(u => u.NombreUsuario == nuevo.NombreUsuario || (nuevo.Email != "" && u.Email == nuevo.Email)))
+                return Results.Conflict("Ya existe una cuenta con ese usuario o mail.");
+            nuevo.HashClave = hasher.HashPassword(nuevo, pedido.ClaveDueno);
+            dueno = nuevo;
+        }
+
+        var local = ServicioAdmin.AltaLocal(pedido.Nombre, DateTimeOffset.UtcNow, yaTieneLocal);
+        await using var transaccion = await db.Database.BeginTransactionAsync();
+        if (nuevo != null) db.Usuarios.Add(nuevo);
+        db.Locales.Add(local);
+        await db.SaveChangesAsync();
+        db.UsuarioLocales.Add(new UsuarioLocal { IdUsuario = dueno.Id, IdLocal = local.IdLocal });
+        db.MetodosPago.AddRange(ServicioRegistro.MediosIniciales.Select(m => new MetodoPago { IdLocal = local.IdLocal, Descripcion = m }));
+        var copiados = await CopiarCatalogoAlLocal(db, dueno.Id, local.IdLocal, pedido, sesion.NombreUsuario ?? "admin");
+        await db.SaveChangesAsync();
+        await transaccion.CommitAsync();
+        return Results.Created($"/admin/locales/{local.IdLocal}", new { local.IdLocal, local.Nombre, dueno.Id, cantidadProductos = copiados });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/admin/locales/{idLocal:int}/vencimiento", async (int idLocal, VencimientoAdminPedido pedido, AppDbContext db, SesionActual sesion, IConfiguration config) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    var local = await db.Locales.FirstOrDefaultAsync(l => l.IdLocal == idLocal);
+    if (local == null) return Results.NotFound();
+    try
+    {
+        ServicioAdmin.ValidarClaveSecreta(pedido.Clave, config["Admin:Clave"]);
+        ServicioAdmin.CambiarVencimiento(local, ServicioAdmin.InterpretarVencimiento(pedido.Vence));
+        await db.SaveChangesAsync();
+        return Results.Ok(new { local.IdLocal, local.Vence });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/admin/locales/{idLocal:int}/desactivar", async (int idLocal, ClaveAdminPedido pedido, AppDbContext db, SesionActual sesion, IConfiguration config) =>
+    await CambiarActivoLocal(idLocal, false, pedido, db, sesion, config)).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/admin/locales/{idLocal:int}/activar", async (int idLocal, ClaveAdminPedido pedido, AppDbContext db, SesionActual sesion, IConfiguration config) =>
+    await CambiarActivoLocal(idLocal, true, pedido, db, sesion, config)).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/admin/ventas/telefono", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    var telefono = await TelefonoVentas(db);
+    return Results.Ok(new { telefono = ServicioAdmin.MostrarTelefono(telefono) });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPut("/admin/ventas/telefono", async (TelefonoVentasPedido pedido, AppDbContext db, SesionActual sesion, IConfiguration config) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    try
+    {
+        ServicioAdmin.ValidarClaveSecreta(pedido.Clave, config["Admin:Clave"]);
+        var valor = ServicioAdmin.GuardarTelefonoVentas(pedido.Telefono);
+        var email = ServicioAdmin.GuardarEmailVentas(pedido.Email);
+        await GuardarAjuste(db, Ajuste.TelefonoVentas, valor);
+        await GuardarAjuste(db, Ajuste.EmailVentas, email);
+        await db.SaveChangesAsync();
+        return Results.Ok(new { telefono = ServicioAdmin.MostrarTelefono(valor), email });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/ventas/contacto", async (AppDbContext db) =>
+{
+    var telefono = await TelefonoVentas(db);
+    return Results.Ok(new
+    {
+        telefono = ServicioAdmin.MostrarTelefono(telefono),
+        url = UrlContacto(telefono),
+        email = await EmailVentas(db),
+        formularioActivo = await FormularioContactoActivo(db)
+    });
+}).RequireRateLimiting("api");
+
+app.MapPost("/ventas/contacto", async (MensajeContactoPedido pedido, AppDbContext db) =>
+{
+    if (!string.IsNullOrEmpty(pedido.Sitio)) return Results.Ok();
+    if (!await FormularioContactoActivo(db))
+        return Results.BadRequest("El formulario de contacto está desactivado.");
+    try
+    {
+        var mensaje = ServicioContacto.Nuevo(pedido.Nombre, pedido.Correo, pedido.Mensaje, DateTimeOffset.UtcNow);
+        db.MensajesContacto.Add(mensaje);
+        await db.SaveChangesAsync();
+        return Results.Created($"/ventas/contacto/{mensaje.Id}", new { enviado = true });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireRateLimiting("contacto");
+
+app.MapGet("/admin/contacto", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    await PurgarMensajesLeidos(db);
+    var mensajes = await db.MensajesContacto.AsNoTracking()
+        .OrderBy(m => m.Leido != null)
+        .ThenByDescending(m => m.Creado)
+        .Take(maxPagina)
+        .ToListAsync();
+    return Results.Ok(new
+    {
+        activo = await FormularioContactoActivo(db),
+        items = mensajes.Select(m => new
+        {
+            m.Id,
+            m.Nombre,
+            m.Correo,
+            m.Mensaje,
+            m.Creado,
+            m.Leido,
+            vence = m.Leido?.AddDays(ServicioContacto.DiasHastaBorrar)
+        })
+    });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/admin/contacto/{id:int}/leido", async (int id, AppDbContext db, SesionActual sesion) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    var mensaje = await db.MensajesContacto.FirstOrDefaultAsync(m => m.Id == id);
+    if (mensaje == null) return Results.NotFound();
+    ServicioContacto.MarcarLeido(mensaje, DateTimeOffset.UtcNow);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { mensaje.Id, mensaje.Leido, vence = mensaje.Leido?.AddDays(ServicioContacto.DiasHastaBorrar) });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPut("/admin/contacto", async (FormularioContactoPedido pedido, AppDbContext db, SesionActual sesion, IConfiguration config) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    try
+    {
+        ServicioAdmin.ValidarClaveSecreta(pedido.Clave, config["Admin:Clave"]);
+        await GuardarAjuste(db, Ajuste.FormularioContacto, pedido.Activo ? "1" : "0");
+        await db.SaveChangesAsync();
+        return Results.Ok(new { activo = pedido.Activo });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/admin/usuarios/{id:int}/admin", async (int id, ClaveAdminPedido pedido, AppDbContext db, SesionActual sesion, IConfiguration config) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
+    if (usuario == null) return Results.NotFound();
+    if (usuario.Rol == Roles.Admin) return Results.BadRequest("Ese usuario ya es administrador.");
+    try
+    {
+        ServicioAdmin.ValidarClaveSecreta(pedido.Clave, config["Admin:Clave"]);
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+    usuario.Rol = Roles.Admin;
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/admin/usuarios/{id:int}/clave", async (int id, CambioClaveAdminPedido pedido, AppDbContext db, SesionActual sesion, PasswordHasher<Usuario> hasher, IConfiguration config) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
+    if (usuario == null) return Results.NotFound();
+    try
+    {
+        var clave = ServicioAdmin.ValidarCambioClave(usuario.Rol, pedido.Clave, pedido.ClaveSecreta, config["Admin:Clave"]);
+        usuario.HashClave = hasher.HashPassword(usuario, clave);
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/admin/usuarios/{id:int}/bloquear", async (int id, ClaveAdminPedido pedido, AppDbContext db, SesionActual sesion, IConfiguration config) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    if (sesion.IdUsuario == null) return Results.Unauthorized();
+    var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
+    if (usuario == null) return Results.NotFound();
+    var otros = await db.Usuarios.CountAsync(u => u.Rol == Roles.Admin && u.Activo && u.Id != id);
+    try
+    {
+        ServicioAdmin.ValidarClaveSecreta(pedido.Clave, config["Admin:Clave"]);
+        ServicioAdmin.AsegurarAdminRestante(usuario.Rol, otros);
+        ServicioAdmin.Bloquear(usuario, sesion.IdUsuario.Value);
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapDelete("/admin/usuarios/{id:int}", async (int id, [FromBody] ClaveAdminPedido pedido, AppDbContext db, SesionActual sesion, IConfiguration config) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    if (sesion.IdUsuario == null) return Results.Unauthorized();
+    var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
+    if (usuario == null) return Results.NotFound();
+    var otros = await db.Usuarios.CountAsync(u => u.Rol == Roles.Admin && u.Activo && u.Id != id);
+    try
+    {
+        ServicioAdmin.ValidarClaveSecreta(pedido.Clave, config["Admin:Clave"]);
+        ServicioAdmin.ValidarEliminar(sesion.IdUsuario.Value, id);
+        ServicioAdmin.AsegurarAdminRestante(usuario.Rol, otros);
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+    var vinculos = await db.UsuarioLocales.Where(x => x.IdUsuario == id).ToListAsync();
+    db.UsuarioLocales.RemoveRange(vinculos);
+    db.Usuarios.Remove(usuario);
     await db.SaveChangesAsync();
     return Results.NoContent();
 }).RequireAuthorization().RequireRateLimiting("api");
@@ -1492,13 +1976,25 @@ app.MapGet("/estadisticas", async (
             return decimal.TryParse(conf?.Valor, out var u) && u >= 0 ? u : 5m;
         });
 
+    var configsFactor = await db.Configuracion
+        .IgnoreQueryFilters()
+        .Where(c => localesObjetivo.Contains(c.IdLocal)
+            && (c.Clave == "FactorGananciaSector" || c.Clave == "FactorGananciaGenerico"))
+        .ToListAsync();
+    var factoresPorLocal = localesObjetivo.ToDictionary(
+        id => id,
+        id => new FactoresGananciaLibre(
+            FactorLibre(configsFactor, id, "FactorGananciaSector"),
+            FactorLibre(configsFactor, id, "FactorGananciaGenerico")));
+
     var resumen = ServicioEstadisticas.Calcular(
         ventasPeriodo,
         ventasHoy,
         productos,
         grupos,
         locales,
-        umbralesPorLocal);
+        umbralesPorLocal,
+        factoresPorLocal: factoresPorLocal);
 
     return Results.Ok(new
     {
@@ -1801,6 +2297,68 @@ app.MapPost("/cajas/cerrar", async (CerrarCajaPedido pedido, AppDbContext db, Se
 
 app.Run();
 
+static async Task<int> CopiarCatalogoAlLocal(AppDbContext db, int idDueno, int idLocalDestino, AltaLocalAdminPedido pedido, string usuario)
+{
+    if (pedido.IdLocalOrigen <= 0) return 0;
+    var propio = await db.UsuarioLocales.AnyAsync(x => x.IdUsuario == idDueno && x.IdLocal == pedido.IdLocalOrigen);
+    if (!propio) throw new ErrorNegocio("Ese local no es de este dueño.");
+
+    var idOrigen = pedido.IdLocalOrigen;
+    var grupos = await db.GrupoProductos.IgnoreQueryFilters().Where(g => g.IdLocal == idOrigen).ToListAsync();
+    var proveedores = await db.Proveedores.IgnoreQueryFilters().Where(p => p.IdLocal == idOrigen).ToListAsync();
+    var productos = await db.Productos.IgnoreQueryFilters().Where(p => p.IdLocal == idOrigen).ToListAsync();
+    var copia = ServicioAdmin.CopiarCatalogo(grupos, proveedores, productos, idLocalDestino, pedido.CopiarStock, DateTimeOffset.UtcNow, usuario);
+    db.GrupoProductos.AddRange(copia.Grupos);
+    db.Proveedores.AddRange(copia.Proveedores);
+    await db.SaveChangesAsync();
+    foreach (var item in copia.Productos)
+    {
+        if (copia.GrupoPorIdOrigen.TryGetValue(item.IdGrupoOrigen, out var grupo))
+            item.Producto.IdGrupoProducto = grupo.IdGrupoProducto;
+        if (copia.ProveedorPorIdOrigen.TryGetValue(item.IdProveedorOrigen, out var proveedor))
+            item.Producto.IdProveedor = proveedor.Id;
+        db.Productos.Add(item.Producto);
+    }
+    return copia.Productos.Count;
+}
+
+static async Task<IResult> EmitirPagoContratacion(Local local, AppDbContext db, ClienteMercadoPago mp, ILoggerFactory logs, IConfiguration config)
+{
+    var ahora = DateTimeOffset.UtcNow;
+    var vigente = await PreferenciaContratacion(db, local.IdLocal, ahora);
+    if (vigente != null) return Results.Ok(new { local.IdLocal, local.Nombre, urlPago = vigente.UrlPago });
+
+    var abono = ServicioAbono.NuevoAbono(local.IdLocal, Abono.OrigenMp, ahora);
+    db.Abonos.Add(abono);
+    await db.SaveChangesAsync();
+    try
+    {
+        var web = config["App:UrlWeb"];
+        if (string.IsNullOrWhiteSpace(web)) throw new InvalidOperationException("Falta App:UrlWeb.");
+        var preferencia = await mp.CrearPreferencia(abono, local.Nombre, $"{web.TrimEnd('/')}/locales");
+        abono.IdPreferenciaMp = preferencia.Id;
+        abono.UrlPago = preferencia.UrlPago;
+        await db.SaveChangesAsync();
+        return Results.Ok(new { local.IdLocal, local.Nombre, urlPago = abono.UrlPago });
+    }
+    catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
+    {
+        logs.CreateLogger("MercadoPago").LogError(ex, "No se pudo crear la preferencia del local {IdLocal}", local.IdLocal);
+        abono.Estado = Abono.Rechazado;
+        await db.SaveChangesAsync();
+        return Results.Json(ErrorMercadoPago, statusCode: StatusCodes.Status502BadGateway);
+    }
+}
+
+static async Task<Abono?> PreferenciaContratacion(AppDbContext db, int idLocal, DateTimeOffset ahora)
+{
+    var desde = ahora.AddMinutes(-30);
+    return await db.Abonos.IgnoreQueryFilters()
+        .Where(a => a.IdLocal == idLocal && a.Estado == Abono.Pendiente && a.Origen == Abono.OrigenMp && a.UrlPago != null && a.FechaCreacion > desde)
+        .OrderByDescending(a => a.FechaCreacion)
+        .FirstOrDefaultAsync();
+}
+
 static async Task<Abono?> AbonoPendiente(AppDbContext db, DateTimeOffset ahora)
 {
     var desde = ahora.AddMinutes(-30);
@@ -1823,6 +2381,8 @@ static async Task<ConfiguracionLocalPedido> LeerConfiguracionLocal(AppDbContext 
     var defaults = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["FactorGanancia"] = "1",
+        ["FactorGananciaSector"] = "1",
+        ["FactorGananciaGenerico"] = "1",
         ["IVA"] = "1.21",
         ["StockRigido"] = "0",
         ["UmbralStockBajo"] = "5",
@@ -1842,6 +2402,8 @@ static async Task<ConfiguracionLocalPedido> LeerConfiguracionLocal(AppDbContext 
     {
         NombreLocal = local.Nombre,
         FactorGanancia = DecimalConfig(valores["FactorGanancia"], 1),
+        FactorGananciaSector = DecimalConfig(valores["FactorGananciaSector"], 1),
+        FactorGananciaGenerico = DecimalConfig(valores["FactorGananciaGenerico"], 1),
         Iva = DecimalConfig(valores["IVA"], 1.21m),
         StockRigido = BoolConfig(valores["StockRigido"]),
         UmbralStockBajo = DecimalConfig(valores["UmbralStockBajo"], 5),
@@ -1881,6 +2443,86 @@ static async Task<List<Producto>> ProductosPorCodigo(AppDbContext db, IEnumerabl
 {
     var codigos = filas.Select(f => f.Codigo.Trim()).Where(c => c.Length > 0).Distinct().ToList();
     return await db.Productos.Where(p => codigos.Contains(p.Codigo)).ToListAsync();
+}
+
+static async Task<string> TelefonoVentas(AppDbContext db) =>
+    await db.Ajustes.AsNoTracking()
+        .Where(a => a.Clave == Ajuste.TelefonoVentas)
+        .Select(a => a.Valor)
+        .FirstOrDefaultAsync() ?? "";
+
+static async Task<bool> FormularioContactoActivo(AppDbContext db)
+{
+    var valor = await db.Ajustes.AsNoTracking()
+        .Where(a => a.Clave == Ajuste.FormularioContacto)
+        .Select(a => a.Valor)
+        .FirstOrDefaultAsync();
+    return ServicioContacto.EstaActivo(valor);
+}
+
+static async Task PurgarMensajesLeidos(AppDbContext db)
+{
+    var ahora = DateTimeOffset.UtcNow;
+    var limite = ahora.AddDays(-ServicioContacto.DiasHastaBorrar);
+    var vencidos = await db.MensajesContacto.Where(m => m.Leido != null && m.Leido <= limite).ToListAsync();
+    if (vencidos.Count == 0) return;
+    db.MensajesContacto.RemoveRange(vencidos);
+    await db.SaveChangesAsync();
+}
+
+static async Task<string> EmailVentas(AppDbContext db) =>
+    await db.Ajustes.AsNoTracking()
+        .Where(a => a.Clave == Ajuste.EmailVentas)
+        .Select(a => a.Valor)
+        .FirstOrDefaultAsync() ?? ServicioAdmin.EmailVentasGenerico;
+
+static async Task AsegurarEmailVentas(AppDbContext db)
+{
+    if (await db.Ajustes.AnyAsync(a => a.Clave == Ajuste.EmailVentas)) return;
+    db.Ajustes.Add(new Ajuste { Clave = Ajuste.EmailVentas, Valor = ServicioAdmin.EmailVentasGenerico });
+    await db.SaveChangesAsync();
+}
+
+static async Task GuardarAjuste(AppDbContext db, string clave, string valor)
+{
+    var ajuste = await db.Ajustes.FirstOrDefaultAsync(a => a.Clave == clave);
+    if (ajuste == null)
+        db.Ajustes.Add(new Ajuste { Clave = clave, Valor = valor });
+    else
+        ajuste.Valor = valor;
+}
+
+static async Task AsegurarTelefonoVentas(AppDbContext db, string? configurado)
+{
+    if (await db.Ajustes.AnyAsync(a => a.Clave == Ajuste.TelefonoVentas)) return;
+    if (string.IsNullOrWhiteSpace(configurado)) return;
+    try
+    {
+        db.Ajustes.Add(new Ajuste { Clave = Ajuste.TelefonoVentas, Valor = ServicioAdmin.GuardarTelefonoVentas(configurado) });
+        await db.SaveChangesAsync();
+    }
+    catch (ErrorNegocio)
+    {
+    }
+}
+
+static async Task<IResult> CambiarActivoLocal(int idLocal, bool activo, ClaveAdminPedido pedido, AppDbContext db, SesionActual sesion, IConfiguration config)
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    var local = await db.Locales.FirstOrDefaultAsync(l => l.IdLocal == idLocal);
+    if (local == null) return Results.NotFound();
+    try
+    {
+        ServicioAdmin.ValidarClaveSecreta(pedido.Clave, config["Admin:Clave"]);
+        if (activo) ServicioAdmin.Activar(local);
+        else ServicioAdmin.Desactivar(local);
+        await db.SaveChangesAsync();
+        return Results.NoContent();
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
 }
 
 static string? UrlContacto(string telefono, string texto = "Hola")
@@ -1945,6 +2587,14 @@ static void GuardarConfiguracion(AppDbContext db, int idLocal, string clave, obj
     };
 }
 
+static decimal FactorLibre(List<Configuracion> filas, int idLocal, string clave)
+{
+    var valor = filas.FirstOrDefault(c => c.IdLocal == idLocal && c.Clave == clave)?.Valor;
+    return decimal.TryParse(valor, NumberStyles.Any, CultureInfo.InvariantCulture, out var factor) && factor > 0
+        ? factor
+        : 1m;
+}
+
 static decimal DecimalConfig(string valor, decimal defecto) =>
     decimal.TryParse(valor, NumberStyles.Any, CultureInfo.InvariantCulture, out var resultado) ? resultado : defecto;
 
@@ -1969,15 +2619,36 @@ static async Task<List<int>> LocalesAccesibles(AppDbContext db, SesionActual ses
     return await db.UsuarioLocales.Where(x => x.IdUsuario == sesion.IdUsuario).Select(x => x.IdLocal).ToListAsync();
 }
 
-static async Task<bool> PerteneceAlLocal(AppDbContext db, int idUsuario, int idLocal) =>
-    await db.UsuarioLocales.AnyAsync(x => x.IdUsuario == idUsuario && x.IdLocal == idLocal);
+static async Task<List<int>> LocalesDeLaCuenta(AppDbContext db, SesionActual sesion)
+{
+    if (sesion.IdUsuario == null) return [];
+    var vinculos = await db.UsuarioLocales.AsNoTracking()
+        .Select(x => new { x.IdUsuario, x.IdLocal })
+        .ToListAsync();
+    var usuarios = await db.Usuarios.AsNoTracking()
+        .Select(u => new { u.Id, u.Rol })
+        .ToListAsync();
+    var ids = ServicioUsuarios.LocalesDeLaCuenta(
+        sesion.IdUsuario.Value,
+        sesion.Rol ?? "",
+        vinculos.Select(v => (v.IdUsuario, v.IdLocal)),
+        usuarios.Select(u => (u.Id, u.Rol))).ToList();
+    return await db.Locales.AsNoTracking()
+        .Where(l => ids.Contains(l.IdLocal) && l.Activo)
+        .Select(l => l.IdLocal)
+        .ToListAsync();
+}
+
+static async Task<bool> EstaEnLaCuenta(AppDbContext db, int idUsuario, IReadOnlyCollection<int> locales) =>
+    await db.UsuarioLocales.AnyAsync(x => x.IdUsuario == idUsuario && locales.Contains(x.IdLocal));
 
 static async Task<IResult> CambiarEstadoUsuario(int id, bool activo, AppDbContext db, SesionActual sesion)
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     if (sesion.IdUsuario == id) return Results.BadRequest("No podés desactivar tu propio usuario.");
     var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
-    if (usuario == null || !await PerteneceAlLocal(db, id, sesion.IdLocal.Value)) return Results.NotFound();
+    var locales = await LocalesDeLaCuenta(db, sesion);
+    if (usuario == null || !await EstaEnLaCuenta(db, id, locales)) return Results.NotFound();
     if (!PuedeEditarUsuario(sesion.Rol, usuario.Rol, usuario.Rol)) return Results.Forbid();
     usuario.Activo = activo;
     await db.SaveChangesAsync();

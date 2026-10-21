@@ -101,6 +101,10 @@ interface OpcionMes {
     @if (pestana === 'dia') {
       <div class="kpis">
         <div class="panel kpi">
+          <div class="n">{{ dinero(resumen.gananciaDelDia) }}</div>
+          <div class="l">Ganancia estimada de hoy</div>
+        </div>
+        <div class="panel kpi">
           <div class="n">{{ totalUnidadesDia() }}</div>
           <div class="l">Unidades vendidas hoy</div>
         </div>
@@ -431,6 +435,7 @@ export class EstadisticasComponent implements OnInit {
     ticketPromedio: 0,
     margenEstimado: 0,
     porcentajeMargen: 0,
+    gananciaDelDia: 0,
     topPorUnidades: [],
     topPorDinero: [],
     mixMediosPago: [],
@@ -536,6 +541,7 @@ export class EstadisticasComponent implements OnInit {
           ticketPromedio: 0,
           margenEstimado: 0,
           porcentajeMargen: 0,
+          gananciaDelDia: 0,
           topPorUnidades: [],
           topPorDinero: [],
           mixMediosPago: [],

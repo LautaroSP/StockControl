@@ -9,8 +9,8 @@ El dueño **no** arma una sucursal vacía. Paga **otro** abono de $ 14.999 (QR) 
 
 ## Criterios de aceptación
 
-- [ ] En la cuenta: “Contratar otro local”.
-- [ ] Mismo flujo que el primero: QR $ 14.999 → local al día, o “¿No tenés Mercado Pago? Contactá a ventas”.
-- [ ] En trial no se puede contratar el segundo local (hay que pagar el primero o esperar a ser cliente).
-- [ ] Hasta que el pago esté acreditado (QR o marca admin), no opera esa sucursal.
-- [ ] Texto claro: se factura por local, no por empleado.
+- [x] En la cuenta: “Contratar otro local”.
+- [x] Mismo flujo que el primero: QR $ 14.999 → local al día, o “¿No tenés Mercado Pago? Contactá a ventas”.
+- [x] Se puede contratar aunque el primero siga en prueba. El local nuevo no incluye los 7 días: nace pendiente de pago.
+- [x] Hasta que el pago esté acreditado (QR o marca admin), no opera esa sucursal.
+- [x] Texto claro: se factura por local, no por empleado.

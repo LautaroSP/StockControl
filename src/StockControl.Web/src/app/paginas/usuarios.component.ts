@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ApiService, LocalDto, UsuarioDto } from '../servicios/api.service';
+import { ApiService, UsuarioDto } from '../servicios/api.service';
+import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
 
 @Component({
@@ -15,7 +16,7 @@ import { SesionService } from '../servicios/sesion.service';
     @if (error) { <p class="error">{{ error }}</p> }
     <section class="panel">
       @if (!cargando && usuarios.length === 0) {
-        <p class="meta">No hay usuarios asignados a este local.</p>
+        <p class="meta">No hay usuarios.</p>
       }
       <table class="data">
         <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Locales</th><th>Estado</th><th></th></tr></thead>
@@ -47,8 +48,8 @@ import { SesionService } from '../servicios/sesion.service';
     <div class="modal-back" [class.show]="formAbierto">
       <div class="modal">
         <h2 style="margin:0 0 8px;font-size:18px">{{ editando ? 'Editar usuario' : 'Nuevo usuario' }}</h2>
-        <label class="field">Nombre <input class="wide" [(ngModel)]="form.nombre" /></label>
-        <label class="field">Usuario <input class="wide" [(ngModel)]="form.nombreUsuario" [disabled]="!!editando" /></label>
+        <label class="field">Nombre <input class="wide" type="text" [(ngModel)]="form.nombre" /></label>
+        <label class="field">Usuario <input class="wide" type="text" [(ngModel)]="form.nombreUsuario" [disabled]="!!editando" /></label>
         @if (!editando) {
           <label class="field">Clave inicial <input class="wide" type="password" [(ngModel)]="form.clave" /></label>
         }
@@ -58,7 +59,7 @@ import { SesionService } from '../servicios/sesion.service';
             @if (sesion.esDuenoTitular()) { <option value="socio">Socio</option> }
           </select>
         </label>
-        <p class="meta">Locales asignados</p>
+        <p class="meta">Locales de la cuenta. El usuario puede entrar a uno o a varios.</p>
         @for (local of locales; track local.idLocal) {
           <label class="check">
             <input type="checkbox" [checked]="form.idsLocal.includes(local.idLocal)" (change)="alternarLocal(local.idLocal, $event)" />
@@ -75,24 +76,27 @@ import { SesionService } from '../servicios/sesion.service';
 })
 export class UsuariosComponent implements OnInit {
   usuarios: UsuarioDto[] = [];
-  locales: LocalDto[] = [];
+  locales: { idLocal: number; nombre: string }[] = [];
   formAbierto = false;
   cargando = false;
   error = '';
   editando: UsuarioDto | null = null;
   form = this.formulario();
 
-  constructor(readonly api: ApiService, readonly sesion: SesionService) {}
+  constructor(readonly api: ApiService, readonly sesion: SesionService, private readonly dialogo: DialogoService) {}
 
   ngOnInit(): void {
     this.cargar();
-    this.api.locales().subscribe({ next: (r) => (this.locales = r.items), error: () => (this.error = 'No se pudieron cargar los locales.') });
   }
 
   cargar(): void {
     this.cargando = true;
     this.api.usuarios().subscribe({
-      next: (r) => { this.usuarios = r; this.cargando = false; },
+      next: (r) => {
+        this.usuarios = r.usuarios;
+        this.locales = r.locales;
+        this.cargando = false;
+      },
       error: (e) => { this.error = this.mensaje(e, 'No se pudieron cargar los usuarios.'); this.cargando = false; }
     });
   }
@@ -137,16 +141,16 @@ export class UsuariosComponent implements OnInit {
     });
   }
 
-  cambiarEstado(usuario: UsuarioDto, activo: boolean): void {
-    if (!activo && !confirm(`¿Desactivar a ${usuario.nombre}?`)) return;
+  async cambiarEstado(usuario: UsuarioDto, activo: boolean): Promise<void> {
+    if (!activo && !await this.dialogo.confirmar(`¿Desactivar a ${usuario.nombre}?`)) return;
     this.api.cambiarEstadoUsuario(usuario.id, activo).subscribe({
       next: () => this.cargar(),
       error: (e) => (this.error = this.mensaje(e, 'No se pudo cambiar el estado.'))
     });
   }
 
-  resetearClave(usuario: UsuarioDto): void {
-    const clave = prompt(`Nueva clave para ${usuario.nombre}`);
+  async resetearClave(usuario: UsuarioDto): Promise<void> {
+    const clave = await this.dialogo.pedir(`Nueva clave para ${usuario.nombre}`, '', true);
     if (!clave) return;
     this.api.resetearClaveUsuario(usuario.id, clave).subscribe({
       next: () => (this.error = ''),

@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService, OrdenCompraDto } from '../servicios/api.service';
+import { DialogoService } from '../servicios/dialogo.service';
 
 interface FilaRecepcion {
   idLinea: number;
@@ -72,7 +73,7 @@ export class RecibirOrdenComponent implements OnInit {
   guardando = false;
   error = '';
 
-  constructor(private readonly api: ApiService) {}
+  constructor(private readonly api: ApiService, private readonly dialogo: DialogoService) {}
 
   ngOnInit(): void {
     this.api.ordenCompra(this.idOrden).subscribe({
@@ -90,12 +91,12 @@ export class RecibirOrdenComponent implements OnInit {
     });
   }
 
-  confirmar(): void {
+  async confirmar(): Promise<void> {
     if (this.filas.some((f) => f.recibida === null || !(Number(f.recibida) >= 0))) {
       this.error = 'La cantidad recibida no puede ser negativa ni quedar vacía.';
       return;
     }
-    if (!confirm('Se suma al stock lo recibido y la orden queda cerrada. ¿Confirmar?')) return;
+    if (!await this.dialogo.confirmar('Se suma al stock lo recibido y la orden queda cerrada. ¿Confirmar?')) return;
     this.guardando = true;
     this.error = '';
     const lineas = this.filas.map((f) => ({ idLinea: f.idLinea, cantidad: Number(f.recibida) }));

@@ -131,6 +131,60 @@ public class ServicioEstadisticasTests
     }
 
     [Fact]
+    public void Ganancia_del_dia_de_sector_y_generico_usa_el_factor_del_local()
+    {
+        var sector = CrearProducto(1, 1, "FIAMBRE", "Fiambre", 0, 0, sector: true);
+        var hoy = new List<InformeVenta>
+        {
+            CrearVenta(1, 1, 2500, detalles: new List<InformeVentaDetalle>
+            {
+                new() { Codigo = "FIAMBRE", Nombre = "Fiambre", Cantidad = 1, Precio = 1500, SubTotal = 1500 },
+                new() { Codigo = "GENERIC-1", Nombre = "Varios", Cantidad = 1, Precio = 1000, SubTotal = 1000 }
+            })
+        };
+        var factores = new Dictionary<int, FactoresGananciaLibre>
+        {
+            [1] = new(Sector: 1.5m, Generico: 2m)
+        };
+
+        var res = ServicioEstadisticas.Calcular(hoy, hoy, [sector], [], [CrearLocal(1, "Central")], factoresPorLocal: factores);
+
+        // 1500 − 1500/1.5 = 500; 1000 − 1000/2 = 500
+        Assert.Equal(1000, res.GananciaDelDia);
+        Assert.Equal(1000, res.MargenEstimado);
+    }
+
+    [Fact]
+    public void Sector_con_costo_usa_el_costo_y_no_el_factor()
+    {
+        var sector = CrearProducto(1, 1, "FIAMBRE", "Fiambre", 0, 0, sector: true);
+        var venta = CrearVenta(1, 1, 1500, detalles: new List<InformeVentaDetalle>
+        {
+            new() { Codigo = "FIAMBRE", Nombre = "Fiambre", Cantidad = 1, Precio = 1500, Costo = 900, SubTotal = 1500 }
+        });
+        var factores = new Dictionary<int, FactoresGananciaLibre> { [1] = new(3, 3) };
+
+        var res = ServicioEstadisticas.Calcular([venta], [venta], [sector], [], [CrearLocal(1, "Central")], factoresPorLocal: factores);
+
+        Assert.Equal(600, res.GananciaDelDia);
+    }
+
+    [Fact]
+    public void Factor_en_uno_no_estima_ganancia_de_precio_libre()
+    {
+        var sector = CrearProducto(1, 1, "FIAMBRE", "Fiambre", 0, 0, sector: true);
+        var venta = CrearVenta(1, 1, 1500, detalles: new List<InformeVentaDetalle>
+        {
+            new() { Codigo = "FIAMBRE", Nombre = "Fiambre", Cantidad = 1, Precio = 1500, SubTotal = 1500 }
+        });
+
+        var res = ServicioEstadisticas.Calcular([venta], [venta], [sector], [], [CrearLocal(1, "Central")]);
+
+        Assert.Equal(0, res.GananciaDelDia);
+        Assert.Equal(0, res.MargenEstimado);
+    }
+
+    [Fact]
     public void Estadisticas_mix_de_pagos_calcula_totales_y_porcentajes()
     {
         var v1 = CrearVenta(1, 1, 1000, pagos: new List<PagoVenta>

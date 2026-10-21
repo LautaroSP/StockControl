@@ -45,6 +45,8 @@ Se paga **$ 14.999 / mes por local** (Argentina). El dueño **no** da de alta lo
 | 20 | [Configuración del local](20-configuracion-del-local.md) | dueño |
 | 21 | [Pasarela de pagos (QR MP / Posnet)](21-pasarela-pagos-qr.md) | dueño (vincula), empleado (cobra) — **última** |
 | 23 | [Modo oscuro](23-modo-oscuro.md) | todos — UI |
+| 28 | [Landing](28-landing.md) | visitante — sitio público |
+| 29 | [Tienda online](29-tienda-online.md) | dueño, comprador — pedidos online con 5 % de gestión |
 
 \*El empleado ve lo necesario para operar (ventas del día / reimprimir). No borra ventas ni ve costo.
 

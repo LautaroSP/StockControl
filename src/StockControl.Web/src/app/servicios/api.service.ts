@@ -18,9 +18,63 @@ export interface ProductoDto {
   puedeModificarPrecio?: boolean;
 }
 
-export type EstadoAbono = 'trial' | 'al_dia' | 'por_vencer' | 'vencido';
+export type EstadoAbono = 'pendiente' | 'trial' | 'al_dia' | 'por_vencer' | 'vencido';
 
 export type EstadoDebito = '' | 'pendiente' | 'activa' | 'pausada' | 'cancelada';
+
+export interface LocalAdminDto {
+  idLocal: number;
+  nombre: string;
+  estado: EstadoAbono;
+  vence: string | null;
+}
+
+export interface UsuarioAdminDto {
+  id: number;
+  nombre: string;
+  nombreUsuario: string;
+  email: string;
+  rol: string;
+  activo: boolean;
+  locales: LocalAdminDto[];
+}
+
+export interface LocalPlataformaDto {
+  idLocal: number;
+  nombre: string;
+  activo: boolean;
+  cliente: string;
+  estado: string;
+  vence: string | null;
+  empleados: number;
+}
+
+export interface MensajeContactoDto {
+  id: number;
+  nombre: string;
+  correo: string;
+  mensaje: string;
+  creado: string;
+  leido: string | null;
+  vence: string | null;
+}
+
+export interface ResumenLocalesAdmin {
+  totalMes: number;
+  precioMensual: number;
+  localesPagos: number;
+  telefono: string;
+  email: string;
+  items: LocalPlataformaDto[];
+}
+
+export interface UsuarioCreadoDto {
+  id: number;
+  nombre: string;
+  nombreUsuario: string;
+  rol: string;
+  activo: boolean;
+}
 
 export interface LocalDto {
   idLocal: number;
@@ -67,6 +121,8 @@ export interface ItemVenta {
 export interface ConfiguracionLocalDto {
   nombreLocal: string;
   factorGanancia: number;
+  factorGananciaSector: number;
+  factorGananciaGenerico: number;
   iva: number;
   stockRigido: boolean;
   umbralStockBajo: number;
@@ -119,6 +175,94 @@ export class ApiService {
     return this.http.get<{ totalMensual: number; precioMensual: number; items: LocalDto[] }>(`${this.base}/locales`);
   }
 
+  contratarLocal(nombre: string) {
+    return this.http.post<{ idLocal: number; nombre: string; urlPago: string }>(`${this.base}/locales/contratar`, { nombre });
+  }
+
+  pagarContratacion(idLocal: number) {
+    return this.http.post<{ idLocal: number; nombre: string; urlPago: string }>(`${this.base}/locales/${idLocal}/contratar/pago`, {});
+  }
+
+  usuariosAdmin() {
+    return this.http.get<UsuarioAdminDto[]>(`${this.base}/admin/usuarios`);
+  }
+
+  usuariosDelDueno(id: number) {
+    return this.http.get<UsuarioCreadoDto[]>(`${this.base}/admin/usuarios/${id}/creados`);
+  }
+
+  localesAdmin() {
+    return this.http.get<ResumenLocalesAdmin>(`${this.base}/admin/locales`);
+  }
+
+  altaLocalAdmin(idUsuario: number, nombre: string) {
+    return this.http.post(`${this.base}/admin/usuarios/${idUsuario}/locales`, { nombre });
+  }
+
+  altaLocalConDueno(pedido: { nombre: string; idDueno: number; nombreDueno: string; email: string; nombreUsuario: string; claveDueno: string; idLocalOrigen: number; copiarStock: boolean }) {
+    return this.http.post<{ idLocal: number; nombre: string; cantidadProductos: number }>(`${this.base}/admin/locales`, pedido);
+  }
+
+  marcarPagoAdmin(idLocal: number, clave: string, canal: string) {
+    return this.http.post<{ idLocal: number; estado: string; vence: string }>(`${this.base}/admin/locales/${idLocal}/pago`, { clave, canal });
+  }
+
+  cambiarVencimientoAdmin(idLocal: number, vence: string, clave: string) {
+    return this.http.post(`${this.base}/admin/locales/${idLocal}/vencimiento`, { vence, clave });
+  }
+
+  desactivarLocal(idLocal: number, clave: string) {
+    return this.http.post(`${this.base}/admin/locales/${idLocal}/desactivar`, { clave });
+  }
+
+  activarLocal(idLocal: number, clave: string) {
+    return this.http.post(`${this.base}/admin/locales/${idLocal}/activar`, { clave });
+  }
+
+  guardarTelefonoVentas(telefono: string, email: string, clave: string) {
+    return this.http.put<{ telefono: string; email: string }>(`${this.base}/admin/ventas/telefono`, { telefono, email, clave });
+  }
+
+  contactoVentas() {
+    return this.http.get<{ telefono: string; url: string | null; email: string; formularioActivo: boolean }>(`${this.base}/ventas/contacto`);
+  }
+
+  enviarContacto(body: { nombre: string; correo: string; mensaje: string; sitio: string }) {
+    return this.http.post(`${this.base}/ventas/contacto`, body);
+  }
+
+  mensajesContacto() {
+    return this.http.get<{ activo: boolean; items: MensajeContactoDto[] }>(`${this.base}/admin/contacto`);
+  }
+
+  marcarContactoLeido(id: number) {
+    return this.http.post<{ id: number; leido: string; vence: string }>(`${this.base}/admin/contacto/${id}/leido`, {});
+  }
+
+  guardarFormularioContacto(activo: boolean, clave: string) {
+    return this.http.put<{ activo: boolean }>(`${this.base}/admin/contacto`, { activo, clave });
+  }
+
+  anularPagoAdmin(idLocal: number, clave: string) {
+    return this.http.post<{ idLocal: number; estado: string; vence: string }>(`${this.base}/admin/locales/${idLocal}/anular-pago`, { clave });
+  }
+
+  hacerAdmin(id: number, clave: string) {
+    return this.http.post(`${this.base}/admin/usuarios/${id}/admin`, { clave });
+  }
+
+  cambiarClaveAdmin(id: number, clave: string, claveSecreta: string) {
+    return this.http.post(`${this.base}/admin/usuarios/${id}/clave`, { clave, claveSecreta });
+  }
+
+  bloquearUsuario(id: number, clave: string) {
+    return this.http.post(`${this.base}/admin/usuarios/${id}/bloquear`, { clave });
+  }
+
+  eliminarUsuario(id: number, clave: string) {
+    return this.http.delete(`${this.base}/admin/usuarios/${id}`, { body: { clave } });
+  }
+
   registrar(pedido: RegistroPedidoDto) {
     return this.http.post<{ token: string; rol: string; nombre: string }>(`${this.base}/registro`, pedido);
   }
@@ -157,7 +301,7 @@ export class ApiService {
   }
 
   usuarios() {
-    return this.http.get<UsuarioDto[]>(`${this.base}/usuarios`);
+    return this.http.get<{ usuarios: UsuarioDto[]; locales: { idLocal: number; nombre: string }[] }>(`${this.base}/usuarios`);
   }
 
   crearUsuario(body: { nombre: string; nombreUsuario: string; rol: string; idsLocal: number[]; clave: string }) {
@@ -722,6 +866,7 @@ export interface ResumenEstadisticasDto {
   ticketPromedio: number;
   margenEstimado: number;
   porcentajeMargen: number;
+  gananciaDelDia: number;
   masVendidoUnidades?: ItemTopProductoDto | null;
   masVendidoDinero?: ItemTopProductoDto | null;
   topPorUnidades: ItemTopProductoDto[];

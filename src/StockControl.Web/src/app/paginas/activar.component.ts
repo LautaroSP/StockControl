@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toDataURL } from 'qrcode';
 import { AbonoDto, ApiService } from '../servicios/api.service';
+import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
 
 const INTERVALO_MS = 3000;
@@ -108,7 +109,8 @@ export class ActivarComponent implements OnInit, OnDestroy {
   constructor(
     private readonly api: ApiService,
     readonly sesion: SesionService,
-    private readonly ruta: ActivatedRoute
+    private readonly ruta: ActivatedRoute,
+    private readonly dialogo: DialogoService
   ) {}
 
   ngOnInit(): void {
@@ -146,8 +148,8 @@ export class ActivarComponent implements OnInit, OnDestroy {
     });
   }
 
-  cancelarDebito(): void {
-    if (!confirm('¿Cancelar el débito automático? El mes ya pagado sigue vigente.')) return;
+  async cancelarDebito(): Promise<void> {
+    if (!await this.dialogo.confirmar('¿Cancelar el débito automático? El mes ya pagado sigue vigente.')) return;
     this.ocupado.set(true);
     this.api.cancelarDebito().subscribe({
       next: () => {

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService, ProveedorFormDto, ProveedorListaDto } from '../servicios/api.service';
+import { DialogoService } from '../servicios/dialogo.service';
 
 @Component({
   selector: 'sc-proveedores',
@@ -56,11 +57,11 @@ import { ApiService, ProveedorFormDto, ProveedorListaDto } from '../servicios/ap
     <div class="modal-back" [class.show]="formAbierto">
       <div class="modal">
         <h2 style="margin:0 0 8px;font-size:18px">{{ editando ? 'Editar proveedor' : 'Nuevo proveedor' }}</h2>
-        <label class="field">Nombre <input class="wide" maxlength="200" [(ngModel)]="form.nombre" /></label>
-        <label class="field">Tipo de productos <input class="wide" maxlength="200" [(ngModel)]="form.tipoProductos" /></label>
+        <label class="field">Nombre <input class="wide" type="text" maxlength="200" [(ngModel)]="form.nombre" /></label>
+        <label class="field">Tipo de productos <input class="wide" type="text" maxlength="200" [(ngModel)]="form.tipoProductos" /></label>
         <label class="field">
           Teléfono WhatsApp
-          <input class="wide" maxlength="30" [(ngModel)]="form.telefono" placeholder="11 1234-5678" />
+          <input class="wide" type="tel" maxlength="30" [(ngModel)]="form.telefono" placeholder="11 1234-5678" />
         </label>
         <p class="meta" style="margin:4px 0 0">Con código de área, sin 0 ni 15. Se agrega el 54 solo.</p>
         @if (errorForm) {
@@ -82,7 +83,7 @@ export class ProveedoresComponent implements OnInit {
   error = '';
   errorForm = '';
 
-  constructor(private readonly api: ApiService) {}
+  constructor(private readonly api: ApiService, private readonly dialogo: DialogoService) {}
 
   ngOnInit(): void {
     this.cargar();
@@ -126,8 +127,8 @@ export class ProveedoresComponent implements OnInit {
     });
   }
 
-  eliminar(p: ProveedorListaDto): void {
-    if (!confirm(`¿Eliminar ${p.nombre}? Si tiene órdenes, queda inactivo.`)) return;
+  async eliminar(p: ProveedorListaDto): Promise<void> {
+    if (!await this.dialogo.confirmar(`¿Eliminar ${p.nombre}? Si tiene órdenes, queda inactivo.`)) return;
     this.api.eliminarProveedor(p.id).subscribe({
       next: () => this.cargar(),
       error: (e) => (this.error = this.mensaje(e))

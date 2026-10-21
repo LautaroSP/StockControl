@@ -17,6 +17,7 @@ public static class ServicioAbono
     public const int DiasAviso = 5;
     public const int DiasGracia = 3;
 
+    public const string Pendiente = "pendiente";
     public const string Trial = "trial";
     public const string AlDia = "al_dia";
     public const string PorVencer = "por_vencer";
@@ -43,6 +44,9 @@ public static class ServicioAbono
 
     public static EstadoAbonoLocal Estado(Local local, DateTimeOffset ahora)
     {
+        if (local.EstadoAbono == Pendiente)
+            return new EstadoAbonoLocal { Estado = Pendiente, Vence = null, Limite = null, DiasRestantes = 0, PuedeOperarCaja = false };
+
         if (Limite(local) is not { } limite || ahora >= limite)
             return new EstadoAbonoLocal { Estado = Vencido, Vence = local.Vence, Limite = Limite(local), DiasRestantes = 0, PuedeOperarCaja = false };
 
@@ -58,6 +62,12 @@ public static class ServicioAbono
     }
 
     public static decimal TotalMensual(int cantidadLocales) => cantidadLocales * PrecioMensual;
+
+    /// <summary>Trial, pendiente y vencido no cuentan como cobrados. Al día y por vencer sí.</summary>
+    public static bool CuentaEnElMes(string estado) => estado is AlDia or PorVencer;
+
+    public static decimal TotalDelMes(IEnumerable<string> estados) =>
+        TotalMensual(estados.Count(CuentaEnElMes));
 
     /// <summary>El mes nuevo arranca desde el vencimiento si sigue vigente (o en gracia); si venció o está en prueba, desde el pago.</summary>
     public static DateTimeOffset VencePorRenovacion(Local local, DateTimeOffset pago)
@@ -79,6 +89,36 @@ public static class ServicioAbono
     {
         if (local.EstadoSuscripcion == DebitoActivo)
             throw new ErrorNegocio("Cancelá el débito automático para pagar este mes.");
+    }
+
+    public static Abono RegistrarPagoAdmin(Local local, DateTimeOffset ahora, string canal)
+    {
+        ValidarPagoManual(local);
+        var abono = NuevoAbono(local.IdLocal, Abono.OrigenAdmin, ahora);
+        abono.Canal = ServicioAdmin.ValidarCanal(canal);
+        abono.EstadoAnterior = local.EstadoAbono;
+        abono.VenceAnterior = local.Vence;
+        abono.VenceNuevo = VencePorRenovacion(local, ahora);
+        abono.Estado = Abono.Aprobado;
+        abono.FechaAcreditacion = ahora;
+        local.EstadoAbono = AlDia;
+        local.Vence = abono.VenceNuevo;
+        return abono;
+    }
+
+    public static void AnularPagoAdmin(Local local, Abono? abono)
+    {
+        ValidarPagoManual(local);
+        if (abono == null || abono.IdLocal != local.IdLocal || abono.Estado != Abono.Aprobado)
+            throw new ErrorNegocio("No hay un pago para anular.");
+        if (abono.Origen != Abono.OrigenAdmin)
+            throw new ErrorNegocio("Ese pago lo hizo Mercado Pago.");
+        if (local.Vence != abono.VenceNuevo)
+            throw new ErrorNegocio("Ese pago ya no es el vigente.");
+
+        abono.Estado = Abono.Anulado;
+        local.Vence = abono.VenceAnterior;
+        local.EstadoAbono = string.IsNullOrEmpty(abono.EstadoAnterior) ? AlDia : abono.EstadoAnterior;
     }
 
     public static void ValidarPagoMp(string estado, string moneda, decimal importe)

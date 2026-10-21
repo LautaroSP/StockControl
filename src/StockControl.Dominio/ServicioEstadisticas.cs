@@ -63,6 +63,7 @@ public class ResumenEstadisticas
     public decimal TicketPromedio { get; set; }
     public decimal MargenEstimado { get; set; }
     public decimal PorcentajeMargen { get; set; }
+    public decimal GananciaDelDia { get; set; }
 
     public ItemTopProducto? MasVendidoUnidades { get; set; }
     public ItemTopProducto? MasVendidoDinero { get; set; }
@@ -85,7 +86,8 @@ public static class ServicioEstadisticas
         IEnumerable<GrupoProductos> grupos,
         IEnumerable<Local> locales,
         IDictionary<int, decimal>? umbralesPorLocal = null,
-        int topN = 20)
+        int topN = 20,
+        IDictionary<int, FactoresGananciaLibre>? factoresPorLocal = null)
     {
         var listaVentas = ventasPeriodo.ToList();
         var listaVentasHoy = ventasHoy.ToList();
@@ -103,24 +105,16 @@ public static class ServicioEstadisticas
             ? Math.Round(resumen.TotalVendido / resumen.CantidadTickets, 2, MidpointRounding.AwayFromZero)
             : 0;
 
-        // 2. Margen estimado
+        // 2. Margen estimado. Sector y genérico sin costo usan el factor del local.
+        var (margen, baseMargen) = SumarGanancia(listaVentas, listaProductos, factoresPorLocal);
+        resumen.MargenEstimado = Math.Round(margen, 2, MidpointRounding.AwayFromZero);
+        resumen.PorcentajeMargen = baseMargen > 0
+            ? Math.Round((margen / baseMargen) * 100m, 2, MidpointRounding.AwayFromZero)
+            : 0;
+        var (gananciaHoy, _) = SumarGanancia(listaVentasHoy, listaProductos, factoresPorLocal);
+        resumen.GananciaDelDia = Math.Round(gananciaHoy, 2, MidpointRounding.AwayFromZero);
+
         var todosDetallesPeriodo = listaVentas.SelectMany(v => v.Detalles).ToList();
-        var detallesConCosto = todosDetallesPeriodo
-            .Where(d => d.Costo.HasValue && d.Costo.Value > 0)
-            .ToList();
-
-        if (detallesConCosto.Count > 0)
-        {
-            resumen.MargenEstimado = Math.Round(
-                detallesConCosto.Sum(d => d.SubTotal - (d.Costo!.Value * d.Cantidad)),
-                2,
-                MidpointRounding.AwayFromZero);
-
-            var totalVentaConCosto = detallesConCosto.Sum(d => d.SubTotal);
-            resumen.PorcentajeMargen = totalVentaConCosto > 0
-                ? Math.Round((resumen.MargenEstimado / totalVentaConCosto) * 100m, 2, MidpointRounding.AwayFromZero)
-                : 0;
-        }
 
         // Mapa de productos por código para saber si es sector
         var productosPorCodigo = listaProductos
@@ -332,4 +326,64 @@ public static class ServicioEstadisticas
 
         return resumen;
     }
+
+    /// <summary>
+    /// Con costo, la ganancia es precio − costo. Sector o genérico sin costo: precio − precio / factor del local.
+    /// Factor 1 o menor no estima: esa línea queda afuera.
+    /// </summary>
+    public static decimal? GananciaDeDetalle(
+        decimal subTotal,
+        decimal? costo,
+        decimal cantidad,
+        bool esSector,
+        bool esGenerico,
+        decimal factorSector,
+        decimal factorGenerico)
+    {
+        if (costo is > 0)
+            return subTotal - costo.Value * cantidad;
+        if (!esSector && !esGenerico)
+            return null;
+        var factor = esSector ? factorSector : factorGenerico;
+        if (factor <= 1 || subTotal == 0)
+            return null;
+        return subTotal - (subTotal / factor);
+    }
+
+    static (decimal ganancia, decimal baseVenta) SumarGanancia(
+        IEnumerable<InformeVenta> ventas,
+        IReadOnlyList<Producto> productos,
+        IDictionary<int, FactoresGananciaLibre>? factoresPorLocal)
+    {
+        decimal ganancia = 0;
+        decimal baseVenta = 0;
+        foreach (var venta in ventas)
+        {
+            var factores = factoresPorLocal != null && factoresPorLocal.TryGetValue(venta.IdLocal, out var delLocal)
+                ? delLocal
+                : new FactoresGananciaLibre(1, 1);
+            foreach (var detalle in venta.Detalles)
+            {
+                var esGenerico = detalle.Codigo.StartsWith("GENERIC-", StringComparison.OrdinalIgnoreCase);
+                var producto = productos.FirstOrDefault(p =>
+                    p.IdLocal == venta.IdLocal
+                    && string.Equals(p.Codigo, detalle.Codigo, StringComparison.OrdinalIgnoreCase));
+                var estimada = GananciaDeDetalle(
+                    detalle.SubTotal,
+                    detalle.Costo,
+                    detalle.Cantidad,
+                    producto?.ProductoSector == true,
+                    esGenerico,
+                    factores.Sector,
+                    factores.Generico);
+                if (estimada == null)
+                    continue;
+                ganancia += estimada.Value;
+                baseVenta += detalle.SubTotal;
+            }
+        }
+        return (ganancia, baseVenta);
+    }
 }
+
+public readonly record struct FactoresGananciaLibre(decimal Sector, decimal Generico);

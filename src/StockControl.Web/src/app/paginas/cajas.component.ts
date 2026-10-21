@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService, CajaDetalleDto, CajaListaDto, GrupoUnificableDto, VentaDetalleDto, VentaListaDto } from '../servicios/api.service';
+import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
 
 @Component({
@@ -185,7 +186,7 @@ export class CajasComponent implements OnInit {
   error = '';
   cargando = false;
 
-  constructor(private readonly api: ApiService, readonly sesion: SesionService) {}
+  constructor(private readonly api: ApiService, readonly sesion: SesionService, private readonly dialogo: DialogoService) {}
 
   ngOnInit(): void {
     const hoy = hoyYmd();
@@ -264,9 +265,9 @@ export class CajasComponent implements OnInit {
       });
   }
 
-  unificar(g: GrupoUnificableDto): void {
+  async unificar(g: GrupoUnificableDto): Promise<void> {
     const msg = `¿Unificar ${g.idsCierre.length} cierres de Caja ${g.nroCaja} (${g.nombreCierre}, ${g.dia})?`;
-    if (!confirm(msg)) return;
+    if (!await this.dialogo.confirmar(msg)) return;
     this.api.unificarCajas(g.idsCierre).subscribe({
       next: (r) => {
         this.error = '';

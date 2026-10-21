@@ -2,6 +2,7 @@ import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService, ItemVenta, MetodoPagoDto, ProductoDto, VentaDetalleDto } from '../servicios/api.service';
+import { DialogoService } from '../servicios/dialogo.service';
 import { CarritoCaja, LineaCarritoPendiente, SesionService } from '../servicios/sesion.service';
 import { TicketComponent } from './ticket.component';
 
@@ -214,7 +215,8 @@ export class CajaComponent implements OnInit, OnDestroy {
 
   constructor(
     private readonly api: ApiService,
-    readonly sesion: SesionService
+    readonly sesion: SesionService,
+    private readonly dialogo: DialogoService
   ) {}
 
   get activo(): CarritoCaja {
@@ -245,8 +247,8 @@ export class CajaComponent implements OnInit, OnDestroy {
     else queueMicrotask(() => el.focus());
   }
 
-  aplicarAlCosto(v: boolean): void {
-    if (v && !confirm('¿Cobrar esta venta al costo?')) {
+  async aplicarAlCosto(v: boolean): Promise<void> {
+    if (v && !await this.dialogo.confirmar('¿Cobrar esta venta al costo?')) {
       this.activo.alCosto = false;
       return;
     }
@@ -268,9 +270,9 @@ export class CajaComponent implements OnInit, OnDestroy {
     this.indiceActivo = this.carritos.length - 1;
   }
 
-  cerrarCarrito(): void {
+  async cerrarCarrito(): Promise<void> {
     if (this.indiceActivo < FIJOS) return;
-    if (this.activo.lineas.length > 0 && !confirm('Este carrito tiene productos. ¿Desea cerrarlo?')) return;
+    if (this.activo.lineas.length > 0 && !await this.dialogo.confirmar('Este carrito tiene productos. ¿Desea cerrarlo?')) return;
     const i = this.indiceActivo;
     this.carritos = this.carritos.filter((_, n) => n !== i);
     this.indiceActivo = Math.min(i, this.carritos.length - 1);
@@ -378,10 +380,10 @@ export class CajaComponent implements OnInit, OnDestroy {
     });
   }
 
-  agregarProducto(p: ProductoDto): void {
+  async agregarProducto(p: ProductoDto): Promise<void> {
     this.error = '';
     if (p.productoSector) {
-      const raw = prompt(`Precio de ${p.nombre}`, '');
+      const raw = await this.dialogo.pedir(`Precio de ${p.nombre}`);
       const precio = Number((raw ?? '').replace(',', '.'));
       if (!raw || !(precio > 0)) return;
       this.activo.lineas.push({
@@ -412,10 +414,10 @@ export class CajaComponent implements OnInit, OnDestroy {
     }
   }
 
-  agregarGenerico(): void {
-    const nombre = prompt('Nombre del genérico', 'Producto suelto');
+  async agregarGenerico(): Promise<void> {
+    const nombre = await this.dialogo.pedir('Nombre del genérico', 'Producto suelto');
     if (!nombre) return;
-    const raw = prompt('Precio', '');
+    const raw = await this.dialogo.pedir('Precio');
     const precio = Number((raw ?? '').replace(',', '.'));
     if (!raw || !(precio > 0)) return;
     this.activo.lineas.push({

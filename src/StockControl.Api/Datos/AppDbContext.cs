@@ -30,6 +30,8 @@ public class AppDbContext : DbContext
     public DbSet<OrdenCompra> OrdenesCompra => Set<OrdenCompra>();
     public DbSet<OrdenCompraLinea> OrdenesCompraLineas => Set<OrdenCompraLinea>();
     public DbSet<Abono> Abonos => Set<Abono>();
+    public DbSet<Ajuste> Ajustes => Set<Ajuste>();
+    public DbSet<MensajeContacto> MensajesContacto => Set<MensajeContacto>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -39,6 +41,7 @@ public class AppDbContext : DbContext
             e.HasKey(x => x.IdLocal);
             e.Property(x => x.IdLocal).UseIdentityByDefaultColumn();
             e.Property(x => x.Nombre).HasMaxLength(200);
+            e.Property(x => x.Activo).HasDefaultValue(true);
             e.Property(x => x.EstadoAbono).HasMaxLength(40);
             e.Property(x => x.IdSuscripcionMp).HasMaxLength(64);
             e.HasIndex(x => x.IdSuscripcionMp).IsUnique().HasFilter("\"IdSuscripcionMp\" IS NOT NULL");
@@ -229,13 +232,34 @@ public class AppDbContext : DbContext
             e.Property(x => x.Id).UseIdentityByDefaultColumn();
             e.Property(x => x.Importe).HasPrecision(14, 2);
             e.Property(x => x.Estado).HasMaxLength(20);
+            e.Property(x => x.EstadoAnterior).HasMaxLength(40).HasDefaultValue("");
             e.Property(x => x.Origen).HasMaxLength(20);
+            e.Property(x => x.Canal).HasMaxLength(20).HasDefaultValue("");
             e.Property(x => x.IdPreferenciaMp).HasMaxLength(100);
             e.Property(x => x.UrlPago).HasMaxLength(500);
             e.Property(x => x.IdPagoMp).HasMaxLength(64);
             e.HasIndex(x => x.IdPagoMp).IsUnique().HasFilter("\"IdPagoMp\" IS NOT NULL");
             e.HasIndex(x => new { x.IdLocal, x.Estado, x.FechaCreacion });
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<Ajuste>(e =>
+        {
+            e.ToTable("Ajustes");
+            e.HasKey(x => x.Clave);
+            e.Property(x => x.Clave).HasMaxLength(40);
+            e.Property(x => x.Valor).HasMaxLength(200);
+        });
+
+        model.Entity<MensajeContacto>(e =>
+        {
+            e.ToTable("MensajesContacto");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Nombre).HasMaxLength(120);
+            e.Property(x => x.Correo).HasMaxLength(200);
+            e.Property(x => x.Mensaje).HasMaxLength(2000);
+            e.HasIndex(x => x.Leido);
         });
     }
 }

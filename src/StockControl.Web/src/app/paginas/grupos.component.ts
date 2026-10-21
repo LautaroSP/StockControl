@@ -2,6 +2,7 @@ import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService, GrupoDetalleDto, GrupoListaDto, ProductoDto } from '../servicios/api.service';
+import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
 
 @Component({
@@ -59,7 +60,7 @@ import { SesionService } from '../servicios/sesion.service';
           <p class="meta" style="margin-top:0">Elegí un grupo o creá uno nuevo.</p>
         }
         @if (formAbierto) {
-          <label class="field">Nombre <input class="wide" [(ngModel)]="form.nombreGrupo" /></label>
+          <label class="field">Nombre <input class="wide" type="text" [(ngModel)]="form.nombreGrupo" /></label>
           <div class="row" style="margin-top:8px">
             <label class="field grow">Costo <input class="wide" type="number" [(ngModel)]="form.costo" /></label>
             <label class="field grow">Precio <input class="wide" type="number" [(ngModel)]="form.precioGrupo" /></label>
@@ -143,7 +144,8 @@ export class GruposComponent implements OnInit {
   constructor(
     private readonly api: ApiService,
     private readonly router: Router,
-    readonly sesion: SesionService
+    readonly sesion: SesionService,
+    private readonly dialogo: DialogoService
   ) {}
 
   ngOnInit(): void {
@@ -252,13 +254,13 @@ export class GruposComponent implements OnInit {
     this.idsMiembros = new Set(this.idsMiembros);
   }
 
-  guardar(): void {
+  async guardar(): Promise<void> {
     if (!this.form.nombreGrupo.trim()) {
       this.error = 'El nombre del grupo es obligatorio.';
       return;
     }
     if (this.elegido && this.idsMiembros.size > 0) {
-      if (!confirm('¿Guardar y actualizar el precio/costo de todos los miembros?')) return;
+      if (!await this.dialogo.confirmar('¿Guardar y actualizar el precio/costo de todos los miembros?')) return;
     }
     const body = {
       nombreGrupo: this.form.nombreGrupo.trim(),
@@ -292,9 +294,9 @@ export class GruposComponent implements OnInit {
     });
   }
 
-  eliminar(): void {
+  async eliminar(): Promise<void> {
     if (!this.elegido) return;
-    if (!confirm('¿Eliminar el grupo? Los productos quedan sin grupo.')) return;
+    if (!await this.dialogo.confirmar('¿Eliminar el grupo? Los productos quedan sin grupo.')) return;
     this.api.eliminarGrupo(this.elegido.idGrupoProducto).subscribe({
       next: () => {
         this.mostrar('Grupo eliminado');

@@ -27,6 +27,7 @@ import { DialogoService } from '../servicios/dialogo.service';
             <th>Última orden</th>
             <th>Estado</th>
             <th></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -38,17 +39,24 @@ import { DialogoService } from '../servicios/dialogo.service';
               <td class="num">{{ p.cantidadProductos }}</td>
               <td>{{ p.ultimaOrden ? fecha(p.ultimaOrden) : '—' }}</td>
               <td>{{ p.activo ? 'Activo' : 'Inactivo' }}</td>
-              <td class="num">
+              <td>
                 @if (p.activo) {
-                  <button class="btn" type="button" (click)="editar(p)">Editar</button>
-                  <button class="btn btn-danger" type="button" (click)="eliminar(p)">Eliminar</button>
-                } @else {
-                  <button class="btn" type="button" (click)="activar(p)">Activar</button>
+                  <a class="btn btn-primary" style="text-decoration:none" [routerLink]="['/proveedores', p.id]" fragment="orden">Nueva orden</a>
                 }
+              </td>
+              <td>
+                <div class="row">
+                  @if (p.activo) {
+                    <button class="btn" type="button" (click)="editar(p)">Editar</button>
+                    <button class="btn btn-danger" type="button" (click)="eliminar(p)">Eliminar</button>
+                  } @else {
+                    <button class="btn" type="button" (click)="activar(p)">Activar</button>
+                  }
+                </div>
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" class="meta">Todavía no cargaste proveedores.</td></tr>
+            <tr><td colspan="8" class="meta">Todavía no cargaste proveedores.</td></tr>
           }
         </tbody>
       </table>

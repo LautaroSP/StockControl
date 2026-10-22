@@ -42,7 +42,7 @@ Flujo:
 
 1. Listado de proveedores.
 2. Click en uno: ficha + **última orden** (si hay) con **Repetir**.
-3. **Nueva orden**: buscador de productos ligados a ese proveedor (los que cargaste). Click agrega una línea; abajo tabla con cantidad editable.
+3. **Nueva orden**: botón en el listado del proveedor. Buscador de productos del local (los del Excel de ese proveedor y los que ya están cargados). El botón Agregar suma una línea; abajo tabla con cantidad editable.
 4. Listado de la orden: Producto · Cantidad.
 5. **Generar orden** pregunta (se puede más de una):
    - Mensaje WhatsApp
@@ -76,7 +76,7 @@ Botón aparte en la ficha: **Contactar** (mismo `wa.me` sin el pedido, o con un 
 - [x] Importar Excel → tabla de revisión; precio = costo × ganancia × IVA; confirmar crea/actualiza productos del local ligados a ese proveedor.
 - [x] Código duplicado en el local: actualiza, no crea otro.
 - [x] Listado → ficha con última orden y Repetir.
-- [x] Nueva orden: buscar productos de ese proveedor, setear cantidad, ver Producto · Cantidad.
+- [x] Nueva orden: buscar productos del local (ligados por Excel o ya cargados), setear cantidad, ver Producto · Cantidad.
 - [x] Generar orden: WhatsApp (`wa.me` + Enviar a mano) y/o Excel y/o PDF. La orden se guarda igual si WhatsApp falla.
 - [x] Excel/PDF de salida con local, proveedor, fecha y líneas.
 - [x] Un proveedor, muchas órdenes; una orden, un proveedor. Datos del **local actual**.

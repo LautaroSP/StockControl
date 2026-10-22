@@ -155,6 +155,24 @@ public class ServicioEstadisticasTests
     }
 
     [Fact]
+    public void Generico_sin_factor_propio_usa_el_factor_de_ganancia()
+    {
+        var venta = CrearVenta(1, 1, 1000, detalles: new List<InformeVentaDetalle>
+        {
+            new() { Codigo = "GENERIC-1", Nombre = "Varios", Cantidad = 1, Precio = 1000, SubTotal = 1000 }
+        });
+        var factores = new Dictionary<int, FactoresGananciaLibre>
+        {
+            [1] = new(Sector: 1, Generico: 1, Comun: 1.5m)
+        };
+
+        var res = ServicioEstadisticas.Calcular([venta], [], [], [], [CrearLocal(1, "Central")], factoresPorLocal: factores);
+
+        Assert.Equal(333.33m, res.MargenEstimado);
+        Assert.Equal(33.33m, res.PorcentajeMargen);
+    }
+
+    [Fact]
     public void Sector_con_costo_usa_el_costo_y_no_el_factor()
     {
         var sector = CrearProducto(1, 1, "FIAMBRE", "Fiambre", 0, 0, sector: true);

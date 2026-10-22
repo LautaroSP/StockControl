@@ -47,6 +47,11 @@ builder.Services.AddHttpClient("turnstile", c =>
     c.BaseAddress = new Uri("https://challenges.cloudflare.com/");
     c.Timeout = TimeSpan.FromSeconds(10);
 });
+builder.Services.AddHttpClient("resend", c =>
+{
+    c.BaseAddress = new Uri("https://api.resend.com/");
+    c.Timeout = TimeSpan.FromSeconds(15);
+});
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
     {
@@ -159,6 +164,8 @@ app.MapPost("/auth/login", async (LoginPedido pedido, AppDbContext db, PasswordH
         .FirstOrDefaultAsync(x => x.NombreUsuario == pedido.Usuario);
     if (u == null || !u.Activo || hasher.VerifyHashedPassword(u, u.HashClave, pedido.Clave) == PasswordVerificationResult.Failed)
         return Results.Unauthorized();
+    if (!u.EmailConfirmado)
+        return Results.BadRequest("Confirmá el mail antes de entrar. Revisá la bandeja.");
     return Results.Ok(new { token = jwt.Emitir(u, null), rol = u.Rol, nombre = string.IsNullOrWhiteSpace(u.Nombre) ? u.NombreUsuario : u.Nombre });
 }).RequireRateLimiting("api");
 
@@ -190,6 +197,18 @@ app.MapPost("/registro", async (RegistroCuentaPedido pedido, HttpContext http, A
     if (await db.Usuarios.IgnoreQueryFilters().AnyAsync(u => u.NombreUsuario == dueno.NombreUsuario || u.Email == dueno.Email))
         return Results.Conflict("Ya existe una cuenta con ese usuario o mail.");
     dueno.HashClave = hasher.HashPassword(dueno, pedido.Clave);
+    var apiKey = config["Correo:ApiKey"];
+    var desde = config["Correo:Desde"];
+    var urlWeb = config["App:UrlWeb"];
+    var confirmar = ServicioConfirmacionCorreo.HayQueConfirmar(apiKey, desde, urlWeb);
+    string? tokenPlano = null;
+    if (confirmar)
+    {
+        tokenPlano = ServicioConfirmacionCorreo.NuevoToken();
+        dueno.EmailConfirmado = false;
+        dueno.TokenConfirmacion = ServicioConfirmacionCorreo.Hash(tokenPlano);
+        dueno.VenceConfirmacion = DateTimeOffset.UtcNow.AddHours(ServicioConfirmacionCorreo.HorasDeVigencia);
+    }
 
     await using var transaccion = await db.Database.BeginTransactionAsync();
     db.Locales.Add(local);
@@ -198,8 +217,31 @@ app.MapPost("/registro", async (RegistroCuentaPedido pedido, HttpContext http, A
     db.UsuarioLocales.Add(new UsuarioLocal { IdUsuario = dueno.Id, IdLocal = local.IdLocal });
     db.MetodosPago.AddRange(ServicioRegistro.MediosIniciales.Select(m => new MetodoPago { IdLocal = local.IdLocal, Descripcion = m }));
     await db.SaveChangesAsync();
+    if (confirmar)
+    {
+        var enlace = urlWeb!.TrimEnd('/') + "/confirmar?token=" + tokenPlano;
+        if (!await EnviarConfirmacion(clientes, apiKey!, desde!, dueno.Email, enlace))
+        {
+            await transaccion.RollbackAsync();
+            return Results.BadRequest("No pudimos enviar el mail de confirmación. Probá de nuevo.");
+        }
+    }
     await transaccion.CommitAsync();
+    if (confirmar)
+        return Results.Ok(new { pendiente = true });
     return Results.Ok(new { token = jwt.Emitir(dueno, null), rol = dueno.Rol, nombre = dueno.Nombre });
+}).RequireRateLimiting("registro");
+
+app.MapPost("/registro/confirmar", async (ConfirmarCorreoPedido pedido, AppDbContext db) =>
+{
+    var hash = ServicioConfirmacionCorreo.Hash(pedido.Token ?? "");
+    var usuario = await db.Usuarios.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.TokenConfirmacion == hash);
+    var rechazo = ServicioConfirmacionCorreo.Rechazo(pedido.Token, usuario?.TokenConfirmacion, usuario?.VenceConfirmacion, DateTimeOffset.UtcNow);
+    if (usuario == null || rechazo != null)
+        return Results.BadRequest(rechazo ?? "El enlace no sirve. Registrate de nuevo.");
+    ServicioConfirmacionCorreo.Confirmar(usuario);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { confirmado = true });
 }).RequireRateLimiting("registro");
 
 app.MapGet("/locales", async (AppDbContext db, SesionActual sesion) =>
@@ -2234,13 +2276,14 @@ app.MapGet("/estadisticas", async (
     var configsFactor = await db.Configuracion
         .IgnoreQueryFilters()
         .Where(c => localesObjetivo.Contains(c.IdLocal)
-            && (c.Clave == "FactorGananciaSector" || c.Clave == "FactorGananciaGenerico"))
+            && (c.Clave == "FactorGanancia" || c.Clave == "FactorGananciaSector" || c.Clave == "FactorGananciaGenerico"))
         .ToListAsync();
     var factoresPorLocal = localesObjetivo.ToDictionary(
         id => id,
         id => new FactoresGananciaLibre(
             FactorLibre(configsFactor, id, "FactorGananciaSector"),
-            FactorLibre(configsFactor, id, "FactorGananciaGenerico")));
+            FactorLibre(configsFactor, id, "FactorGananciaGenerico"),
+            FactorLibre(configsFactor, id, "FactorGanancia")));
 
     var resumen = ServicioEstadisticas.Calcular(
         ventasPeriodo,
@@ -2705,6 +2748,21 @@ static async Task<string> TelefonoVentas(AppDbContext db) =>
         .Where(a => a.Clave == Ajuste.TelefonoVentas)
         .Select(a => a.Valor)
         .FirstOrDefaultAsync() ?? "";
+
+static async Task<bool> EnviarConfirmacion(IHttpClientFactory clientes, string apiKey, string desde, string para, string enlace)
+{
+    var req = new HttpRequestMessage(HttpMethod.Post, "emails");
+    req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + apiKey);
+    req.Content = JsonContent.Create(new
+    {
+        from = desde,
+        to = new[] { para },
+        subject = "Confirmá tu cuenta de StockControl",
+        text = "Abrí este enlace para activar la cuenta. Vence en 48 horas.\n\n" + enlace + "\n"
+    });
+    using var resp = await clientes.CreateClient("resend").SendAsync(req);
+    return resp.IsSuccessStatusCode;
+}
 
 static (string SiteKey, string Secreto)? ClavesCaptcha(IConfiguration config, IWebHostEnvironment env)
 {

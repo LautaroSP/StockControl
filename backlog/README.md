@@ -46,10 +46,19 @@ Se paga **$ 14.999 / mes por local** (Argentina). El dueño **no** da de alta lo
 | 21 | [Pasarela de pagos (QR MP / Point)](21-pasarela-pagos-qr.md) | dueño (vincula), empleado (cobra) — antes de la tienda |
 | 23 | [Modo oscuro](23-modo-oscuro.md) | todos — UI |
 | 28 | [Landing](28-landing.md) | visitante — sitio público |
-| 29 | [Tienda online](29-tienda-online.md) | dueño, comprador — pedidos online, gestión con importe fijo |
+| 29 | [Tienda: URL pública y catálogo](29-tienda-online.md) | dueño, comprador — `/tienda/{alias}` única por local, sin login |
+| 36 | [Tienda: imágenes](36-tienda-imagenes.md) | dueño |
+| 37 | [Tienda: carrito y pedido](37-tienda-carrito-pedido.md) | comprador |
+| 41 | [Tienda: panel de pedidos y avisos](41-tienda-panel-pedidos.md) | dueño, socio, empleado |
+| 38 | [Tienda: Mercado Pago y gestión](38-tienda-mercado-pago.md) | comprador, dueño, admin |
+| 39 | [Tienda: transferencia](39-tienda-transferencia.md) | comprador, dueño |
+| 40 | [Tienda: envío por km](40-tienda-envio-km.md) | comprador, dueño |
 | 30 | [Mantenimiento y 404](30-mantenimiento-y-404.md) | visitante — Caddy si la API no responde; 404 de ruta en Angular |
 | 31 | [Iconos](31-iconos.md) | dueño, empleado — barra y Configuración; Mercado Pago con check |
 | 32 | [Teclado de la caja](32-teclado-caja.md) | empleado, dueño — foco en el lector y cobro con teclado |
+| 33 | [Guardar ticket sin vender](33-ticket-sin-venta.md) | empleado, dueño — guardar el carrito y recargarlo si el cliente vuelve |
+| 34 | [Configurar ofertas](34-ofertas.md) | dueño — descuento por producto con fecha, o llevás N y pagás M; la caja lo aplica sola |
+| 35 | [Cuentas pendientes](35-cuentas-pendientes.md) | empleado, dueño — el cliente se lleva la mercadería y paga después; la ganancia entra al cobrar |
 
 \*El empleado ve lo necesario para operar (ventas del día / reimprimir). No borra ventas ni ve costo.
 

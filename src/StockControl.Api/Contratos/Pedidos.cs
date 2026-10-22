@@ -342,6 +342,12 @@ public class OrdenCompraPedido
     public List<LineaOrdenCompraPedido> Lineas { get; set; } = new();
 }
 
+public class ConfirmarCorreoPedido
+{
+    [MaxLength(128)]
+    public string Token { get; set; } = "";
+}
+
 public class RegistroCuentaPedido : RegistroPedido
 {
     [Required, MaxLength(200)]

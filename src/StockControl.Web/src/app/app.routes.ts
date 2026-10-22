@@ -22,6 +22,7 @@ export const routes: Routes = [
   { path: '', pathMatch: 'full', loadComponent: () => import('./paginas/landing.component').then((m) => m.LandingComponent) },
   { path: 'login', component: LoginComponent },
   { path: 'registro', loadComponent: () => import('./paginas/registro.component').then((m) => m.RegistroComponent) },
+  { path: 'confirmar', loadComponent: () => import('./paginas/confirmar.component').then((m) => m.ConfirmarComponent) },
   { path: 'contacto', loadComponent: () => import('./paginas/contacto.component').then(m => m.ContactoComponent) },
   { path: 'admin', loadComponent: () => import('./paginas/admin.component').then(m => m.AdminComponent), canActivate: [adminGuard] },
   { path: 'locales', component: LocalesComponent, canActivate: [sesionGuard] },

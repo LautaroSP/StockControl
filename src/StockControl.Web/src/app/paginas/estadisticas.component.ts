@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   ApiService,
@@ -304,7 +304,7 @@ interface OpcionMes {
                     <div class="bar">
                       <b [style.width.%]="m.porcentaje"></b>
                     </div>
-                    <span class="num" style="min-width:110px">{{ dinero(m.total) }} ({{ m.porcentaje }}%)</span>
+                    <span class="bar-valor">{{ dinero(m.total) }} ({{ m.porcentaje }}%)</span>
                   </div>
                 }
               </div>
@@ -392,7 +392,7 @@ interface OpcionMes {
                 </tr>
               </thead>
               <tbody>
-                @for (b of resumen.stockBajo; track b.idProducto) {
+                @for (b of stockVisible(); track b.idProducto) {
                   <tr>
                     @if (localSeleccionado === 'todos') {
                       <td class="meta">{{ b.nombreLocal }}</td>
@@ -405,13 +405,16 @@ interface OpcionMes {
                 }
               </tbody>
             </table>
+            @if (stockTope < resumen.stockBajo.length) {
+              <div #masStock style="height:1px"></div>
+            }
           }
         </section>
       </div>
     }
   `
 })
-export class EstadisticasComponent implements OnInit {
+export class EstadisticasComponent implements OnInit, AfterViewChecked, OnDestroy {
   pestana: 'general' | 'dia' = 'dia';
   vistaTop: 'unidades' | 'dinero' = 'unidades';
 
@@ -428,6 +431,11 @@ export class EstadisticasComponent implements OnInit {
 
   cargando = false;
   error = '';
+  stockTope = 50;
+
+  @ViewChild('masStock') private masStock?: ElementRef<HTMLElement>;
+  private observador?: IntersectionObserver;
+  private elementoObservado?: HTMLElement;
 
   resumen: ResumenEstadisticasDto = {
     totalVendido: 0,
@@ -447,12 +455,18 @@ export class EstadisticasComponent implements OnInit {
 
   constructor(
     private readonly api: ApiService,
+    private readonly zona: NgZone,
     readonly sesion: SesionService
   ) {
     this.armarMeses();
   }
 
   ngOnInit(): void {
+    const raiz = document.querySelector('.main');
+    this.observador = new IntersectionObserver((entradas) => {
+      if (!entradas.some((e) => e.isIntersecting)) return;
+      this.zona.run(() => this.masStockBajo());
+    }, { root: raiz instanceof Element ? raiz : null, rootMargin: '160px' });
     this.localSeleccionado = this.sesion.idLocal() || '';
     this.api.locales().subscribe({
       next: ({ items: ls }) => {
@@ -466,6 +480,40 @@ export class EstadisticasComponent implements OnInit {
         this.cargar();
       }
     });
+  }
+
+  ngAfterViewChecked(): void {
+    const el = this.masStock?.nativeElement;
+    if (el === this.elementoObservado) return;
+    if (this.elementoObservado) this.observador?.unobserve(this.elementoObservado);
+    this.elementoObservado = el;
+    if (el) this.observador?.observe(el);
+  }
+
+  ngOnDestroy(): void {
+    this.observador?.disconnect();
+  }
+
+  stockVisible(): ItemStockBajoDto[] {
+    return this.resumen.stockBajo.slice(0, this.stockTope);
+  }
+
+  private masStockBajo(): void {
+    const total = this.resumen.stockBajo.length;
+    if (this.stockTope >= total) return;
+    this.stockTope = Math.min(this.stockTope + 50, total);
+    setTimeout(() => this.seguirSiSigueVisible());
+  }
+
+  private seguirSiSigueVisible(): void {
+    const el = this.masStock?.nativeElement;
+    if (!el || this.stockTope >= this.resumen.stockBajo.length) return;
+    const raiz = document.querySelector('.main');
+    const limite = raiz instanceof HTMLElement
+      ? raiz.getBoundingClientRect().bottom + 160
+      : window.innerHeight + 160;
+    if (el.getBoundingClientRect().top > limite) return;
+    this.masStockBajo();
   }
 
   armarMeses(): void {
@@ -535,6 +583,7 @@ export class EstadisticasComponent implements OnInit {
     this.api.estadisticas(params).subscribe({
       next: (resp) => {
         this.cargando = false;
+        this.stockTope = 50;
         this.resumen = resp.resumen || {
           totalVendido: 0,
           cantidadTickets: 0,

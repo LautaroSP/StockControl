@@ -306,6 +306,19 @@ table.data tr.clickable { cursor: pointer; }
   gap: 10px;
 }
 .cart h2 { margin: 0; font-size: 15px; }
+.cart .scroll { overflow: auto; min-width: 0; }
+.cart input.cant {
+  width: 76px;
+  max-width: 100%;
+  padding: 6px 2px 6px 6px;
+  text-align: right;
+}
+.cart input.precio {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 4px 6px;
+}
 .tabs { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .tab {
   border: 1px solid var(--line);
@@ -410,11 +423,13 @@ table.data tr.clickable { cursor: pointer; }
 .config-form { padding: 20px 28px 24px; }
 .hint { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.split > * { min-width: 0; }
 
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.kpis > * { min-width: 0; }
 .kpi { padding: 14px 16px; }
-.kpi .n { font-size: 22px; font-weight: 700; }
-.kpi .l { font-size: 12px; color: var(--ink-soft); }
+.kpi .n { font-size: 22px; font-weight: 700; overflow-wrap: anywhere; }
+.kpi .l { font-size: 12px; color: var(--ink-soft); overflow-wrap: anywhere; }
 
 .ticket-print {
   display: none;
@@ -725,9 +740,10 @@ html.tema-suave .reel-track {
 }
 .puntos button[aria-current="true"] { background: var(--forest-mid); width: 22px; }
 .caption { margin: 0; color: var(--ink-soft); font-size: 14px; }
-.bar-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; font-size: 13px; }
-.bar-row span { width: 96px; flex-shrink: 0; }
-.bar { flex: 1; height: 10px; background: var(--pista); border-radius: 99px; overflow: hidden; }
+.bar-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 8px 0; font-size: 13px; min-width: 0; }
+.bar-row > span:first-child { width: 96px; flex: 0 1 96px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-valor { flex: 1 0 auto; width: auto; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.bar { flex: 1 1 60px; min-width: 60px; height: 10px; background: var(--pista); border-radius: 99px; overflow: hidden; }
 .bar b { display: block; height: 100%; background: var(--forest-mid); }
 .banner {
   background: var(--low);

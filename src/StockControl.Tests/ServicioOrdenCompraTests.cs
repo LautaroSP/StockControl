@@ -14,12 +14,20 @@ public class ServicioOrdenCompraTests
     }
 
     [Fact]
-    public void Producto_de_otro_proveedor_no_entra_en_la_orden()
+    public void Un_producto_del_local_entra_aunque_no_este_ligado_al_proveedor()
     {
-        var ajeno = new Producto { Id = 1, Codigo = "A1", IdProveedor = 2 };
+        var suelto = new Producto { Id = 1, Codigo = "A1", Nombre = "Yerba", IdProveedor = 0 };
 
+        var orden = Armar(new[] { new LineaOrdenPedida { IdProducto = 1, Cantidad = 2 } }, suelto);
+
+        Assert.Equal("Yerba", Assert.Single(orden.Lineas).Nombre);
+    }
+
+    [Fact]
+    public void Un_producto_que_no_esta_en_el_local_no_entra()
+    {
         Assert.Throws<ErrorNegocio>(() =>
-            Armar(new[] { new LineaOrdenPedida { IdProducto = 1, Cantidad = 3 } }, ajeno));
+            Armar(new[] { new LineaOrdenPedida { IdProducto = 9, Cantidad = 1 } }));
     }
 
     [Fact]

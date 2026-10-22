@@ -74,24 +74,27 @@ import { RecibirOrdenComponent } from './recibir-orden.component';
         </section>
 
         @if (proveedor.activo) {
-          <section class="panel pad">
+          <section class="panel pad" id="nueva-orden">
             <h2 style="margin:0 0 8px;font-size:16px">Nueva orden</h2>
             <input
               class="wide"
               type="search"
               [ngModel]="q"
               (ngModelChange)="buscar($event)"
-              placeholder="Buscar producto de este proveedor"
+              placeholder="Buscar en tus productos"
             />
             @if (resultados.length) {
               <div class="scroll" style="max-height:200px;overflow:auto;margin-top:8px">
                 <table class="data">
                   <tbody>
                     @for (p of resultados; track p.id) {
-                      <tr class="clickable" (click)="agregar(p)">
+                      <tr>
                         <td>{{ p.codigo }}</td>
                         <td>{{ p.nombre }}</td>
                         <td class="num">Stock {{ p.cantidad }}</td>
+                        <td class="num">
+                          <button class="btn btn-primary" type="button" (click)="agregar(p)">Agregar</button>
+                        </td>
                       </tr>
                     }
                   </tbody>
@@ -108,7 +111,7 @@ import { RecibirOrdenComponent } from './recibir-orden.component';
                     <td class="num"><button class="btn" type="button" (click)="quitar(l)">Quitar</button></td>
                   </tr>
                 } @empty {
-                  <tr><td colspan="3" class="meta">Buscá productos y tocá para sumarlos.</td></tr>
+                  <tr><td colspan="3" class="meta">Buscá un producto y tocá Agregar.</td></tr>
                 }
               </tbody>
             </table>
@@ -221,6 +224,7 @@ export class ProveedorComponent implements OnInit {
       next: (r) => {
         this.proveedor = r;
         this.porWhatsApp = this.porWhatsApp && !!r.urlContacto;
+        if (this.ruta.snapshot.fragment === 'orden') this.enfocarOrden();
       },
       error: () => (this.error = 'No se pudo cargar el proveedor.')
     });
@@ -245,6 +249,14 @@ export class ProveedorComponent implements OnInit {
     this.cargar();
   }
 
+  private enfocarOrden(): void {
+    setTimeout(() => {
+      const seccion = document.getElementById('nueva-orden');
+      seccion?.scrollIntoView({ block: 'start' });
+      (seccion?.querySelector('input') as HTMLInputElement | null)?.focus();
+    });
+  }
+
   buscar(texto: string): void {
     this.q = texto;
     clearTimeout(this.temporizador);
@@ -253,7 +265,7 @@ export class ProveedorComponent implements OnInit {
       return;
     }
     this.temporizador = setTimeout(() => {
-      this.api.productos(this.q, { idProveedor: this.id }).subscribe({
+      this.api.productos(this.q).subscribe({
         next: (r) => (this.resultados = r.items),
         error: () => (this.error = 'No se pudieron buscar productos.')
       });

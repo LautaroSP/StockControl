@@ -362,6 +362,7 @@ public static class ServicioEstadisticas
             var factores = factoresPorLocal != null && factoresPorLocal.TryGetValue(venta.IdLocal, out var delLocal)
                 ? delLocal
                 : new FactoresGananciaLibre(1, 1);
+            var factorGenerico = factores.Generico > 1 ? factores.Generico : factores.Comun;
             foreach (var detalle in venta.Detalles)
             {
                 var esGenerico = detalle.Codigo.StartsWith("GENERIC-", StringComparison.OrdinalIgnoreCase);
@@ -375,7 +376,7 @@ public static class ServicioEstadisticas
                     producto?.ProductoSector == true,
                     esGenerico,
                     factores.Sector,
-                    factores.Generico);
+                    factorGenerico);
                 if (estimada == null)
                     continue;
                 ganancia += estimada.Value;
@@ -386,4 +387,4 @@ public static class ServicioEstadisticas
     }
 }
 
-public readonly record struct FactoresGananciaLibre(decimal Sector, decimal Generico);
+public readonly record struct FactoresGananciaLibre(decimal Sector, decimal Generico, decimal Comun = 1);

@@ -56,6 +56,9 @@ import { SesionService } from '../servicios/sesion.service';
           @if (captchaActivo) {
             <div id="captcha-registro" class="captcha"></div>
           }
+          @if (aviso) {
+            <p class="meta">{{ aviso }}</p>
+          }
           @if (error) {
             <p class="error">{{ error }}</p>
           }
@@ -82,6 +85,7 @@ export class RegistroComponent implements OnInit, OnDestroy {
   };
   clave2 = '';
   error = '';
+  aviso = '';
   cargando = false;
   captchaActivo = false;
   private widget: string | null = null;
@@ -110,11 +114,17 @@ export class RegistroComponent implements OnInit, OnDestroy {
 
   registrar(): void {
     this.error = this.validar();
+    this.aviso = '';
     if (this.error) return;
     this.cargando = true;
     this.api.registrar(this.pedido).subscribe({
       next: (r) => {
-        if (!r?.token) {
+        if (r?.pendiente) {
+          this.cargando = false;
+          this.aviso = 'Te enviamos un mail. Abrí el enlace para activar la cuenta.';
+          return;
+        }
+        if (!r?.token || !r.rol || !r.nombre) {
           this.cargando = false;
           return;
         }

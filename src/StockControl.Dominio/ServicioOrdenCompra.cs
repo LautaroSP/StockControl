@@ -39,8 +39,8 @@ public static class ServicioOrdenCompra
         };
         foreach (var g in pedidas.GroupBy(l => l.IdProducto))
         {
-            if (!productos.TryGetValue(g.Key, out var p) || p.IdProveedor != idProveedor)
-                throw new ErrorNegocio("Hay productos que no son de este proveedor.");
+            if (!productos.TryGetValue(g.Key, out var p))
+                throw new ErrorNegocio("Hay productos que no están en el local.");
             orden.Lineas.Add(new OrdenCompraLinea
             {
                 IdLocal = idLocal,

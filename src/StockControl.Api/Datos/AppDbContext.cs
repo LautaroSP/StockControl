@@ -61,6 +61,9 @@ public class AppDbContext : DbContext
             e.Property(x => x.NombreUsuario).HasMaxLength(80);
             e.Property(x => x.Email).HasMaxLength(200).HasDefaultValue("");
             e.HasIndex(x => x.Email).IsUnique().HasFilter("\"Email\" <> ''");
+            e.Property(x => x.EmailConfirmado).HasDefaultValue(true);
+            e.Property(x => x.TokenConfirmacion).HasMaxLength(64);
+            e.HasIndex(x => x.TokenConfirmacion).IsUnique().HasFilter("\"TokenConfirmacion\" IS NOT NULL");
             e.Property(x => x.Rol).HasMaxLength(20);
             e.Property(x => x.Activo).HasDefaultValue(true);
         });

@@ -881,6 +881,11 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasColumnType("character varying(200)")
                         .HasDefaultValue("");
 
+                    b.Property<bool>("EmailConfirmado")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("HashClave")
                         .IsRequired()
                         .HasColumnType("text");
@@ -900,6 +905,13 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<string>("TokenConfirmacion")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("VenceConfirmacion")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
@@ -908,6 +920,10 @@ namespace StockControl.Api.Datos.Migraciones
 
                     b.HasIndex("NombreUsuario")
                         .IsUnique();
+
+                    b.HasIndex("TokenConfirmacion")
+                        .IsUnique()
+                        .HasFilter("\"TokenConfirmacion\" IS NOT NULL");
 
                     b.ToTable("Usuarios", (string)null);
                 });

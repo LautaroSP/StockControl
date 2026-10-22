@@ -8,7 +8,7 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 
 ## Siguiente
 
-**#29 · 29 Tienda online**
+**#33 · 33 Guardar ticket sin vender**
 
 ## Tablero
 
@@ -46,12 +46,37 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 | 30 | 30 | [Mantenimiento y 404](30-mantenimiento-y-404.md) | sí | Página estática si Kestrel no responde. El 404 de una ruta lo muestra Angular. Sin test de dominio: no hay regla nueva |
 | 31 | 32 | [Teclado de la caja](32-teclado-caja.md) | sí | Foco al lector al volver y tras 10 s. Enter y + como en el escritorio. Sin test de dominio: es foco, no hay regla nueva |
 | 32 | 31 | [Iconos](31-iconos.md) | sí | Barra y Configuración. Mercado Pago: check verde y «Conectar otra cuenta» |
-| 33 | 29 | [Tienda online](29-tienda-online.md) | no | Última. Tienda pública por local. Cobra con la cuenta MP de la 21. Gestión: importe fijo en Configuración. Transferencia y envío por km |
+| 33 | 33 | [Guardar ticket sin vender](33-ticket-sin-venta.md) | no | Pedido en espera: el carrito se guarda sin cobrar y es del puesto de caja. Si cancelan y vuelven, se carga de nuevo. No mueve stock ni entra en la caja |
+| 34 | 34 | [Configurar ofertas](34-ofertas.md) | no | Descuento por producto con fecha, o llevás N y pagás M. El carrito lo aplica solo. El descuento manual de la caja sigue |
+| 35 | 35 | [Cuentas pendientes](35-cuentas-pendientes.md) | no | Fiado: baja el stock, no es venta hasta el pago. Pagos parciales. Empleado fía si el dueño lo habilita. Incobrable = pérdida. Total por cliente en Estadísticas |
+| 36 | 29 | [Tienda: URL pública y catálogo](29-tienda-online.md) | no | Última etapa. `/tienda/{alias}` única por local, pública, sin login. Mapa OpenStreetMap con la ubicación del local. Publicar productos, activar/pausar |
+| 37 | 36 | [Tienda: imágenes](36-tienda-imagenes.md) | no | Propuesta por código de barras (Open Food Facts) con Aceptar o Subir propia. Hasta 2 por producto, 400 × 400 px |
+| 38 | 37 | [Tienda: carrito y pedido](37-tienda-carrito-pedido.md) | no | Retiro en el local, stock reservado, precio congelado, consulta sin cuenta |
+| 39 | 41 | [Tienda: panel de pedidos y avisos](41-tienda-panel-pedidos.md) | no | Estados, entregado = venta, campanita, Web Push, wa.me |
+| 40 | 38 | [Tienda: Mercado Pago y gestión](38-tienda-mercado-pago.md) | no | Checkout Pro con la cuenta MP de la 21. Gestión: importe fijo en Configuración |
+| 41 | 39 | [Tienda: transferencia](39-tienda-transferencia.md) | no | A confirmar con plazo del dueño; gestión suma al abono |
+| 42 | 40 | [Tienda: envío por km](40-tienda-envio-km.md) | no | Precio por km, mínimo, radio, gratis desde |
 
 ## Log
 
+- 2026-10-22 · 29 Tienda: URL pública y catálogo · ajuste · La tienda muestra un mapa de OpenStreetMap con la ubicación del local. La 40 reutiliza esa ubicación
+
+- 2026-10-22 · 36 Tienda: imágenes · ajuste · El apartado propone la imagen por código de barras (Open Food Facts) con aviso de origen. El dueño elige Aceptar o Subir propia
+
+- 2026-10-22 · 29 Tienda online · ajuste · Se divide en 7 tarjetas (29, 36–41). URL pública única `/tienda/{alias}` por local, sin login
+
+- 2026-10-22 · 33 Guardar ticket sin vender · ajuste · El pedido en espera es del puesto de caja que lo guardó. Botones debajo de COBRAR y Cancelar
+- 2026-10-22 · 35 Cuentas pendientes · ajuste · Tabla aparte, no es venta hasta el pago. Pagos parciales. El empleado fía si el dueño lo habilita. Incobrable queda como pérdida. Total por cliente
+- 2026-10-22 · 33 Guardar ticket sin vender · ajuste · Se llama pedido en espera. Al cargarlo, el producto común toma el precio actual y avisa si cambió. Cobro y borrado van juntos
+- 2026-10-22 · 17 Estadísticas · ajuste · El genérico sin factor propio estima el margen con el factor de ganancia del local
+- 2026-10-22 · 35 Cuentas pendientes · no · alta de tarjeta (el cliente paga después; baja el stock; la ganancia entra al cobrar; total por cliente en Estadísticas)
+- 2026-10-22 · 34 Configurar ofertas · no · alta de tarjeta (descuento por producto con fecha, o 2x1 / 3x2; el carrito cobra solo)
+- 2026-10-22 · 26 Proveedores y órdenes · ajuste · Botón Nueva orden en el listado y botón Agregar en cada producto
+- 2026-10-22 · 26 Proveedores y órdenes · ajuste · La orden también acepta productos ya cargados en el local, no solo los del Excel del proveedor
+- 2026-10-22 · 33 Guardar ticket sin vender · no · alta de tarjeta (guardar el carrito sin cobrar; recargarlo si el cliente vuelve)
 - 2026-10-22 · 30 Mantenimiento y 404 · sí · Si Kestrel no responde, Caddy muestra la página estática. Una ruta que no existe la muestra Angular, con vuelta al inicio
 - 2026-10-22 · 32 Teclado de la caja · sí · El lector recupera el foco al volver, a los 10 s y al terminar de cobrar. + pasa al medio y después a Cobrar, como en el escritorio
+- 2026-10-22 · 22 Cobro del abono · ajuste · El registro puede confirmar el mail por enlace. Sin dominio ni clave de correo, la cuenta entra directo
 - 2026-10-22 · 22 Cobro del abono · ajuste · El registro pide captcha (Turnstile). Sin claves reales, en local usa el widget de prueba
 - 2026-10-22 · 28 Landing · ajuste · El formulario de contacto queda en el inicio. Cebo, tope por IP y apertura firmada
 - 2026-10-22 · 21 Pasarela pagos QR MP · sí · Cerrada tras la prueba en el mostrador. La 29 queda al final, después del mantenimiento

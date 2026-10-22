@@ -64,7 +64,9 @@ export class LoginComponent {
       error: (err) => {
         this.error = err.status === 0
           ? 'No se pudo conectar con la API. ¿Está corriendo en el puerto 5263?'
-          : 'Usuario o clave incorrectos.';
+          : typeof err.error === 'string'
+            ? err.error
+            : 'Usuario o clave incorrectos.';
         this.cargando = false;
       }
     });

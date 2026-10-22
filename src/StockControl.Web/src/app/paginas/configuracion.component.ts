@@ -29,7 +29,7 @@ import { IconoComponent } from '../icono.component';
         <label class="field grow">Factor sector <input class="wide" type="number" min="0.0001" step="0.01" [(ngModel)]="form.factorGananciaSector" /></label>
         <label class="field grow">Factor genérico <input class="wide" type="number" min="0.0001" step="0.01" [(ngModel)]="form.factorGananciaGenerico" /></label>
       </div>
-      <p class="hint">Sector y genérico se cobran a precio libre. La ganancia se estima como precio − precio / factor. Con 1 no se estima. Es de este local.</p>
+      <p class="hint">Sector y genérico se cobran a precio libre. La ganancia se estima como precio − precio / factor. Si el factor genérico queda en 1, usa el factor de ganancia. Con los dos en 1 no se estima.</p>
 
       <h2><sc-icono nombre="stock" /> Stock</h2>
       <label class="check"><input type="checkbox" [(ngModel)]="form.stockRigido" /> No permitir vender sin stock suficiente</label>

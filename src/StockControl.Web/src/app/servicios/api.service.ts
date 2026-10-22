@@ -284,7 +284,11 @@ export class ApiService {
   }
 
   registrar(pedido: RegistroPedidoDto) {
-    return this.http.post<{ token: string; rol: string; nombre: string }>(`${this.base}/registro`, pedido);
+    return this.http.post<{ token?: string; rol?: string; nombre?: string; pendiente?: boolean }>(`${this.base}/registro`, pedido);
+  }
+
+  confirmarCorreo(token: string) {
+    return this.http.post<{ confirmado: boolean }>(`${this.base}/registro/confirmar`, { token });
   }
 
   abonoActual() {

@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { toDataURL } from 'qrcode';
@@ -98,9 +98,33 @@ const FIJOS = 4;
             <tbody>
               @for (l of activo.lineas; track $index) {
                 <tr class="clickable" (dblclick)="sacar(l)">
-                  <td>{{ l.nombre }}</td>
+                  <td>
+                    {{ l.nombre }}
+                    @if (l.generico || l.sector) {
+                      <input
+                        class="precio"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        aria-label="Precio"
+                        placeholder="Precio"
+                        [(ngModel)]="l.precioUnitario"
+                        (keydown.enter)="enterCantidad($event)"
+                        (dblclick)="$event.stopPropagation()"
+                      />
+                    }
+                  </td>
                   <td class="num">
-                    <input style="width:64px;text-align:right" type="number" min="0.001" step="1" [(ngModel)]="l.cantidad" />
+                    <input
+                      #cant
+                      class="cant"
+                      type="number"
+                      min="0"
+                      step="1"
+                      [(ngModel)]="l.cantidad"
+                      (keydown.enter)="enterCantidad($event)"
+                      (dblclick)="$event.stopPropagation()"
+                    />
                   </td>
                   <td class="num">{{ dinero(precioLinea(l) * l.cantidad) }}</td>
                 </tr>
@@ -214,6 +238,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('lector') private lector?: ElementRef<HTMLInputElement>;
   @ViewChild('chkDesc') private chkDesc?: ElementRef<HTMLElement>;
   @ViewChild('btnCobrar') private btnCobrar?: ElementRef<HTMLButtonElement>;
+  @ViewChildren('cant') private cantidades?: QueryList<ElementRef<HTMLInputElement>>;
   productos: ProductoDto[] = [];
   visibles: ProductoDto[] = [];
   totalLista = 0;
@@ -361,6 +386,11 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     if (e.target !== primero) return;
     e.preventDefault();
     this.btnCobrar?.nativeElement.focus();
+  }
+
+  enterCantidad(e: Event): void {
+    e.preventDefault();
+    this.focoLector();
   }
 
   enterDescuento(e: Event): void {
@@ -561,7 +591,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
       sector: false,
       generico: true
     });
-    this.focoLector();
+    setTimeout(() => this.enfocarCantidad());
   }
 
   sacar(l: LineaCarritoPendiente): void {
@@ -585,7 +615,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
       codigo: l.codigo,
       nombre: l.nombre,
       cantidad: Number(l.cantidad),
-      precioUnitario: l.precioUnitario
+      precioUnitario: Number(l.precioUnitario)
     }));
     const desc = this.activo.usarDesc ? Number(this.activo.descuento) || 0 : 0;
     const pagos = this.activo.pagos.map((p, i) => ({ idMetodoPago: p.idMetodoPago, importe: this.importePago(p, i) }));
@@ -757,6 +787,13 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private esMas(e: KeyboardEvent): boolean {
     return e.key === '+' || e.code === 'NumpadAdd';
+  }
+
+  private enfocarCantidad(): void {
+    const campo = this.cantidades?.last?.nativeElement;
+    if (!campo) return;
+    campo.focus();
+    campo.select();
   }
 
   private focoLector(): void {

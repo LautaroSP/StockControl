@@ -99,6 +99,31 @@ button, input, select { font-family: inherit; }
   padding: 9px 10px;
   border-radius: 6px;
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.config-form h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 8px;
+  font-size: 18px;
+}
+.config-form h2:first-of-type { margin-top: 0; }
+.titulo-mp { margin-bottom: 10px; }
+.logo-mp { height: 44px; width: auto; max-width: 100%; display: block; align-self: flex-start; }
+.marca-mp { margin: 14px 0; }
+.logo-mp-pluma { display: none; }
+:root[data-tema="oscuro"] .logo-mp-color { display: none; }
+:root[data-tema="oscuro"] .logo-mp-pluma { display: block; }
+.cuenta-mp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  color: var(--ok);
+  font-weight: 650;
 }
 .nav a:hover, .nav a.active { background: rgba(255,255,255,.12); }
 
@@ -204,7 +229,7 @@ select, textarea {
   font-size: 14px;
   color: var(--ink);
 }
-input:focus, select:focus { outline: 2px solid var(--focus); border-color: var(--moss); }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--focus); border-color: var(--moss); }
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
@@ -591,9 +616,16 @@ html.tema-suave .landing * {
   padding: 8px 8vw 36px;
 }
 .feat { padding: 18px; }
+.feat .marca-mp { margin: 0 0 10px; }
 .feat h3 { margin: 0 0 6px; font-size: 16px; }
 .feat p { margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.45; }
 .bloque { padding: 8px 8vw 48px; }
+.contacto-publico {
+  display: grid;
+  grid-template-columns: minmax(0, .85fr) minmax(280px, 1fr);
+  gap: 28px;
+  align-items: start;
+}
 .bloque h2 { margin: 0 0 8px; font-size: 28px; letter-spacing: -.02em; }
 .site-foot {
   background: var(--forest);
@@ -654,6 +686,7 @@ html.tema-suave .reel-track {
   font-size: 14px;
 }
 .linea b { font-weight: 600; }
+.linea > .num { width: auto; flex: 0 0 auto; text-align: right; }
 .campo-fijo {
   display: flex;
   flex-direction: column;
@@ -712,7 +745,7 @@ html.tema-suave .reel-track {
   html.tema-suave .reel-track { transition: none; }
 }
 @media (max-width: 980px) {
-  .hero, .features { grid-template-columns: 1fr; }
+  .hero, .features, .contacto-publico { grid-template-columns: 1fr; }
   .landing-nav, .hero, .features, .bloque, .site-foot { padding-left: 16px; padding-right: 16px; }
   .hero { padding-top: 24px; gap: 22px; }
   .hero h1 { font-size: 32px; }
@@ -724,7 +757,7 @@ html.tema-suave .reel-track {
     background: #fff !important;
     color: #000 !important;
   }
-  .sidebar, .topbar, .kpis, .toolbar, .btn, .modal-back, .nav, .sidebar-foot, section.panel,
+  .sidebar, .topbar, .kpis, .toolbar, .btn, .modal-back, .nav, .sidebar-foot, .tema-switch, section.panel,
   .caja-grid, .toast, .aviso-abono { display: none !important; }
   .app { display: block; height: auto; overflow: visible; }
   .main { overflow: visible; padding: 0; }

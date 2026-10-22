@@ -415,6 +415,138 @@ namespace StockControl.Api.Datos.Migraciones
                     b.ToTable("MensajesContacto", (string)null);
                 });
 
+            modelBuilder.Entity("StockControl.Dominio.CobroMercadoPago", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("Creado")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int?>("IdInformeVenta")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("IdLocal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("IdOrdenMp")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int?>("IdUsuario")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Importe")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<string>("Modo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("NroCaja")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PedidoJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("QrData")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdOrdenMp")
+                        .IsUnique()
+                        .HasFilter("\"IdOrdenMp\" <> ''");
+
+                    b.HasIndex("IdLocal", "NroCaja")
+                        .IsUnique()
+                        .HasDatabaseName("IX_CobrosMercadoPago_QrAbierto")
+                        .HasFilter("\"Estado\" = 'esperando' AND \"Modo\" = 'qr_impreso'");
+
+                    b.ToTable("CobrosMercadoPago", (string)null);
+                });
+
+            modelBuilder.Entity("StockControl.Dominio.CuentaMercadoPago", b =>
+                {
+                    b.Property<int>("IdLocal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("IdUsuarioMp")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("TokenAcceso")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TokenRenovacion")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("Vence")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("IdLocal");
+
+                    b.ToTable("CuentasMercadoPago", (string)null);
+                });
+
+            modelBuilder.Entity("StockControl.Dominio.PuestoMercadoPago", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("IdExterno")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<string>("IdLector")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int>("IdLocal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("IdSucursal")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("NroCaja")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UrlQr")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdLocal", "NroCaja")
+                        .IsUnique();
+
+                    b.ToTable("PuestosMercadoPago", (string)null);
+                });
+
             modelBuilder.Entity("StockControl.Dominio.MetodoPago", b =>
                 {
                     b.Property<int>("Id")
@@ -433,6 +565,11 @@ namespace StockControl.Api.Datos.Migraciones
 
                     b.Property<int>("IdLocal")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Integracion")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.HasKey("Id");
 

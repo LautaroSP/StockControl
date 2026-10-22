@@ -1,0 +1,20 @@
+# Copiar a Caddyfile en la raíz del repo. Ese archivo no se versiona.
+# El dominio va en la variable SITIO. Los certificados los guarda Caddy en el volumen caddy_data.
+# En local no hace falta: ng serve y la API en el puerto 5263 siguen igual.
+
+{$SITIO:localhost} {
+	encode gzip
+	root * /srv/mantenimiento
+
+	route {
+		forward_auth {$API} {
+			uri /salud
+		}
+		reverse_proxy {$WEB}
+	}
+
+	handle_errors 502 503 {
+		rewrite * /index.html
+		file_server
+	}
+}

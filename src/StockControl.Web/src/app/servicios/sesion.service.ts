@@ -27,6 +27,7 @@ export interface CarritoCaja {
   descuento: number;
   alCosto: boolean;
   imprimirTicket: boolean;
+  idCobro?: number;
 }
 
 @Injectable({ providedIn: 'root' })

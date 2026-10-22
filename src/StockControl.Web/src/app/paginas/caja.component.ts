@@ -1,7 +1,8 @@
-import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ApiService, ItemVenta, MetodoPagoDto, ProductoDto, VentaDetalleDto } from '../servicios/api.service';
+import { toDataURL } from 'qrcode';
+import { ApiService, CobroMercadoPagoDto, ItemVenta, MetodoPagoDto, ProductoDto, VentaDetalleDto } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { CarritoCaja, LineaCarritoPendiente, SesionService } from '../servicios/sesion.service';
 import { TicketComponent } from './ticket.component';
@@ -18,10 +19,11 @@ const FIJOS = 4;
       <div class="row">
         <span class="meta">Stock bajo en naranja</span>
         <input
+          #lector
           style="width:200px"
           type="text"
           [(ngModel)]="scanner"
-          (keydown.enter)="escanear()"
+          (keydown)="teclaLector($event)"
           placeholder="Código + Enter"
           autofocus
         />
@@ -117,7 +119,7 @@ const FIJOS = 4;
           </div>
         </div>
         <div class="checks">
-          <label class="check">
+          <label class="check" #chkDesc>
             <input type="checkbox" [ngModel]="activo.usarDesc" (ngModelChange)="aplicarDesc($event, txtDesc)" />
             Descuento %
           </label>
@@ -129,6 +131,8 @@ const FIJOS = 4;
             max="100"
             [(ngModel)]="activo.descuento"
             [disabled]="!activo.usarDesc"
+            (keydown.enter)="enterDescuento($event)"
+            (focusout)="salirDescuento($event)"
           />
           @if (sesion.esDueno()) {
             <label class="check">
@@ -141,12 +145,12 @@ const FIJOS = 4;
             Imprimir ticket
           </label>
         </div>
-        <div class="payment-list">
+        <div class="payment-list" (keydown)="teclaMedio($event)">
           @for (p of activo.pagos; track $index) {
             <div class="row">
               <select [(ngModel)]="p.idMetodoPago">
                 @for (m of mediosPago; track m.id) {
-                  @if (m.activo) { <option [ngValue]="m.id">{{ m.descripcion }}</option> }
+                  @if (m.activo && medioVisible(m)) { <option [ngValue]="m.id">{{ m.descripcion }}</option> }
                 }
               </select>
               <input class="grow" type="number" min="0.01" [ngModel]="importePago(p, $index)" (ngModelChange)="p.importe = $event" [disabled]="activo.pagos.length === 1 || p.resto" />
@@ -167,12 +171,29 @@ const FIJOS = 4;
           <button class="btn" type="button" [disabled]="cobrando" (click)="crearCarrito()">+</button>
           <button class="btn" type="button" [disabled]="cobrando || indiceActivo < fijos" (click)="cerrarCarrito()">×</button>
         </div>
+        @if (esperando) {
+          <div class="panel pad">
+            <p>Esperando el pago · {{ dinero(esperando.importe) }}</p>
+            @if (esperando.modo === 'qr_pantalla' && qrEspera) {
+              <img [src]="qrEspera" alt="QR de Mercado Pago" style="width:220px;height:220px;background:#fff" />
+            }
+            @if (esperando.modo === 'qr_impreso') {
+              <p class="meta">El cliente escanea el QR impreso de este puesto.</p>
+            }
+            @if (esperando.modo === 'point') {
+              <p class="meta">El monto está en el lector.</p>
+            }
+            <p class="meta">{{ textoEspera(esperando.estado) }}</p>
+            <button class="btn" type="button" (click)="cancelarEspera()">Cancelar cobro</button>
+          </div>
+        } @else {
         <div class="row">
-          <button class="btn btn-charge grow" type="button" [disabled]="cobrando || activo.lineas.length === 0" (click)="cobrar()">
+          <button #btnCobrar class="btn btn-charge grow" type="button" [disabled]="cobrando || activo.lineas.length === 0" (click)="cobrar()">
             COBRAR
           </button>
           <button class="btn" type="button" (click)="cancelar()">Cancelar</button>
         </div>
+        }
         @if (mensaje) {
           <p class="meta">{{ mensaje }}</p>
         }
@@ -188,8 +209,11 @@ const FIJOS = 4;
     }
   `
 })
-export class CajaComponent implements OnInit, OnDestroy {
+export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly fijos = FIJOS;
+  @ViewChild('lector') private lector?: ElementRef<HTMLInputElement>;
+  @ViewChild('chkDesc') private chkDesc?: ElementRef<HTMLElement>;
+  @ViewChild('btnCobrar') private btnCobrar?: ElementRef<HTMLButtonElement>;
   productos: ProductoDto[] = [];
   visibles: ProductoDto[] = [];
   totalLista = 0;
@@ -207,6 +231,12 @@ export class CajaComponent implements OnInit, OnDestroy {
   scanner = '';
   cobrando = false;
   mensaje = '';
+  mpVinculado = false;
+  esperando: CobroMercadoPagoDto | null = null;
+  qrEspera = '';
+  private relojEspera: ReturnType<typeof setInterval> | null = null;
+  private relojOcio: ReturnType<typeof setTimeout> | null = null;
+  private descuentoPorEnter = false;
   error = '';
   toast = '';
   ticket: VentaDetalleDto | null = null;
@@ -243,16 +273,25 @@ export class CajaComponent implements OnInit, OnDestroy {
 
   aplicarDesc(v: boolean, el: HTMLInputElement): void {
     this.activo.usarDesc = v;
-    if (!v) this.activo.descuento = 0;
-    else queueMicrotask(() => el.focus());
+    if (!v) {
+      this.activo.descuento = 0;
+      this.focoLector();
+      return;
+    }
+    queueMicrotask(() => {
+      el.focus();
+      el.select();
+    });
   }
 
   async aplicarAlCosto(v: boolean): Promise<void> {
     if (v && !await this.dialogo.confirmar('¿Cobrar esta venta al costo?')) {
       this.activo.alCosto = false;
+      this.focoLector();
       return;
     }
     this.activo.alCosto = v;
+    this.focoLector();
   }
 
   titulo(indice: number): string {
@@ -263,26 +302,83 @@ export class CajaComponent implements OnInit, OnDestroy {
   seleccionar(indice: number): void {
     if (this.cobrando || indice < 0 || indice >= this.carritos.length) return;
     this.indiceActivo = indice;
+    this.focoLector();
   }
 
   crearCarrito(): void {
     this.carritos = [...this.carritos, this.vacio()];
     this.indiceActivo = this.carritos.length - 1;
+    this.focoLector();
   }
 
   async cerrarCarrito(): Promise<void> {
     if (this.indiceActivo < FIJOS) return;
-    if (this.activo.lineas.length > 0 && !await this.dialogo.confirmar('Este carrito tiene productos. ¿Desea cerrarlo?')) return;
+    if (this.activo.lineas.length > 0 && !await this.dialogo.confirmar('Este carrito tiene productos. ¿Desea cerrarlo?')) {
+      this.focoLector();
+      return;
+    }
     const i = this.indiceActivo;
     this.carritos = this.carritos.filter((_, n) => n !== i);
     this.indiceActivo = Math.min(i, this.carritos.length - 1);
+    this.focoLector();
   }
 
   @HostListener('window:keydown', ['$event'])
   atajo(e: KeyboardEvent): void {
+    if (this.dialogo.visible()) return;
     if (e.key !== 'F1' && e.key !== 'F2' && e.key !== 'F3' && e.key !== 'F4') return;
     e.preventDefault();
     this.seleccionar(Number(e.key.slice(1)) - 1);
+  }
+
+  @HostListener('window:focus')
+  @HostListener('document:visibilitychange')
+  alVolver(): void {
+    if (document.visibilityState === 'hidden') return;
+    this.focoLector();
+  }
+
+  @HostListener('document:keydown')
+  @HostListener('document:pointerdown')
+  actividad(): void {
+    this.reiniciarOcio();
+  }
+
+  teclaLector(e: KeyboardEvent): void {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      this.escanear();
+      return;
+    }
+    if (!this.esMas(e)) return;
+    e.preventDefault();
+    this.focoMedio();
+  }
+
+  teclaMedio(e: KeyboardEvent): void {
+    if (!this.esMas(e)) return;
+    const primero = (e.currentTarget as HTMLElement).querySelector('select');
+    if (e.target !== primero) return;
+    e.preventDefault();
+    this.btnCobrar?.nativeElement.focus();
+  }
+
+  enterDescuento(e: Event): void {
+    e.preventDefault();
+    this.descuentoPorEnter = true;
+    this.focoLector();
+  }
+
+  salirDescuento(e: FocusEvent): void {
+    if (this.descuentoPorEnter) {
+      this.descuentoPorEnter = false;
+      return;
+    }
+    const destino = e.relatedTarget as Node | null;
+    if (this.chkDesc?.nativeElement.contains(destino)) return;
+    if (destino === this.lector?.nativeElement) return;
+    if (!this.activo.usarDesc) return;
+    this.focoMedio();
   }
 
   ngOnInit(): void {
@@ -294,10 +390,11 @@ export class CajaComponent implements OnInit, OnDestroy {
     }
     const pend = this.sesion.tomarCarritoPendiente();
     if (pend?.length) this.activo.lineas = pend.map((l) => ({ ...l }));
+    this.api.cuentaMercadoPago().subscribe({ next: (r) => (this.mpVinculado = r.vinculada) });
     this.api.mediosPago().subscribe({
       next: (r) => {
         this.mediosPago = r;
-        const id = r.find((m) => m.activo)?.id ?? r[0]?.id;
+        const id = r.find((m) => m.activo && this.medioVisible(m))?.id ?? r[0]?.id;
         if (!id) return;
         for (const c of this.carritos) {
           if (c.pagos.length === 0) c.pagos = [{ idMetodoPago: id, importe: 0, resto: false }];
@@ -317,11 +414,30 @@ export class CajaComponent implements OnInit, OnDestroy {
       }
     });
     this.api.gruposFiltro().subscribe({ next: (r) => (this.gruposFiltro = r) });
+    this.reanudarEspera();
     this.cargar();
   }
 
+  ngAfterViewInit(): void {
+    this.focoLector();
+    this.reiniciarOcio();
+  }
+
   ngOnDestroy(): void {
+    this.pararEspera();
+    if (this.relojOcio) clearTimeout(this.relojOcio);
     this.sesion.guardarCarritos(this.carritos, this.indiceActivo);
+  }
+
+  medioVisible(medio: MetodoPagoDto): boolean {
+    return !medio.integracion || medio.integracion === 'manual' || this.mpVinculado;
+  }
+
+  textoEspera(estado: string): string {
+    if (estado === 'pagado') return 'Pagado';
+    if (estado === 'cancelado') return 'Cancelado';
+    if (estado === 'vencido') return 'Vencido';
+    return 'Esperando';
   }
 
   dinero(n: number): string {
@@ -363,20 +479,29 @@ export class CajaComponent implements OnInit, OnDestroy {
 
   escanear(): void {
     const codigo = this.scanner.trim();
-    if (!codigo) return;
+    if (!codigo) {
+      this.focoLector();
+      return;
+    }
     this.scanner = '';
     const local = this.productos.find((x) => x.codigo.toLowerCase() === codigo.toLowerCase());
     if (local) {
-      this.agregarProducto(local);
+      void this.agregarProducto(local).finally(() => this.focoLector());
       return;
     }
     this.api.productos('', { codigo }).subscribe({
       next: (r) => {
         const p = r.items[0];
-        if (p) this.agregarProducto(p);
-        else this.error = `No hay producto ${codigo}`;
+        if (p) void this.agregarProducto(p).finally(() => this.focoLector());
+        else {
+          this.error = `No hay producto ${codigo}`;
+          this.focoLector();
+        }
       },
-      error: () => (this.error = `No hay producto ${codigo}`)
+      error: () => {
+        this.error = `No hay producto ${codigo}`;
+        this.focoLector();
+      }
     });
   }
 
@@ -416,10 +541,16 @@ export class CajaComponent implements OnInit, OnDestroy {
 
   async agregarGenerico(): Promise<void> {
     const nombre = await this.dialogo.pedir('Nombre del genérico', 'Producto suelto');
-    if (!nombre) return;
+    if (!nombre) {
+      this.focoLector();
+      return;
+    }
     const raw = await this.dialogo.pedir('Precio');
     const precio = Number((raw ?? '').replace(',', '.'));
-    if (!raw || !(precio > 0)) return;
+    if (!raw || !(precio > 0)) {
+      this.focoLector();
+      return;
+    }
     this.activo.lineas.push({
       idProducto: 0,
       codigo: `GENERIC-${crypto.randomUUID().slice(0, 8)}`,
@@ -430,16 +561,19 @@ export class CajaComponent implements OnInit, OnDestroy {
       sector: false,
       generico: true
     });
+    this.focoLector();
   }
 
   sacar(l: LineaCarritoPendiente): void {
     this.activo.lineas = this.activo.lineas.filter((x) => x !== l);
+    this.focoLector();
   }
 
   cancelar(): void {
     this.vaciarActivo();
     this.error = '';
     this.mensaje = '';
+    this.focoLector();
   }
 
   cobrar(): void {
@@ -456,6 +590,25 @@ export class CajaComponent implements OnInit, OnDestroy {
     const desc = this.activo.usarDesc ? Number(this.activo.descuento) || 0 : 0;
     const pagos = this.activo.pagos.map((p, i) => ({ idMetodoPago: p.idMetodoPago, importe: this.importePago(p, i) }));
     const imprimir = this.activo.imprimirTicket;
+    if (pagos.some((p) => this.esMercadoPago(p.idMetodoPago))) {
+      const importeQr = pagos.filter((p) => this.esQr(p.idMetodoPago)).reduce((s, p) => s + Number(p.importe), 0);
+      if (importeQr > 0 && importeQr < 15) {
+        this.error = 'El QR de Mercado Pago pide al menos $ 15.';
+        this.cobrando = false;
+        return;
+      }
+      this.api.iniciarCobroMercadoPago(items, pagos, desc, this.sesion.esDueno() && this.activo.alCosto).subscribe({
+        next: (r) => {
+          this.activo.idCobro = r.id;
+          this.mostrarEspera(r, imprimir);
+        },
+        error: (err) => {
+          this.error = typeof err.error === 'string' ? err.error : 'No se pudo iniciar el cobro.';
+          this.cobrando = false;
+        }
+      });
+      return;
+    }
     this.api.cobrar(items, pagos, desc, this.sesion.esDueno() && this.activo.alCosto).subscribe({
       next: (r) => {
         this.toast = `Cobrado ${this.dinero(r.total)}`;
@@ -463,7 +616,10 @@ export class CajaComponent implements OnInit, OnDestroy {
         this.cobrando = false;
         this.cargar();
         if (imprimir) this.imprimirVenta(r.idInformeVenta, r.total);
-        else setTimeout(() => (this.toast = ''), 2500);
+        else {
+          this.focoLector();
+          setTimeout(() => (this.toast = ''), 2500);
+        }
       },
       error: (err) => {
         this.error = typeof err.error === 'string' ? err.error : 'No se pudo cobrar.';
@@ -508,6 +664,134 @@ export class CajaComponent implements OnInit, OnDestroy {
     return Math.max(0, Math.round((this.total - usado) * 100) / 100);
   }
 
+  private esMercadoPago(id: number): boolean {
+    const integracion = this.mediosPago.find((m) => m.id === id)?.integracion;
+    return integracion === 'qr_impreso' || integracion === 'qr_pantalla' || integracion === 'point';
+  }
+
+  private esQr(id: number): boolean {
+    const integracion = this.mediosPago.find((m) => m.id === id)?.integracion;
+    return integracion === 'qr_impreso' || integracion === 'qr_pantalla';
+  }
+
+  private reanudarEspera(): void {
+    this.api.cobroMercadoPagoAbierto().subscribe({
+      next: (r) => {
+        if (!r) return;
+        const i = this.carritos.findIndex((c) => c.idCobro === r.id);
+        if (i >= 0) this.indiceActivo = i;
+        this.activo.idCobro = r.id;
+        this.mostrarEspera(r, this.activo.imprimirTicket);
+      }
+    });
+  }
+
+  private mostrarEspera(r: CobroMercadoPagoDto, imprimir: boolean): void {
+    if (r.estado !== 'esperando') {
+      this.cerrarEspera(r, imprimir);
+      return;
+    }
+    this.esperando = r;
+    this.cobrando = true;
+    this.qrEspera = '';
+    if (r.modo === 'qr_pantalla' && r.qrData) {
+      void toDataURL(r.qrData, { margin: 1, width: 220 }).then((url) => (this.qrEspera = url));
+    }
+    this.pararEspera();
+    this.relojEspera = setInterval(() => this.consultarEspera(imprimir), 3000);
+  }
+
+  private consultarEspera(imprimir: boolean): void {
+    if (!this.esperando) return;
+    this.api.consultarCobroMercadoPago(this.esperando.id).subscribe({
+      next: (r) => {
+        if (r.estado === 'esperando') {
+          this.esperando = r;
+          return;
+        }
+        this.cerrarEspera(r, imprimir);
+      }
+    });
+  }
+
+  private cerrarEspera(r: CobroMercadoPagoDto, imprimir: boolean): void {
+    this.pararEspera();
+    this.cobrando = false;
+    this.esperando = null;
+    this.qrEspera = '';
+    for (const c of this.carritos) {
+      if (c.idCobro === r.id) c.idCobro = undefined;
+    }
+    if (r.estado === 'pagado' && r.idInformeVenta) {
+      this.toast = `Cobrado ${this.dinero(r.importe)}`;
+      this.cerrarTrasCobro();
+      this.cargar();
+      if (imprimir) this.imprimirVenta(r.idInformeVenta, r.importe);
+      else {
+        this.focoLector();
+        setTimeout(() => (this.toast = ''), 2500);
+      }
+      return;
+    }
+    this.error = r.estado === 'vencido' ? 'El cobro venció.' : 'El cobro se canceló.';
+    this.focoLector();
+  }
+
+  cancelarEspera(): void {
+    if (!this.esperando) return;
+    const id = this.esperando.id;
+    this.api.cancelarCobroMercadoPago(id).subscribe({
+      next: (r) => {
+        this.cerrarEspera(r, false);
+        this.error = '';
+        this.mensaje = 'Cobro cancelado. El carrito sigue.';
+      },
+      error: (err) => (this.error = typeof err.error === 'string' ? err.error : 'No se pudo cancelar el cobro.')
+    });
+  }
+
+  private pararEspera(): void {
+    if (this.relojEspera) clearInterval(this.relojEspera);
+    this.relojEspera = null;
+  }
+
+  private esMas(e: KeyboardEvent): boolean {
+    return e.key === '+' || e.code === 'NumpadAdd';
+  }
+
+  private focoLector(): void {
+    if (!this.puedeRobarFoco()) return;
+    this.lector?.nativeElement.focus();
+  }
+
+  private focoMedio(): void {
+    if (!this.puedeRobarFoco()) return;
+    const medio = document.querySelector('.payment-list select');
+    if (!(medio instanceof HTMLSelectElement)) return;
+    medio.focus();
+    const abrir = medio as HTMLSelectElement & { showPicker?: () => void };
+    try {
+      abrir.showPicker?.();
+    } catch {
+      /* el navegador no abre el combo sin un gesto */
+    }
+  }
+
+  private puedeRobarFoco(): boolean {
+    return !this.dialogo.visible() && !this.bloqueada() && document.visibilityState !== 'hidden';
+  }
+
+  private reiniciarOcio(): void {
+    if (this.relojOcio) clearTimeout(this.relojOcio);
+    this.relojOcio = setTimeout(() => {
+      if (!this.puedeRobarFoco()) {
+        this.reiniciarOcio();
+        return;
+      }
+      this.focoLector();
+    }, 10000);
+  }
+
   private vacio(): CarritoCaja {
     const idMedio = this.mediosPago.find((m) => m.activo)?.id ?? this.mediosPago[0]?.id;
     return {
@@ -542,11 +826,13 @@ export class CajaComponent implements OnInit, OnDestroy {
           }
           this.ticket = null;
           this.toast = `Cobrado ${this.dinero(total)}. Si el ticket no salió, la venta igual está guardada.`;
+          this.focoLector();
           setTimeout(() => (this.toast = ''), 4000);
         }, 50);
       },
       error: () => {
         this.toast = `Cobrado ${this.dinero(total)}. No se pudo armar el ticket; la venta está guardada.`;
+        this.focoLector();
         setTimeout(() => (this.toast = ''), 4000);
       }
     });

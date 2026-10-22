@@ -140,7 +140,11 @@ public class MensajeContactoPedido
     [MaxLength(2000)]
     public string Mensaje { get; set; } = "";
 
+    [MaxLength(200)]
     public string? Sitio { get; set; }
+
+    [MaxLength(400)]
+    public string? Apertura { get; set; }
 }
 
 public class FormularioContactoPedido
@@ -207,6 +211,15 @@ public class MetodoPagoPedido
 {
     [Required, MaxLength(80)]
     public string Descripcion { get; set; } = "";
+
+    [MaxLength(20)]
+    public string Integracion { get; set; } = IntegracionPago.Manual;
+}
+
+public class LectorMercadoPagoPedido
+{
+    [MaxLength(80)]
+    public string IdLector { get; set; } = "";
 }
 
 public class ItemVentaPedido
@@ -336,6 +349,9 @@ public class RegistroCuentaPedido : RegistroPedido
 
     /// <summary>Campo oculto contra bots: una persona lo deja vacío.</summary>
     public string? Sitio { get; set; }
+
+    [MaxLength(2048)]
+    public string? Captcha { get; set; }
 }
 
 public class DebitoPedido

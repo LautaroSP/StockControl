@@ -32,6 +32,9 @@ public class AppDbContext : DbContext
     public DbSet<Abono> Abonos => Set<Abono>();
     public DbSet<Ajuste> Ajustes => Set<Ajuste>();
     public DbSet<MensajeContacto> MensajesContacto => Set<MensajeContacto>();
+    public DbSet<CuentaMercadoPago> CuentasMercadoPago => Set<CuentaMercadoPago>();
+    public DbSet<PuestoMercadoPago> PuestosMercadoPago => Set<PuestoMercadoPago>();
+    public DbSet<CobroMercadoPago> CobrosMercadoPago => Set<CobroMercadoPago>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -103,6 +106,7 @@ public class AppDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).UseIdentityByDefaultColumn();
             e.Property(x => x.Descripcion).HasMaxLength(80);
+            e.Property(x => x.Integracion).HasMaxLength(20);
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
 
@@ -260,6 +264,48 @@ public class AppDbContext : DbContext
             e.Property(x => x.Correo).HasMaxLength(200);
             e.Property(x => x.Mensaje).HasMaxLength(2000);
             e.HasIndex(x => x.Leido);
+        });
+
+        model.Entity<CuentaMercadoPago>(e =>
+        {
+            e.ToTable("CuentasMercadoPago");
+            e.HasKey(x => x.IdLocal);
+            e.Property(x => x.TokenAcceso).HasColumnType("text");
+            e.Property(x => x.TokenRenovacion).HasColumnType("text");
+            e.Property(x => x.IdUsuarioMp).HasMaxLength(32);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<PuestoMercadoPago>(e =>
+        {
+            e.ToTable("PuestosMercadoPago");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.IdExterno).HasMaxLength(60);
+            e.Property(x => x.IdSucursal).HasMaxLength(32);
+            e.Property(x => x.UrlQr).HasMaxLength(500);
+            e.Property(x => x.IdLector).HasMaxLength(80);
+            e.HasIndex(x => new { x.IdLocal, x.NroCaja }).IsUnique();
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<CobroMercadoPago>(e =>
+        {
+            e.ToTable("CobrosMercadoPago");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Modo).HasMaxLength(20);
+            e.Property(x => x.Estado).HasMaxLength(20);
+            e.Property(x => x.Importe).HasPrecision(14, 2);
+            e.Property(x => x.IdOrdenMp).HasMaxLength(64);
+            e.Property(x => x.QrData).HasColumnType("text");
+            e.Property(x => x.PedidoJson).HasColumnType("text");
+            e.HasIndex(x => x.IdOrdenMp).IsUnique().HasFilter("\"IdOrdenMp\" <> ''");
+            e.HasIndex(x => new { x.IdLocal, x.NroCaja })
+                .IsUnique()
+                .HasFilter("\"Estado\" = 'esperando' AND \"Modo\" = 'qr_impreso'")
+                .HasDatabaseName("IX_CobrosMercadoPago_QrAbierto");
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
     }
 }

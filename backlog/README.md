@@ -43,11 +43,14 @@ Se paga **$ 14.999 / mes por local** (Argentina). El dueño **no** da de alta lo
 | 26 | [Proveedores y órdenes](26-proveedores.md) | dueño, socio |
 | 27 | [Recibir orden](27-recibir-orden.md) | dueño, socio |
 | 20 | [Configuración del local](20-configuracion-del-local.md) | dueño |
-| 21 | [Pasarela de pagos (QR MP / Posnet)](21-pasarela-pagos-qr.md) | dueño (vincula), empleado (cobra) — **última** |
+| 21 | [Pasarela de pagos (QR MP / Point)](21-pasarela-pagos-qr.md) | dueño (vincula), empleado (cobra) — antes de la tienda |
 | 23 | [Modo oscuro](23-modo-oscuro.md) | todos — UI |
 | 28 | [Landing](28-landing.md) | visitante — sitio público |
-| 29 | [Tienda online](29-tienda-online.md) | dueño, comprador — pedidos online con 5 % de gestión |
+| 29 | [Tienda online](29-tienda-online.md) | dueño, comprador — pedidos online, gestión con importe fijo |
+| 30 | [Mantenimiento y 404](30-mantenimiento-y-404.md) | visitante — Caddy si la API no responde; 404 de ruta en Angular |
+| 31 | [Iconos](31-iconos.md) | dueño, empleado — barra y Configuración; Mercado Pago con check |
+| 32 | [Teclado de la caja](32-teclado-caja.md) | empleado, dueño — foco en el lector y cobro con teclado |
 
 \*El empleado ve lo necesario para operar (ventas del día / reimprimir). No borra ventas ni ve costo.
 
-Dos Mercados Pago distintos: la **22** es Jorge pagándote el mes (tu QR o WhatsApp). La **21** es el cliente del kiosco pagando en caja (última, spike). Con pocos usuarios, la 22 puede ser QR + “ya pagué” / marca admin; no hace falta débito automático.
+Dos Mercados Pago distintos: la **22** es Jorge pagándote el mes (tu QR o WhatsApp). La **21** conecta la cuenta del local; el mostrador cobra ahí y la **29** usa esa misma cuenta (Checkout Pro; la gestión es un importe fijo de Configuración). Con pocos usuarios, la 22 puede ser QR + “ya pagué” / marca admin; no hace falta débito automático.

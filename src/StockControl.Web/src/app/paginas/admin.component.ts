@@ -6,14 +6,15 @@ import { Router, RouterLink } from '@angular/router';
 import { ApiService, LocalAdminDto, LocalPlataformaDto, MensajeContactoDto, UsuarioAdminDto, UsuarioCreadoDto } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
-import { TemaService } from '../servicios/tema.service';
+import { TemaComponent } from '../tema.component';
 
 @Component({
   selector: 'sc-admin',
   standalone: true,
-  imports: [DatePipe, FormsModule, NgTemplateOutlet, RouterLink],
+  imports: [DatePipe, FormsModule, NgTemplateOutlet, RouterLink, TemaComponent],
   template: `
-    <div class="auth" style="align-items:start;padding-top:32px">
+    <sc-tema />
+    <div class="auth" style="align-items:start;padding-top:72px">
       <div style="width:min(880px,100%)">
         <div class="topbar">
           <div>
@@ -21,9 +22,6 @@ import { TemaService } from '../servicios/tema.service';
             <p class="meta">Dueños registrados. Un clic muestra sus locales.</p>
           </div>
           <div class="row">
-            <button class="btn" type="button" (click)="tema.alternar()">
-              {{ tema.tema() === 'oscuro' ? 'Modo claro' : 'Modo oscuro' }}
-            </button>
             <a class="btn" routerLink="/locales">Mis locales</a>
             <button class="btn" type="button" (click)="salir()">Salir</button>
           </div>
@@ -344,7 +342,6 @@ export class AdminComponent implements OnInit {
     private readonly api: ApiService,
     private readonly sesion: SesionService,
     private readonly router: Router,
-    readonly tema: TemaService,
     private readonly dialogo: DialogoService
   ) {}
 

@@ -17,11 +17,19 @@ import { SesionService } from '../servicios/sesion.service';
     @if (error) { <p class="error">{{ error }}</p> }
     <section class="panel">
       <table class="data">
-        <thead><tr><th>Descripción</th><th>Estado</th><th></th></tr></thead>
+        <thead><tr><th>Descripción</th><th>Cobro</th><th>Estado</th><th></th></tr></thead>
         <tbody>
           @for (medio of medios; track medio.id) {
             <tr>
               <td>{{ medio.descripcion }}</td>
+              <td>
+                <select [ngModel]="medio.integracion || 'manual'" (ngModelChange)="integracion(medio, $event)">
+                  <option value="manual">Manual</option>
+                  <option value="qr_impreso">QR impreso</option>
+                  <option value="qr_pantalla">QR en pantalla</option>
+                  <option value="point">Point</option>
+                </select>
+              </td>
               <td>{{ medio.activo ? 'Activo' : 'Inactivo' }}</td>
               <td class="num">
                 @if (medio.activo) {
@@ -59,18 +67,26 @@ export class MediosPagoComponent implements OnInit {
   async crear(): Promise<void> {
     const descripcion = (await this.dialogo.pedir('Descripción del medio de pago', 'Transferencia'))?.trim();
     if (!descripcion) return;
-    this.api.crearMedioPago(descripcion).subscribe({ next: () => this.cargar(), error: (e) => (this.error = this.mensaje(e)) });
+    this.api.crearMedioPago(descripcion, 'manual').subscribe({ next: () => this.cargar(), error: (e) => (this.error = this.mensaje(e)) });
   }
 
   async editar(medio: MetodoPagoDto): Promise<void> {
     const descripcion = (await this.dialogo.pedir('Descripción del medio de pago', medio.descripcion))?.trim();
     if (!descripcion || descripcion === medio.descripcion) return;
-    this.api.editarMedioPago(medio.id, descripcion).subscribe({ next: () => this.cargar(), error: (e) => (this.error = this.mensaje(e)) });
+    this.api.editarMedioPago(medio.id, descripcion, medio.integracion || 'manual').subscribe({ next: () => this.cargar(), error: (e) => (this.error = this.mensaje(e)) });
   }
 
   async desactivar(medio: MetodoPagoDto): Promise<void> {
     if (!await this.dialogo.confirmar(`¿Desactivar ${medio.descripcion}?`)) return;
     this.api.desactivarMedioPago(medio.id).subscribe({ next: () => this.cargar(), error: (e) => (this.error = this.mensaje(e)) });
+  }
+
+  integracion(medio: MetodoPagoDto, integracion: string): void {
+    if (integracion === medio.integracion) return;
+    this.api.editarMedioPago(medio.id, medio.descripcion, integracion).subscribe({
+      next: () => this.cargar(),
+      error: (e) => (this.error = this.mensaje(e))
+    });
   }
 
   activar(medio: MetodoPagoDto): void {

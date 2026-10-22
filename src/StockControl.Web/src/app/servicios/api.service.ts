@@ -108,6 +108,7 @@ export interface RegistroPedidoDto {
   modalidad: 'prueba' | 'pagar';
   clave: string;
   sitio: string;
+  captcha: string;
 }
 
 export interface ItemVenta {
@@ -156,6 +157,21 @@ export interface MetodoPagoDto {
   id: number;
   descripcion: string;
   activo: boolean;
+  integracion: string;
+}
+
+export interface CuentaMercadoPagoDto {
+  vinculada: boolean;
+  puestos: { nroCaja: number; listo: boolean; urlQr: string; idLector: string }[];
+}
+
+export interface CobroMercadoPagoDto {
+  id: number;
+  estado: string;
+  modo: string;
+  importe: number;
+  qrData: string;
+  idInformeVenta: number | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -224,10 +240,10 @@ export class ApiService {
   }
 
   contactoVentas() {
-    return this.http.get<{ telefono: string; url: string | null; email: string; formularioActivo: boolean }>(`${this.base}/ventas/contacto`);
+    return this.http.get<{ telefono: string; url: string | null; email: string; formularioActivo: boolean; apertura: string }>(`${this.base}/ventas/contacto`);
   }
 
-  enviarContacto(body: { nombre: string; correo: string; mensaje: string; sitio: string }) {
+  enviarContacto(body: { nombre: string; correo: string; mensaje: string; sitio: string; apertura: string }) {
     return this.http.post(`${this.base}/ventas/contacto`, body);
   }
 
@@ -261,6 +277,10 @@ export class ApiService {
 
   eliminarUsuario(id: number, clave: string) {
     return this.http.delete(`${this.base}/admin/usuarios/${id}`, { body: { clave } });
+  }
+
+  captchaRegistro() {
+    return this.http.get<{ siteKey: string | null }>(`${this.base}/registro/captcha`);
   }
 
   registrar(pedido: RegistroPedidoDto) {
@@ -369,12 +389,46 @@ export class ApiService {
     return this.http.get<MetodoPagoDto[]>(`${this.base}/medios-pago`);
   }
 
-  crearMedioPago(descripcion: string) {
-    return this.http.post<MetodoPagoDto>(`${this.base}/medios-pago`, { descripcion });
+  crearMedioPago(descripcion: string, integracion: string) {
+    return this.http.post<MetodoPagoDto>(`${this.base}/medios-pago`, { descripcion, integracion });
   }
 
-  editarMedioPago(id: number, descripcion: string) {
-    return this.http.put<MetodoPagoDto>(`${this.base}/medios-pago/${id}`, { descripcion });
+  editarMedioPago(id: number, descripcion: string, integracion: string) {
+    return this.http.put<MetodoPagoDto>(`${this.base}/medios-pago/${id}`, { descripcion, integracion });
+  }
+
+  cuentaMercadoPago() {
+    return this.http.get<CuentaMercadoPagoDto>(`${this.base}/mercadopago/cuenta`);
+  }
+
+  conectarMercadoPago() {
+    return this.http.get<{ url: string }>(`${this.base}/mercadopago/conectar`);
+  }
+
+  prepararPuestoMercadoPago(nro: number) {
+    return this.http.post<CuentaMercadoPagoDto['puestos'][number]>(`${this.base}/mercadopago/puestos/${nro}`, {});
+  }
+
+  guardarLectorMercadoPago(nro: number, idLector: string) {
+    return this.http.put(`${this.base}/mercadopago/puestos/${nro}`, { idLector });
+  }
+
+  cobroMercadoPagoAbierto() {
+    return this.http.get<CobroMercadoPagoDto | null>(`${this.base}/ventas/mercadopago/abierto`);
+  }
+
+  iniciarCobroMercadoPago(items: ItemVenta[], pagos: PagoVenta[], descuentoPorcentaje: number, cobrarAlCosto: boolean) {
+    return this.http.post<CobroMercadoPagoDto>(`${this.base}/ventas/mercadopago`, {
+      items, pagos, descuentoPorcentaje, cobrarAlCosto
+    });
+  }
+
+  consultarCobroMercadoPago(id: number) {
+    return this.http.get<CobroMercadoPagoDto>(`${this.base}/ventas/mercadopago/${id}`);
+  }
+
+  cancelarCobroMercadoPago(id: number) {
+    return this.http.post<CobroMercadoPagoDto>(`${this.base}/ventas/mercadopago/${id}/cancelar`, {});
   }
 
   desactivarMedioPago(id: number) {

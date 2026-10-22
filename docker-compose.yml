@@ -9,6 +9,65 @@ services:
       POSTGRES_DB: stockcontrol
     volumes:
       - stockcontrol_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stockcontrol -d stockcontrol"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build:
+      context: .
+      dockerfile: src/StockControl.Api/Dockerfile
+    ports:
+      - "127.0.0.1:5263:8080"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=stockcontrol;Username=stockcontrol;Password=stockcontrol
+      DataProtection__Ruta: /claves
+    volumes:
+      - claves_api:/claves
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: src/StockControl.Web
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:4200:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    profiles: ["produccion"]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITIO: ${SITIO:-localhost}
+      API: api:8080
+      WEB: web:80
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/mantenimiento:/srv/mantenimiento:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
+    restart: unless-stopped
 
 volumes:
   stockcontrol_pg:
+  claves_api:
+  caddy_data:
+  caddy_config:

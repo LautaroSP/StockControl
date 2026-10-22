@@ -52,5 +52,5 @@ export const routes: Routes = [
       { path: '', redirectTo: 'caja', pathMatch: 'full' }
     ]
   },
-  { path: '**', redirectTo: 'login' }
+  { path: '**', loadComponent: () => import('./paginas/no-encontrada.component').then((m) => m.NoEncontradaComponent) }
 ];

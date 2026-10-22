@@ -16,7 +16,8 @@ Todo lo configurable **por sucursal**. El empleado no entra.
 - Empleado puede modificar precios sí/no (tarjeta 06).
 - Ticket: POS o A4; imprimir al cobrar default (tarjeta 18).
 - Plantillas de cartel (tarjeta 19).
-- Vincular Mercado Pago para QR (tarjeta 21, última).
+- Vincular Mercado Pago (tarjeta 21). Esa cuenta también cobra la tienda.
+- Importe fijo de gestión por pedido online (tarjeta 29). En 0 no se cobra.
 - Cantidad de cajas / puestos (tarjeta 24).
 
 ## Criterios de aceptación

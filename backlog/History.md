@@ -10,8 +10,6 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 
 **#29 · 29 Tienda online**
 
-Después: **21 QR (última)**.
-
 ## Tablero
 
 | #orden | # | Tarjeta | Estado | Nota |
@@ -44,11 +42,29 @@ Después: **21 QR (última)**.
 | 26 | 03 | [Admin: alta de locales](03-admin-alta-locales.md) | sí | Listado, alta con dueño nuevo, vencimiento, canal de pago, teléfono de ventas, baja del local y total del mes |
 | 27 | 04 | [Dueño: contratar otro local](04-dueno-contratar-local.md) | sí | Aunque el primero siga en prueba. El nuevo nace pendiente, sin trial, y no opera hasta el pago |
 | 28 | 28 | [Landing](28-landing.md) | sí | Inicio público con el recorrido, precio, contacto de ventas y términos. Ruta lazy |
-| 29 | 29 | [Tienda online](29-tienda-online.md) | no | Tienda pública por local, MP del local con 5 % de gestión, transferencia, envío por km. Preguntas abiertas en la tarjeta |
-| 30 | 21 | [Pasarela pagos QR MP](21-pasarela-pagos-qr.md) | no | **Última.** Cliente del kiosco paga en caja |
+| 29 | 21 | [Pasarela pagos QR MP](21-pasarela-pagos-qr.md) | sí | Probada en el mostrador con QR. Point y el QR impreso quedan en el producto |
+| 30 | 30 | [Mantenimiento y 404](30-mantenimiento-y-404.md) | sí | Página estática si Kestrel no responde. El 404 de una ruta lo muestra Angular. Sin test de dominio: no hay regla nueva |
+| 31 | 32 | [Teclado de la caja](32-teclado-caja.md) | sí | Foco al lector al volver y tras 10 s. Enter y + como en el escritorio. Sin test de dominio: es foco, no hay regla nueva |
+| 32 | 31 | [Iconos](31-iconos.md) | sí | Barra y Configuración. Mercado Pago: check verde y «Conectar otra cuenta» |
+| 33 | 29 | [Tienda online](29-tienda-online.md) | no | Última. Tienda pública por local. Cobra con la cuenta MP de la 21. Gestión: importe fijo en Configuración. Transferencia y envío por km |
 
 ## Log
 
+- 2026-10-22 · 30 Mantenimiento y 404 · sí · Si Kestrel no responde, Caddy muestra la página estática. Una ruta que no existe la muestra Angular, con vuelta al inicio
+- 2026-10-22 · 32 Teclado de la caja · sí · El lector recupera el foco al volver, a los 10 s y al terminar de cobrar. + pasa al medio y después a Cobrar, como en el escritorio
+- 2026-10-22 · 22 Cobro del abono · ajuste · El registro pide captcha (Turnstile). Sin claves reales, en local usa el widget de prueba
+- 2026-10-22 · 28 Landing · ajuste · El formulario de contacto queda en el inicio. Cebo, tope por IP y apertura firmada
+- 2026-10-22 · 21 Pasarela pagos QR MP · sí · Cerrada tras la prueba en el mostrador. La 29 queda al final, después del mantenimiento
+- 2026-10-22 · 29 Tienda online · ajuste · Pasa al final del tablero
+- 2026-10-21 · 32 Teclado de la caja · no · alta de tarjeta (foco al lector al volver y a los 10 s; ritmo Enter y + hasta cobrar)
+- 2026-10-21 · 31 Iconos · sí · Íconos en la barra y en Configuración. Cuenta de Mercado Pago en verde con check; el botón pasa a «Conectar otra cuenta»
+- 2026-10-21 · 31 Iconos · no · alta de tarjeta (barra, Configuración, marca de Mercado Pago, cuenta conectada con check)
+- 2026-10-20 · 21 Pasarela pagos QR MP · parcial · Cuenta del local cifrada, cobro que espera el pago y QR o Point en la caja. Falta probarlo con Mercado Pago
+- 2026-10-20 · 29 Tienda online · ajuste · La gestión deja de ser 5 %: importe fijo por pedido, en Configuración del local
+- 2026-10-20 · 29 Tienda online · ajuste · Cobra con la cuenta de Mercado Pago que el local conecta en la 21. El cartel del mostrador no recibe pedidos web
+- 2026-10-20 · 21 Pasarela pagos QR MP · ajuste · El QR impreso del mostrador también cobra: la caja le carga el importe a ese cartel
+- 2026-10-20 · 21 Pasarela pagos QR MP · ajuste · Pasa adelante de la tienda. El cobro de mostrador es QR en pantalla o Point del local
+- 2026-10-20 · 30 Mantenimiento y 404 · no · alta de tarjeta (página estática si la API no responde; 404 de ruta en Angular)
 - 2026-10-20 · 28 Landing · ajuste · El formulario de contacto se guarda; el admin lo marca leído y puede apagarlo
 - 2026-10-20 · 28 Landing · ajuste · El contacto muestra un mail genérico, editable desde el admin
 - 2026-10-20 · 05 Empleados · ajuste · Dueño y socio ven todos los usuarios de la cuenta, no solo los del local abierto

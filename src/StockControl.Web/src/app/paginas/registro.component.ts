@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, NgZone, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService, RegistroPedidoDto } from '../servicios/api.service';
@@ -53,17 +53,23 @@ import { SesionService } from '../servicios/sesion.service';
               Pagar ahora $ 14.999
             </label>
           </div>
+          @if (captchaActivo) {
+            <div id="captcha-registro" class="captcha"></div>
+          }
           @if (error) {
             <p class="error">{{ error }}</p>
           }
-          <button class="btn btn-primary wide" type="submit" [disabled]="cargando">Crear cuenta</button>
+          <button class="btn btn-primary wide" type="submit" [disabled]="cargando || (captchaActivo && !pedido.captcha)">Crear cuenta</button>
         </form>
         <p class="meta" style="margin-top:16px">¿Ya tenés cuenta? <a routerLink="/login">Entrá</a></p>
       </div>
     </div>
+  `,
+  styles: `
+    .captcha { margin: 4px 0 12px; min-height: 65px; }
   `
 })
-export class RegistroComponent {
+export class RegistroComponent implements OnInit, OnDestroy {
   pedido: RegistroPedidoDto = {
     nombre: '',
     email: '',
@@ -71,17 +77,36 @@ export class RegistroComponent {
     nombreLocal: '',
     modalidad: 'prueba',
     clave: '',
-    sitio: ''
+    sitio: '',
+    captcha: ''
   };
   clave2 = '';
   error = '';
   cargando = false;
+  captchaActivo = false;
+  private widget: string | null = null;
 
   constructor(
     private readonly api: ApiService,
     private readonly sesion: SesionService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly zona: NgZone
   ) {}
+
+  ngOnInit(): void {
+    this.api.captchaRegistro().subscribe({
+      next: (r) => {
+        if (!r.siteKey) return;
+        this.captchaActivo = true;
+        setTimeout(() => this.mostrarCaptcha(r.siteKey!), 0);
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    const api = this.turnstile();
+    if (api && this.widget) api.remove(this.widget);
+  }
 
   registrar(): void {
     this.error = this.validar();
@@ -106,6 +131,35 @@ export class RegistroComponent {
         this.cargando = false;
       }
     });
+  }
+
+  private mostrarCaptcha(siteKey: string): void {
+    const pintar = () => this.zona.run(() => {
+      const api = this.turnstile();
+      const caja = document.getElementById('captcha-registro');
+      if (!api || !caja || this.widget) return;
+      this.widget = api.render(caja, {
+        sitekey: siteKey,
+        theme: document.documentElement.getAttribute('data-tema') === 'oscuro' ? 'dark' : 'light',
+        callback: (token: string) => this.zona.run(() => { this.pedido.captcha = token; }),
+        'expired-callback': () => this.zona.run(() => { this.pedido.captcha = ''; }),
+        'error-callback': () => this.zona.run(() => { this.error = 'No se pudo cargar la verificación.'; })
+      });
+    });
+    if (this.turnstile()) {
+      pintar();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.async = true;
+    script.onload = () => pintar();
+    script.onerror = () => this.zona.run(() => { this.error = 'No se pudo cargar la verificación.'; });
+    document.head.appendChild(script);
+  }
+
+  private turnstile(): { render(el: HTMLElement, opts: object): string; remove(id: string): void } | undefined {
+    return (window as unknown as { turnstile?: { render(el: HTMLElement, opts: object): string; remove(id: string): void } }).turnstile;
   }
 
   private validar(): string {

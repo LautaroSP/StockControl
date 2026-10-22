@@ -1,4 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../servicios/api.service';
 import { TemaService } from '../servicios/tema.service';
@@ -14,7 +15,7 @@ const PANTALLAS = [
 @Component({
   selector: 'sc-landing',
   standalone: true,
-  imports: [RouterLink],
+  imports: [FormsModule, RouterLink],
   template: `
     <div class="landing">
       <nav class="landing-nav">
@@ -38,9 +39,14 @@ const PANTALLAS = [
             <h1>Registrate y tené tu prueba gratuita.</h1>
             <p class="lead">
               Cargá productos, cobrá en el carrito, mirá las estadísticas y sumá empleados.
+              La caja tiene pasarela de Mercado Pago: generás un QR para el cobro, cobrás con el Point o usás un QR impreso.
               Tiene modo claro y modo oscuro, y lo podés usar desde el celular.
               Siete días para probar un local. Después, el abono se cobra con Mercado Pago.
             </p>
+            <div class="marca-mp">
+              <img class="logo-mp logo-mp-color" src="mercadopago.svg" alt="Mercado Pago" />
+              <img class="logo-mp logo-mp-pluma" src="mercadopago-claro.svg" alt="Mercado Pago" />
+            </div>
             <div class="row" style="margin-top:18px">
               <a class="btn btn-primary" routerLink="/registro" style="padding:12px 16px;font-size:15px">Crear cuenta gratis</a>
               <a class="btn" routerLink="/login">Ya tengo cuenta</a>
@@ -114,8 +120,12 @@ const PANTALLAS = [
                   <article class="slide" [inert]="indice !== 4">
                     <div class="slide-app">
                       <p class="meta" style="margin:0">Abono de este local</p>
+                      <div class="marca-mp">
+                        <img class="logo-mp logo-mp-color" src="mercadopago.svg" alt="Mercado Pago" />
+                        <img class="logo-mp logo-mp-pluma" src="mercadopago-claro.svg" alt="Mercado Pago" />
+                      </div>
                       <div class="price" style="margin:0">$ 14.999 <small>/ mes</small></div>
-                      <p style="margin:0">Se cobra con Mercado Pago. Podés pagar el mes o dejar el débito automático.</p>
+                      <p style="margin:0">Podés pagar el mes o dejar el débito automático.</p>
                       <div class="banner" style="margin:0">
                         Antes, 7 días gratuitos. El primer cobro es cuando termina la prueba.
                       </div>
@@ -139,6 +149,14 @@ const PANTALLAS = [
         </section>
 
         <section class="features" aria-label="Qué incluye">
+          <article class="panel feat">
+            <div class="marca-mp">
+              <img class="logo-mp logo-mp-color" src="mercadopago.svg" alt="Mercado Pago" />
+              <img class="logo-mp logo-mp-pluma" src="mercadopago-claro.svg" alt="Mercado Pago" />
+            </div>
+            <h3>Pasarela de pago</h3>
+            <p>En el mostrador generás un QR para esa venta, cobrás con el Point o dejás un QR impreso en el puesto. Conectás la cuenta del local una vez. Ese dinero es de la venta, aparte del abono.</p>
+          </article>
           <article class="panel feat">
             <h3>Todos tus locales</h3>
             <p>Gestionás los locales que tengas desde un solo lugar. Creás cuentas de empleados o de socios.</p>
@@ -171,6 +189,10 @@ const PANTALLAS = [
             <p class="lead" style="margin-top:0">Tus primeros 7 días son gratis!</p>
             <p>Si te gusta, te quedás por tan solo</p>
             <div class="price">$ 14.999 <small>/ mes por local</small></div>
+            <div class="marca-mp">
+              <img class="logo-mp logo-mp-color" src="mercadopago.svg" alt="Mercado Pago" />
+              <img class="logo-mp logo-mp-pluma" src="mercadopago-claro.svg" alt="Mercado Pago" />
+            </div>
             <p>Podés abonar desde Mercado Pago o, si no, contactándote con <a href="#contacto">ventas</a>.</p>
             <p class="meta">Pago del mes o débito automático. Si el abono vence, ese local no puede cobrar hasta renovarlo.</p>
             <a class="btn btn-primary" routerLink="/registro" style="margin-top:8px">Registrate y empezá la prueba</a>
@@ -178,17 +200,32 @@ const PANTALLAS = [
         </section>
 
         <section class="bloque" id="contacto">
-          <div>
-            <h2>Contacto</h2>
-            <p class="lead" style="margin-top:0">Escribinos por la prueba, el abono o el uso de la caja.</p>
-            <p class="meta">Esta pantalla es la misma para todos.</p>
-            @if (url) {
-              <p><a [href]="url">{{ telefono }}</a></p>
+          <div class="contacto-publico">
+            <div>
+              <h2>Contacto</h2>
+              <p class="lead" style="margin-top:0">Escribinos por la prueba, el abono o el uso de la caja.</p>
+              @if (url) {
+                <p><a [href]="url">{{ telefono }}</a></p>
+              } @else {
+                <p class="meta">Todavía no hay un teléfono de ventas.</p>
+              }
+              @if (email) {
+                <p><a [href]="'mailto:' + email">{{ email }}</a></p>
+              }
+            </div>
+            @if (formularioActivo) {
+              <form class="panel pad" (ngSubmit)="enviar()">
+                <label class="field">Nombre <input class="wide" type="text" name="nombre" maxlength="120" autocomplete="name" [(ngModel)]="nombre" /></label>
+                <label class="field">Correo <input class="wide" type="email" name="correo" maxlength="200" autocomplete="email" [(ngModel)]="correo" /></label>
+                <label class="field">Mensaje <textarea class="wide" name="mensaje" rows="4" maxlength="2000" [(ngModel)]="mensaje"></textarea></label>
+                <input type="hidden" name="apertura" [(ngModel)]="apertura" />
+                <input class="campo-oculto" type="text" name="sitio" [(ngModel)]="sitio" tabindex="-1" autocomplete="off" aria-hidden="true" />
+                <button class="btn btn-primary wide" type="submit" [disabled]="enviando">{{ enviando ? 'Enviando...' : 'Enviar' }}</button>
+                @if (aviso) { <p class="meta">{{ aviso }}</p> }
+                @if (error) { <p class="error">{{ error }}</p> }
+              </form>
             } @else {
-              <p class="meta">Todavía no hay un teléfono de ventas.</p>
-            }
-            @if (email) {
-              <p><a [href]="'mailto:' + email">{{ email }}</a></p>
+              <p class="meta">El formulario está desactivado. Escribinos por teléfono o por mail.</p>
             }
           </div>
         </section>
@@ -200,6 +237,10 @@ const PANTALLAS = [
           <p>StockControl es el servicio de caja y stock. Al crear la cuenta empezás una prueba gratuita de 7 días, en un local.</p>
           <p>Durante la prueba podés cargar productos y cobrar. Pasados los 7 días, el local sigue si abonás $ 14.999 por mes.</p>
           <p>El abono se cobra con Mercado Pago: un pago del mes o el débito automático. Ese cobro es el servicio, no las ventas del mostrador.</p>
+          <p>Las ventas del mostrador se pueden cobrar con la pasarela de Mercado Pago: un QR generado para esa venta, el Point o un QR impreso. Ese dinero entra en la cuenta del local.</p>
+          <div class="marca-mp">
+            <img class="logo-mp" src="mercadopago-claro.svg" alt="Mercado Pago" />
+          </div>
           <p>Cada local se abona por separado. Los empleados no tienen un cargo aparte. Si el abono está vencido, ese local no puede cobrar hasta renovarlo.</p>
         </div>
         <div class="foot-row">
@@ -221,6 +262,15 @@ export class LandingComponent implements OnInit, OnDestroy {
   telefono = '';
   email = '';
   url: string | null = null;
+  formularioActivo = true;
+  nombre = '';
+  correo = '';
+  mensaje = '';
+  sitio = '';
+  apertura = '';
+  enviando = false;
+  aviso = '';
+  error = '';
   private origen: number | null = null;
   private reloj: ReturnType<typeof setInterval> | null = null;
   private readonly tituloAnterior = document.title;
@@ -243,6 +293,8 @@ export class LandingComponent implements OnInit, OnDestroy {
         this.telefono = r.telefono;
         this.email = r.email;
         this.url = r.url;
+        this.formularioActivo = r.formularioActivo;
+        this.apertura = r.apertura ?? '';
       }
     });
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -254,6 +306,39 @@ export class LandingComponent implements OnInit, OnDestroy {
     document.documentElement.classList.remove('tema-suave');
     document.title = this.tituloAnterior;
     this.tema.aplicar();
+  }
+
+  enviar(): void {
+    if (!this.nombre.trim() || !this.correo.trim() || !this.mensaje.trim()) {
+      this.error = 'Completá nombre, correo y mensaje.';
+      this.aviso = '';
+      return;
+    }
+    this.enviando = true;
+    this.error = '';
+    this.api.enviarContacto({
+      nombre: this.nombre.trim(),
+      correo: this.correo.trim(),
+      mensaje: this.mensaje.trim(),
+      sitio: this.sitio,
+      apertura: this.apertura
+    }).subscribe({
+      next: () => {
+        this.nombre = '';
+        this.correo = '';
+        this.mensaje = '';
+        this.sitio = '';
+        this.enviando = false;
+        this.aviso = 'Mensaje enviado.';
+      },
+      error: (e) => {
+        this.enviando = false;
+        this.aviso = '';
+        this.error = e.status === 429
+          ? 'Demasiados envíos. Probá de nuevo en unos minutos.'
+          : typeof e.error === 'string' ? e.error : 'No se pudo enviar el mensaje.';
+      }
+    });
   }
 
   ir(n: number): void {

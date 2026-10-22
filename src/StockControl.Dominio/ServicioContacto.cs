@@ -3,6 +3,19 @@ namespace StockControl.Dominio;
 public static class ServicioContacto
 {
     public const int DiasHastaBorrar = 3;
+    public const int SegundosMinimos = 3;
+    public const int HorasDeVigencia = 2;
+
+    public static bool EsCebo(string? sitio) => !string.IsNullOrEmpty(sitio);
+
+    public static string? RechazoPorTiempo(TimeSpan transcurrido)
+    {
+        if (transcurrido < TimeSpan.FromSeconds(SegundosMinimos))
+            return "Esperá un momento y volvé a enviar.";
+        if (transcurrido > TimeSpan.FromHours(HorasDeVigencia))
+            return "Volvé a cargar la página y enviá de nuevo.";
+        return null;
+    }
 
     public static MensajeContacto Nuevo(string nombre, string correo, string mensaje, DateTimeOffset ahora)
     {

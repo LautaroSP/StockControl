@@ -46,6 +46,23 @@ public class ServicioContactoTests
     }
 
     [Fact]
+    public void Un_cebo_no_es_una_persona()
+    {
+        Assert.True(ServicioContacto.EsCebo("http://spam"));
+        Assert.False(ServicioContacto.EsCebo(null));
+        Assert.False(ServicioContacto.EsCebo(""));
+    }
+
+    [Fact]
+    public void Hay_que_esperar_y_el_formulario_vence()
+    {
+        Assert.Equal("Esperá un momento y volvé a enviar.", ServicioContacto.RechazoPorTiempo(TimeSpan.FromSeconds(2)));
+        Assert.Null(ServicioContacto.RechazoPorTiempo(TimeSpan.FromSeconds(ServicioContacto.SegundosMinimos)));
+        Assert.Null(ServicioContacto.RechazoPorTiempo(TimeSpan.FromHours(ServicioContacto.HorasDeVigencia)));
+        Assert.Equal("Volvé a cargar la página y enviá de nuevo.", ServicioContacto.RechazoPorTiempo(TimeSpan.FromHours(ServicioContacto.HorasDeVigencia) + TimeSpan.FromSeconds(1)));
+    }
+
+    [Fact]
     public void El_formulario_esta_activo_salvo_que_se_apague()
     {
         Assert.True(ServicioContacto.EstaActivo(null));

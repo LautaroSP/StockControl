@@ -6,7 +6,7 @@ import { toDataURL } from 'qrcode';
 import { ApiService, LocalDto } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
-import { TemaService } from '../servicios/tema.service';
+import { TemaComponent } from '../tema.component';
 
 const INTERVALO_MS = 3000;
 const MAX_CONSULTAS = 40;
@@ -14,9 +14,10 @@ const MAX_CONSULTAS = 40;
 @Component({
   selector: 'sc-locales',
   standalone: true,
-  imports: [DatePipe, FormsModule, RouterLink],
+  imports: [DatePipe, FormsModule, RouterLink, TemaComponent],
   template: `
-    <div class="auth" style="align-items:start;padding-top:48px">
+    <sc-tema />
+    <div class="auth" style="align-items:start;padding-top:72px">
       <div style="width:min(960px,100%)">
         <div class="topbar">
           <div>
@@ -35,9 +36,6 @@ const MAX_CONSULTAS = 40;
             @if (sesion.esAdmin()) {
               <a class="btn" routerLink="/admin">Panel de admin</a>
             }
-            <button class="btn" type="button" (click)="tema.alternar()">
-              {{ tema.tema() === 'oscuro' ? 'Modo claro' : 'Modo oscuro' }}
-            </button>
             <button class="btn" type="button" (click)="salir()">Salir</button>
           </div>
         </div>
@@ -113,7 +111,6 @@ export class LocalesComponent implements OnInit, OnDestroy {
     private readonly api: ApiService,
     readonly sesion: SesionService,
     private readonly router: Router,
-    readonly tema: TemaService,
     private readonly dialogo: DialogoService
   ) {}
 

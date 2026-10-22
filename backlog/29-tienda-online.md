@@ -1,8 +1,8 @@
 # Creá tu tienda online
 
-- **Roles:** dueño (arma la tienda y gestiona pedidos) · socio / empleado (preparan pedidos) · comprador (sitio público, sin cuenta) · admin (cobra el 5 %)
+- **Roles:** dueño (arma la tienda, el importe de gestión y los pedidos) · socio / empleado (preparan pedidos) · comprador (sitio público, sin cuenta) · admin (ve la gestión cobrada)
 - **Tipo:** sitio público por local + panel de pedidos + Mercado Pago del local
-- **Depende de:** 11 Productos, 12 Stock, 16 Medios de pago, 22 Cobro del abono (para sumar el 5 % de las transferencias)
+- **Depende de:** 11 Productos, 12 Stock, 16 Medios de pago, 20 Configuración, 21 Pasarela (la cuenta de Mercado Pago del local), 22 Cobro del abono (para sumar la gestión de las transferencias)
 
 ## Qué
 
@@ -10,9 +10,9 @@ Cada local puede abrir su tienda online con los productos que elija. El comprado
 
 La tienda viene **incluida** en los $ 14.999 por mes del local. No hay abono extra.
 
-Por cada pedido gestionado online se cobra un **5 % de gestión** para el servicio (vos), calculado **solo sobre los productos** (el envío no paga gestión). El dueño elige si ese 5 % lo absorbe él (incluido en el precio) o si se le suma al comprador como “costo de gestión”.
+Por cada pedido gestionado online se cobra un **importe fijo de gestión** para el servicio (vos). No es un porcentaje del ticket. El dueño lo carga en Configuración del local, en pesos. En 0 no se cobra. Elige si ese importe lo absorbe él o si se le suma al comprador como “costo de gestión”.
 
-La plata del pedido va a la cuenta de **ese local**, no a la tuya. Es otro Mercado Pago, distinto del de la tarjeta 22 (abono).
+La plata del pedido va a la cuenta de **ese local**, la misma que el mostrador conectó en la 21. No se vuelve a vincular. Es otro Mercado Pago, distinto del de la tarjeta 22 (abono).
 
 ## Tienda (comprador)
 
@@ -37,19 +37,21 @@ La plata del pedido va a la cuenta de **ese local**, no a la tuya. Es otro Merca
 
 ## Pagos
 
-| Medio | Cómo cobra el local | Cómo cobrás vos el 5 % |
+| Medio | Cómo cobra el local | Cómo cobrás vos la gestión |
 |---|---|---|
-| Mercado Pago | Checkout Pro con la cuenta MP **del local** (OAuth). | `marketplace_fee` en la misma preferencia: MP te lo separa solo. |
+| Mercado Pago | Checkout Pro con la cuenta MP **del local** (OAuth). | `marketplace_fee` con el importe fijo de Configuración: MP te lo separa solo. |
 | Transferencia | El comprador transfiere al CBU/alias del local y el local confirma a mano. | No pasa por vos. Se acumula como deuda del local y se suma al próximo abono (22). |
 
-- Conectar Mercado Pago lo hace el dueño desde el panel. El token se guarda cifrado (Data Protection). El empleado no lo ve ni lo pisa.
+- El cobro online es Checkout Pro con el token de la 21. Mercado Pago arma el pago de ese pedido; el comprador paga ahí (cuenta, tarjeta o el QR de ese checkout). El cartel del mostrador no entra: admite un solo cobro y es del puesto.
+- Si el local no conectó Mercado Pago, la tienda no ofrece ese medio.
 - El pedido no se da por pagado hasta que llega el webhook firmado de MP. No sirve que vuelva el navegador.
 - La transferencia queda “A confirmar”. El **dueño elige el plazo** para confirmarla (en horas), o “sin vencimiento”. Pasado el plazo, el pedido se cancela y el stock se libera.
 
-## Gestión (5 %)
+## Gestión (importe fijo)
 
-- El dueño elige: **incluida** (el comprador ve el precio de lista; al local le llega 5 % menos) o **a cargo del comprador** (se suma una línea “Gestión” al total).
-- Se calcula sobre el subtotal de productos. El envío no paga gestión.
+- Campo en **Configuración** del local: importe en pesos por pedido online. Cada sucursal tiene el suyo. El empleado no lo ve.
+- El dueño elige: **incluida** (el comprador ve el precio de lista; al local le llega ese importe menos) o **a cargo del comprador** (se suma una línea “Gestión” al total).
+- Es el mismo importe con envío o sin envío, y no cambia si el carrito es chico o grande. Si el subtotal de productos es menor que ese importe, la gestión es el subtotal.
 - Si el pedido se cancela antes de entregarse, no se cobra gestión. Si MP ya lo cobró, se devuelve con el reembolso.
 - El admin ve el total de gestión por local y por mes: lo cobrado por MP y lo pendiente por transferencias.
 
@@ -90,12 +92,12 @@ El aviso que **siempre** llega es el del sistema. WhatsApp es un extra que depen
 - **Seguridad:** endpoints públicos con rate limit y honeypot en el checkout. Nunca exponen costo, stock exacto (opcional) ni datos de otro local. RLS por `IdLocal`.
 - **Imágenes:** validar tipo real (JPG, PNG, WebP), peso máximo y redimensionar en el servidor. Guardarlas en un volumen, fuera de git y fuera de la base.
 - **Abono vencido:** si el local no pagó el mes, la tienda se pausa sola.
-- **Factura:** tu 5 % es un servicio que facturás al local. La factura del pedido al comprador es del local. Facturación electrónica (ARCA) queda fuera.
+- **Factura:** ese importe fijo es un servicio que facturás al local. La factura del pedido al comprador es del local. Facturación electrónica (ARCA) queda fuera.
 
 ## Decisiones
 
 - Tienda incluida en los $ 14.999 por mes. Sin extra.
-- Gestión: 5 % solo sobre productos.
+- Gestión: importe fijo por pedido, en Configuración del local. Sin porcentaje.
 - Avisos: notificaciones del sistema (campanita + navegador) siempre; WhatsApp por link `wa.me`, sin costo.
 - Plazo para confirmar transferencia: lo elige el dueño (horas o sin vencimiento).
 
@@ -112,9 +114,9 @@ El aviso que **siempre** llega es el del sistema. WhatsApp es un extra que depen
 - [ ] Hasta 2 imágenes por producto, guardadas en 400 × 400 px como máximo; se rechaza lo que no sea imagen.
 - [ ] Tienda pública con buscador, ficha con imágenes y carrito guardado en el navegador.
 - [ ] Checkout con retiro o envío; el envío se calcula por km con mínimo, radio máximo y envío gratis opcional.
-- [ ] Pago con Mercado Pago del local (OAuth) con `marketplace_fee` del 5 %; el pedido pasa a pagado solo por webhook firmado.
+- [ ] Pago con la cuenta de Mercado Pago ya conectada en la 21 y Checkout Pro. `marketplace_fee` es el importe fijo de Configuración. Sin esa cuenta, el medio no se ofrece. El pedido pasa a pagado solo por webhook firmado.
 - [ ] Pago por transferencia: muestra CBU/alias, el pedido queda “A confirmar” y el local lo confirma; vence en el plazo que eligió el dueño (o nunca).
-- [ ] Gestión del 5 % solo sobre productos, incluida o a cargo del comprador según elija el dueño; el desglose se ve antes de pagar.
+- [ ] En Configuración, importe fijo de gestión por pedido (0 = no se cobra). Incluida o a cargo del comprador según elija el dueño; el desglose se ve antes de pagar. Si el subtotal de productos es menor, la gestión es ese subtotal.
 - [ ] Notificaciones: campanita con contador y lista, marcar leídas, sonido opcional, por local y por usuario.
 - [ ] Notificaciones del navegador (Web Push) que llegan con la pestaña cerrada; cada usuario las activa o desactiva.
 - [ ] Al terminar la compra, botón “Avisar al local por WhatsApp” (`wa.me`) con el pedido escrito; desde el panel, “Escribir al comprador”.
@@ -124,7 +126,7 @@ El aviso que **siempre** llega es el del sistema. WhatsApp es un extra que depen
 - [ ] Tienda pausada si el abono está vencido.
 - [ ] Botón de arrepentimiento, términos y privacidad en el pie de la tienda.
 - [ ] Rate limit + honeypot en el checkout; ningún endpoint público expone costo ni datos de otro local.
-- [ ] Tests xUnit: cálculo de envío por km (radio, mínimo, gratis), gestión incluida vs a cargo del comprador (sin contar el envío), vencimiento de transferencia según plazo del dueño, pedido nuevo genera notificación solo para usuarios de ese local, reserva y liberación de stock, pedido entregado = venta, productos sector/genérico no publicables, gestión de transferencias sumada al abono.
+- [ ] Tests xUnit: cálculo de envío por km (radio, mínimo, gratis), gestión fija incluida vs a cargo del comprador (igual con envío o sin envío; tope en el subtotal de productos; 0 no cobra), vencimiento de transferencia según plazo del dueño, pedido nuevo genera notificación solo para usuarios de ese local, reserva y liberación de stock, pedido entregado = venta, productos sector/genérico no publicables, gestión de transferencias sumada al abono.
 
 ## Fuera de v1
 

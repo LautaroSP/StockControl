@@ -38,6 +38,14 @@ TestResults/
 appsettings.*.local.json
 **/secrets.json
 
+# Caddy: el Caddyfile real y los certificados no se versionan
+/Caddyfile
+deploy/caddy-data/
+*.pfx
+*.pem
+*.crt
+*.key
+
 # Angular
 node_modules/
 .angular/

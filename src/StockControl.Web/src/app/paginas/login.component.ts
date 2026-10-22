@@ -3,14 +3,15 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '../servicios/api.service';
 import { SesionService } from '../servicios/sesion.service';
-import { TemaService } from '../servicios/tema.service';
+import { TemaComponent } from '../tema.component';
 
 @Component({
   selector: 'sc-login',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, TemaComponent],
   template: `
-    <div class="auth">
+    <sc-tema />
+    <div class="auth" style="padding-top:72px">
       <div class="panel auth-card">
         <div class="brand" style="border:0;padding:0 0 8px">
           <strong>StockControl</strong>
@@ -33,11 +34,6 @@ import { TemaService } from '../servicios/tema.service';
           <button class="btn btn-primary wide" type="submit" [disabled]="cargando">Entrar</button>
         </form>
         <p class="meta" style="margin-top:12px">¿No tenés cuenta? <a routerLink="/registro">Registrate</a></p>
-        <p class="meta" style="margin-top:16px">
-          <button class="btn" type="button" (click)="tema.alternar()">
-            {{ tema.tema() === 'oscuro' ? 'Modo claro' : 'Modo oscuro' }}
-          </button>
-        </p>
       </div>
     </div>
   `
@@ -51,8 +47,7 @@ export class LoginComponent {
   constructor(
     private readonly api: ApiService,
     private readonly sesion: SesionService,
-    private readonly router: Router,
-    readonly tema: TemaService
+    private readonly router: Router
   ) {
     if (sesion.hayToken())
       router.navigateByUrl(sesion.rol() === 'admin' ? '/admin' : sesion.idLocal() ? '/caja' : '/locales');

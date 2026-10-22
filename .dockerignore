@@ -1,0 +1,12 @@
+**/.git
+**/.vs
+**/.idea
+**/bin
+**/obj
+**/node_modules
+**/.angular
+**/dist
+**/TestResults
+**/*.user
+.env
+.env.*

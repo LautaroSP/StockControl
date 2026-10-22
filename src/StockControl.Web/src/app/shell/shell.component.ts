@@ -4,15 +4,17 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { ApiService } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
-import { TemaService } from '../servicios/tema.service';
+import { IconoComponent } from '../icono.component';
+import { TemaComponent } from '../tema.component';
 
 @Component({
   selector: 'sc-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, DatePipe],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, DatePipe, IconoComponent, TemaComponent],
   template: `
     <div class="app">
       <aside class="sidebar" [class.abierto]="menuAbierto">
+        <sc-tema [fijo]="false" />
         <div class="brand">
           <strong>StockControl</strong>
           <span>{{ sesion.nombreLocal() }}</span>
@@ -24,33 +26,30 @@ import { TemaService } from '../servicios/tema.service';
           <span></span><span></span><span></span>
         </button>
         <nav class="nav" (click)="menuAbierto = false">
-          <a routerLink="/caja" routerLinkActive="active">Caja</a>
-          <a routerLink="/productos" routerLinkActive="active">Productos</a>
+          <a routerLink="/caja" routerLinkActive="active"><sc-icono nombre="caja" /> Caja</a>
+          <a routerLink="/productos" routerLinkActive="active"><sc-icono nombre="productos" /> Productos</a>
           @if (sesion.esDueno()) {
-            <a routerLink="/estadisticas" routerLinkActive="active">Estadísticas</a>
-            <a routerLink="/grupos" routerLinkActive="active">Grupos</a>
-            <a routerLink="/medios-pago" routerLinkActive="active">Medios de pago</a>
+            <a routerLink="/estadisticas" routerLinkActive="active"><sc-icono nombre="estadisticas" /> Estadísticas</a>
+            <a routerLink="/grupos" routerLinkActive="active"><sc-icono nombre="grupos" /> Grupos</a>
+            <a routerLink="/medios-pago" routerLinkActive="active"><sc-icono nombre="medios" /> Medios de pago</a>
           }
           @if (sesion.puedeGestionarProveedores()) {
-            <a routerLink="/proveedores" routerLinkActive="active">Proveedores</a>
+            <a routerLink="/proveedores" routerLinkActive="active"><sc-icono nombre="proveedores" /> Proveedores</a>
           }
           @if (sesion.puedeGestionarUsuarios()) {
-            <a routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
+            <a routerLink="/usuarios" routerLinkActive="active"><sc-icono nombre="usuarios" /> Usuarios</a>
           }
           @if (sesion.puedeConfigurarLocal()) {
-            <a routerLink="/configuracion" routerLinkActive="active">Configuración</a>
-            <a routerLink="/activar" routerLinkActive="active">Abono</a>
+            <a routerLink="/configuracion" routerLinkActive="active"><sc-icono nombre="configuracion" /> Configuración</a>
+            <a routerLink="/activar" routerLinkActive="active"><sc-icono nombre="abono" /> Abono</a>
           }
-          <a routerLink="/informes" routerLinkActive="active">Informes</a>
-          <a routerLink="/cajas" routerLinkActive="active">Cajas</a>
-          <a routerLink="/elegir-caja">Cambiar caja</a>
-          <a routerLink="/locales">Locales</a>
+          <a routerLink="/informes" routerLinkActive="active"><sc-icono nombre="informes" /> Informes</a>
+          <a routerLink="/cajas" routerLinkActive="active"><sc-icono nombre="cajas" /> Cajas</a>
+          <a routerLink="/elegir-caja"><sc-icono nombre="cambiar" /> Cambiar caja</a>
+          <a routerLink="/locales"><sc-icono nombre="locales" /> Locales</a>
         </nav>
         <div class="sidebar-foot">
           <div>{{ sesion.nombre() }} · {{ sesion.rol() }}</div>
-          <button class="btn btn-ghost" type="button" (click)="tema.alternar()">
-            {{ tema.tema() === 'oscuro' ? 'Modo claro' : 'Modo oscuro' }}
-          </button>
           <button class="btn btn-ghost" type="button" (click)="salir()">Salir</button>
         </div>
       </aside>
@@ -107,7 +106,6 @@ export class ShellComponent implements OnInit {
 
   constructor(
     readonly sesion: SesionService,
-    readonly tema: TemaService,
     private readonly api: ApiService,
     private readonly router: Router,
     private readonly dialogo: DialogoService

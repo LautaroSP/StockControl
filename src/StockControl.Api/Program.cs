@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Threading.RateLimiting;
 using System.Globalization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -27,10 +28,24 @@ builder.Services.AddDbContext<AppDbContext>(o =>
                 ?? throw new InvalidOperationException("Falta ConnectionStrings:Default")));
 builder.Services.AddSingleton<JwtServicio>();
 builder.Services.AddSingleton<PasswordHasher<Usuario>>();
+var proteccion = builder.Services.AddDataProtection();
+var rutaClaves = builder.Configuration["DataProtection:Ruta"];
+if (!string.IsNullOrWhiteSpace(rutaClaves))
+    proteccion.PersistKeysToFileSystem(new DirectoryInfo(rutaClaves));
 builder.Services.AddHttpClient<ClienteMercadoPago>(c =>
 {
     c.BaseAddress = new Uri("https://api.mercadopago.com/");
     c.Timeout = TimeSpan.FromSeconds(15);
+});
+builder.Services.AddHttpClient<ClienteMercadoPagoLocal>(c =>
+{
+    c.BaseAddress = new Uri("https://api.mercadopago.com/");
+    c.Timeout = TimeSpan.FromSeconds(20);
+});
+builder.Services.AddHttpClient("turnstile", c =>
+{
+    c.BaseAddress = new Uri("https://challenges.cloudflare.com/");
+    c.Timeout = TimeSpan.FromSeconds(10);
 });
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
@@ -62,7 +77,7 @@ builder.Services.AddRateLimiter(o =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     o.AddPolicy("contacto", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 3, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
 });
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
@@ -102,6 +117,20 @@ if (app.Environment.IsDevelopment())
     await AsegurarEmailVentas(db);
 }
 
+app.Use(async (ctx, next) =>
+{
+    if (!ctx.Request.Path.StartsWithSegments("/salud"))
+    {
+        await next();
+        return;
+    }
+
+    ctx.Response.StatusCode = StatusCodes.Status200OK;
+    ctx.Response.ContentType = "text/plain; charset=utf-8";
+    if (!HttpMethods.IsHead(ctx.Request.Method))
+        await ctx.Response.WriteAsync("ok");
+});
+
 app.UseCors();
 if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
@@ -133,9 +162,22 @@ app.MapPost("/auth/login", async (LoginPedido pedido, AppDbContext db, PasswordH
     return Results.Ok(new { token = jwt.Emitir(u, null), rol = u.Rol, nombre = string.IsNullOrWhiteSpace(u.Nombre) ? u.NombreUsuario : u.Nombre });
 }).RequireRateLimiting("api");
 
-app.MapPost("/registro", async (RegistroCuentaPedido pedido, AppDbContext db, PasswordHasher<Usuario> hasher, JwtServicio jwt) =>
+app.MapGet("/registro/captcha", (IConfiguration config, IWebHostEnvironment env) =>
+{
+    var claves = ClavesCaptcha(config, env);
+    return Results.Ok(new { siteKey = claves?.SiteKey });
+}).RequireRateLimiting("api");
+
+app.MapPost("/registro", async (RegistroCuentaPedido pedido, HttpContext http, AppDbContext db, PasswordHasher<Usuario> hasher, JwtServicio jwt, IConfiguration config, IWebHostEnvironment env, IHttpClientFactory clientes) =>
 {
     if (!string.IsNullOrEmpty(pedido.Sitio)) return Results.Ok();
+    if (ClavesCaptcha(config, env) is { } captcha)
+    {
+        var falta = ServicioCaptcha.Falta(pedido.Captcha);
+        if (falta != null) return Results.BadRequest(falta);
+        var ok = await CaptchaValido(clientes, captcha.Secreto, pedido.Captcha!, http.Connection.RemoteIpAddress?.ToString());
+        if (!ok) return Results.BadRequest("No pudimos comprobar el captcha. Probá de nuevo.");
+    }
     try
     {
         ServicioRegistro.Validar(pedido, pedido.Clave);
@@ -320,10 +362,12 @@ app.MapDelete("/locales/actual/abono/debito", async (AppDbContext db, SesionActu
     }
 }).RequireAuthorization().RequireRateLimiting("api");
 
-app.MapPost("/mercadopago/webhook", async (HttpRequest req, AppDbContext db, ClienteMercadoPago mp, IConfiguration config, ILoggerFactory logs) =>
+app.MapPost("/mercadopago/webhook", async (HttpRequest req, AppDbContext db, ClienteMercadoPago mp, ClienteMercadoPagoLocal mpLocal, IDataProtectionProvider proteccion, IConfiguration config, ILoggerFactory logs) =>
 {
     var log = logs.CreateLogger("MercadoPago");
     string? tipo = req.Query["type"], id = req.Query["data.id"];
+    if (string.IsNullOrEmpty(tipo)) tipo = req.Query["topic"];
+    if (string.IsNullOrEmpty(id)) id = req.Query["id"];
     if (string.IsNullOrEmpty(tipo) || string.IsNullOrEmpty(id))
     {
         try
@@ -343,6 +387,11 @@ app.MapPost("/mercadopago/webhook", async (HttpRequest req, AppDbContext db, Cli
     if (string.IsNullOrEmpty(id) || id.Length > 64) return Results.Ok();
     try
     {
+        if (tipo == "order")
+        {
+            await CobrosMercadoPagoApp.AplicarAviso(db, mpLocal, proteccion.CreateProtector(CobrosMercadoPagoApp.Proposito), config, id);
+            return Results.Ok();
+        }
         await AvisosMercadoPago.Procesar(tipo, id, db, mp);
         return Results.Ok();
     }
@@ -1198,7 +1247,7 @@ app.MapPut("/admin/ventas/telefono", async (TelefonoVentasPedido pedido, AppDbCo
     }
 }).RequireAuthorization().RequireRateLimiting("api");
 
-app.MapGet("/ventas/contacto", async (AppDbContext db) =>
+app.MapGet("/ventas/contacto", async (AppDbContext db, IDataProtectionProvider proteccion) =>
 {
     var telefono = await TelefonoVentas(db);
     return Results.Ok(new
@@ -1206,13 +1255,20 @@ app.MapGet("/ventas/contacto", async (AppDbContext db) =>
         telefono = ServicioAdmin.MostrarTelefono(telefono),
         url = UrlContacto(telefono),
         email = await EmailVentas(db),
-        formularioActivo = await FormularioContactoActivo(db)
+        formularioActivo = await FormularioContactoActivo(db),
+        apertura = AperturaContacto(proteccion)
     });
 }).RequireRateLimiting("api");
 
-app.MapPost("/ventas/contacto", async (MensajeContactoPedido pedido, AppDbContext db) =>
+app.MapPost("/ventas/contacto", async (MensajeContactoPedido pedido, AppDbContext db, IDataProtectionProvider proteccion) =>
 {
-    if (!string.IsNullOrEmpty(pedido.Sitio)) return Results.Ok();
+    if (ServicioContacto.EsCebo(pedido.Sitio)) return Results.Ok();
+    var transcurrido = EdadApertura(proteccion, pedido.Apertura);
+    if (transcurrido == null)
+        return Results.BadRequest("Volvé a cargar la página y enviá de nuevo.");
+    var rechazo = ServicioContacto.RechazoPorTiempo(transcurrido.Value);
+    if (rechazo != null)
+        return Results.BadRequest(rechazo);
     if (!await FormularioContactoActivo(db))
         return Results.BadRequest("El formulario de contacto está desactivado.");
     try
@@ -1374,7 +1430,7 @@ app.MapGet("/medios-pago", async (AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     var medios = await db.MetodosPago.OrderBy(m => m.Descripcion).ToListAsync();
-    return Results.Ok(medios.Select(m => new { m.Id, m.Descripcion, m.Activo }));
+    return Results.Ok(medios.Select(m => new { m.Id, m.Descripcion, m.Activo, m.Integracion }));
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapPost("/medios-pago", async (MetodoPagoPedido pedido, AppDbContext db, SesionActual sesion) =>
@@ -1385,10 +1441,13 @@ app.MapPost("/medios-pago", async (MetodoPagoPedido pedido, AppDbContext db, Ses
     if (descripcion.Length == 0) return Results.BadRequest("La descripción es obligatoria.");
     if (await db.MetodosPago.AnyAsync(m => m.Descripcion.ToLower() == descripcion.ToLower()))
         return Results.Conflict("Ya existe ese medio de pago.");
-    var medio = new MetodoPago { IdLocal = sesion.IdLocal.Value, Descripcion = descripcion };
+    string integracion;
+    try { integracion = IntegracionPago.Normalizar(pedido.Integracion); }
+    catch (ErrorNegocio ex) { return Results.BadRequest(ex.Message); }
+    var medio = new MetodoPago { IdLocal = sesion.IdLocal.Value, Descripcion = descripcion, Integracion = integracion };
     db.MetodosPago.Add(medio);
     await db.SaveChangesAsync();
-    return Results.Created($"/medios-pago/{medio.Id}", new { medio.Id, medio.Descripcion, medio.Activo });
+    return Results.Created($"/medios-pago/{medio.Id}", new { medio.Id, medio.Descripcion, medio.Activo, medio.Integracion });
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapPut("/medios-pago/{id:int}", async (int id, MetodoPagoPedido pedido, AppDbContext db, SesionActual sesion) =>
@@ -1401,9 +1460,13 @@ app.MapPut("/medios-pago/{id:int}", async (int id, MetodoPagoPedido pedido, AppD
     if (descripcion.Length == 0) return Results.BadRequest("La descripción es obligatoria.");
     if (await db.MetodosPago.AnyAsync(m => m.Id != id && m.Descripcion.ToLower() == descripcion.ToLower()))
         return Results.Conflict("Ya existe ese medio de pago.");
+    string integracion;
+    try { integracion = IntegracionPago.Normalizar(pedido.Integracion); }
+    catch (ErrorNegocio ex) { return Results.BadRequest(ex.Message); }
     medio.Descripcion = descripcion;
+    medio.Integracion = integracion;
     await db.SaveChangesAsync();
-    return Results.Ok(new { medio.Id, medio.Descripcion, medio.Activo });
+    return Results.Ok(new { medio.Id, medio.Descripcion, medio.Activo, medio.Integracion });
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapDelete("/medios-pago/{id:int}", async (int id, AppDbContext db, SesionActual sesion) =>
@@ -1425,7 +1488,7 @@ app.MapPost("/medios-pago/{id:int}/activar", async (int id, AppDbContext db, Ses
     if (medio == null) return Results.NotFound();
     medio.Activo = true;
     await db.SaveChangesAsync();
-    return Results.Ok(new { medio.Id, medio.Descripcion, medio.Activo });
+    return Results.Ok(new { medio.Id, medio.Descripcion, medio.Activo, medio.Integracion });
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapGet("/proveedores", async (AppDbContext db, SesionActual sesion) =>
@@ -1704,6 +1767,8 @@ app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual 
         return Results.Json("El local está vencido. Pagá el abono para seguir cobrando.", statusCode: StatusCodes.Status402PaymentRequired);
     if (pedido.CobrarAlCosto && !Permisos.PuedeCobrarAlCosto(sesion.Rol ?? ""))
         return Results.Forbid();
+    if (await EsperaMercadoPago(db, pedido))
+        return Results.BadRequest("Ese medio espera el pago de Mercado Pago.");
     var productos = await db.Productos.ToListAsync();
     var rigido = (await db.Configuracion.FirstOrDefaultAsync(c => c.Clave == "StockRigido"))?.Valor == "1";
     try
@@ -1777,6 +1842,196 @@ app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual 
     catch (ErrorNegocio ex)
     {
         return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/mercadopago/cuenta", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    var vinculada = await db.CuentasMercadoPago.AnyAsync(c => c.IdLocal == sesion.IdLocal);
+    var puestos = await db.PuestosMercadoPago.OrderBy(p => p.NroCaja)
+        .Select(p => new { p.NroCaja, listo = p.IdExterno != "", p.UrlQr, p.IdLector })
+        .ToListAsync();
+    return Results.Ok(new { vinculada, puestos });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/mercadopago/conectar", (SesionActual sesion, IDataProtectionProvider proteccion, IConfiguration config) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
+    try
+    {
+        var clientId = CobrosMercadoPagoApp.Exigir(config, "MercadoPago:ClientId");
+        var redirect = RedirectMercadoPago(config);
+        var state = proteccion.CreateProtector(CobrosMercadoPagoApp.Proposito)
+            .Protect($"{sesion.IdLocal}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
+        return Results.Ok(new { url = ClienteMercadoPagoLocal.UrlAutorizacion(clientId, redirect, state) });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/mercadopago/vuelta", async (string? code, string? state, AppDbContext db, ClienteMercadoPagoLocal mp, IDataProtectionProvider proteccion, IConfiguration config, ILoggerFactory logs) =>
+{
+    var web = string.IsNullOrWhiteSpace(config["App:UrlWeb"]) ? "http://localhost:4200" : config["App:UrlWeb"]!.TrimEnd('/');
+    var error = Results.Redirect($"{web}/configuracion?mp=error");
+    if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(state)) return error;
+    try
+    {
+        var datos = proteccion.CreateProtector(CobrosMercadoPagoApp.Proposito).Unprotect(state).Split('|');
+        if (datos.Length != 2 || !int.TryParse(datos[0], out var idLocal) || !long.TryParse(datos[1], out var ticks))
+            return error;
+        if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - ticks > 900) return error;
+        var token = await mp.CanjearCodigo(
+            CobrosMercadoPagoApp.Exigir(config, "MercadoPago:ClientId"),
+            CobrosMercadoPagoApp.Exigir(config, "MercadoPago:ClientSecret"),
+            code,
+            RedirectMercadoPago(config));
+        var protector = proteccion.CreateProtector(CobrosMercadoPagoApp.Proposito);
+        var cuenta = await db.CuentasMercadoPago.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.IdLocal == idLocal);
+        if (cuenta == null)
+        {
+            cuenta = new CuentaMercadoPago { IdLocal = idLocal };
+            db.CuentasMercadoPago.Add(cuenta);
+        }
+        CobrosMercadoPagoApp.GuardarToken(protector, cuenta, token);
+        await db.SaveChangesAsync();
+        return Results.Redirect($"{web}/configuracion?mp=ok");
+    }
+    catch (Exception ex)
+    {
+        logs.CreateLogger("MercadoPago").LogError(ex, "No se pudo vincular la cuenta del local");
+        return error;
+    }
+}).RequireRateLimiting("api");
+
+app.MapPost("/mercadopago/puestos/{nro:int}", async (int nro, AppDbContext db, SesionActual sesion, ClienteMercadoPagoLocal mp, IDataProtectionProvider proteccion, IConfiguration config, ILoggerFactory logs) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
+    if (nro < 1 || nro > await CantidadCajasLocal(db)) return Results.BadRequest("Ese puesto no existe.");
+    try
+    {
+        var local = await db.Locales.FirstAsync(l => l.IdLocal == sesion.IdLocal);
+        await CobrosMercadoPagoApp.PrepararPuesto(db, mp, proteccion.CreateProtector(CobrosMercadoPagoApp.Proposito), config, sesion.IdLocal.Value, nro, local.Nombre);
+        var puesto = await db.PuestosMercadoPago.FirstAsync(p => p.NroCaja == nro);
+        return Results.Ok(new { puesto.NroCaja, listo = true, puesto.UrlQr, puesto.IdLector });
+    }
+    catch (ErrorNegocio ex) { return Results.BadRequest(ex.Message); }
+    catch (Exception ex)
+    {
+        logs.CreateLogger("MercadoPago").LogError(ex, "No se pudo preparar el puesto {Nro}", nro);
+        return Results.Json("Mercado Pago no pudo preparar el puesto.", statusCode: StatusCodes.Status502BadGateway);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPut("/mercadopago/puestos/{nro:int}", async (int nro, LectorMercadoPagoPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
+    if (nro < 1 || nro > await CantidadCajasLocal(db)) return Results.BadRequest("Ese puesto no existe.");
+    await CobrosMercadoPagoApp.GuardarLector(db, sesion.IdLocal.Value, nro, pedido.IdLector ?? "");
+    return Results.NoContent();
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/ventas/mercadopago", async (VentaPedido pedido, AppDbContext db, SesionActual sesion, ClienteMercadoPagoLocal mp, IDataProtectionProvider proteccion, IConfiguration config, ILoggerFactory logs) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (sesion.NroCaja == null) return Results.BadRequest("Elegí una caja.");
+    var localVenta = await db.Locales.FirstAsync(l => l.IdLocal == sesion.IdLocal);
+    if (!ServicioAbono.Estado(localVenta, DateTimeOffset.UtcNow).PuedeOperarCaja)
+        return Results.Json("El local está vencido. Pagá el abono para seguir cobrando.", statusCode: StatusCodes.Status402PaymentRequired);
+    if (pedido.CobrarAlCosto && !Permisos.PuedeCobrarAlCosto(sesion.Rol ?? ""))
+        return Results.Forbid();
+    try
+    {
+        var productos = await db.Productos.AsNoTracking().ToListAsync();
+        var rigido = (await db.Configuracion.FirstOrDefaultAsync(c => c.Clave == "StockRigido"))?.Valor == "1";
+        var resultado = ServicioCobro.Cobrar(new PedidoCobro
+        {
+            ProductosDelLocal = productos,
+            Items = pedido.Items.Select(i => new ItemCarrito
+            {
+                IdProducto = i.IdProducto,
+                Codigo = i.Codigo,
+                Nombre = i.Nombre,
+                Cantidad = i.Cantidad,
+                PrecioUnitario = i.PrecioUnitario
+            }).ToList(),
+            DescuentoPorcentaje = pedido.DescuentoPorcentaje,
+            CobrarAlCosto = pedido.CobrarAlCosto,
+            StockRigido = rigido
+        });
+        var pagos = pedido.Pagos.Count > 0
+            ? pedido.Pagos.Select(p => new PagoSolicitado(p.IdMetodoPago, p.Importe)).ToList()
+            : await MetodoUnico(db, pedido.MetodoPago, resultado.Total);
+        var cobro = await CobrosMercadoPagoApp.Iniciar(
+            db, mp, proteccion.CreateProtector(CobrosMercadoPagoApp.Proposito), config,
+            sesion.IdLocal.Value, sesion.NroCaja.Value, sesion.IdUsuario,
+            new PedidoGuardado
+            {
+                Items = pedido.Items.Select(i => new ItemCarrito
+                {
+                    IdProducto = i.IdProducto,
+                    Codigo = i.Codigo,
+                    Nombre = i.Nombre,
+                    Cantidad = i.Cantidad,
+                    PrecioUnitario = i.PrecioUnitario
+                }).ToList(),
+                Pagos = pagos,
+                DescuentoPorcentaje = pedido.DescuentoPorcentaje,
+                CobrarAlCosto = pedido.CobrarAlCosto
+            },
+            resultado.Total);
+        return Results.Ok(VistaCobro(cobro));
+    }
+    catch (ErrorNegocio ex) { return Results.BadRequest(ex.Message); }
+    catch (Exception ex)
+    {
+        logs.CreateLogger("MercadoPago").LogError(ex, "No se pudo crear la orden del local {IdLocal}", sesion.IdLocal);
+        return Results.Json("Mercado Pago no pudo crear el cobro.", statusCode: StatusCodes.Status502BadGateway);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/ventas/mercadopago/abierto", async (AppDbContext db, SesionActual sesion, ClienteMercadoPagoLocal mp, IDataProtectionProvider proteccion, IConfiguration config) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (sesion.NroCaja == null) return Results.BadRequest("Elegí una caja.");
+    var cobro = await CobrosMercadoPagoApp.Abierto(
+        db, mp, proteccion.CreateProtector(CobrosMercadoPagoApp.Proposito), config,
+        sesion.IdLocal.Value, sesion.NroCaja.Value);
+    return cobro == null ? Results.NoContent() : Results.Ok(VistaCobro(cobro));
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/ventas/mercadopago/{id:int}", async (int id, AppDbContext db, SesionActual sesion, ClienteMercadoPagoLocal mp, IDataProtectionProvider proteccion, IConfiguration config) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    try
+    {
+        var cobro = await CobrosMercadoPagoApp.Consultar(db, mp, proteccion.CreateProtector(CobrosMercadoPagoApp.Proposito), config, id, sesion.IdLocal.Value);
+        return cobro == null ? Results.NotFound() : Results.Ok(VistaCobro(cobro));
+    }
+    catch (ErrorNegocio ex) { return Results.BadRequest(ex.Message); }
+    catch (Exception)
+    {
+        return Results.Json("No se pudo consultar el cobro.", statusCode: StatusCodes.Status502BadGateway);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/ventas/mercadopago/{id:int}/cancelar", async (int id, AppDbContext db, SesionActual sesion, ClienteMercadoPagoLocal mp, IDataProtectionProvider proteccion, IConfiguration config) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    try
+    {
+        var cobro = await CobrosMercadoPagoApp.Cancelar(db, mp, proteccion.CreateProtector(CobrosMercadoPagoApp.Proposito), config, id, sesion.IdLocal.Value);
+        return cobro == null ? Results.NotFound() : Results.Ok(VistaCobro(cobro));
+    }
+    catch (ErrorNegocio ex) { return Results.BadRequest(ex.Message); }
+    catch (Exception)
+    {
+        return Results.Json("No se pudo cancelar el cobro.", statusCode: StatusCodes.Status502BadGateway);
     }
 }).RequireAuthorization().RequireRateLimiting("api");
 
@@ -2451,6 +2706,52 @@ static async Task<string> TelefonoVentas(AppDbContext db) =>
         .Select(a => a.Valor)
         .FirstOrDefaultAsync() ?? "";
 
+static (string SiteKey, string Secreto)? ClavesCaptcha(IConfiguration config, IWebHostEnvironment env)
+{
+    var site = config["Turnstile:SiteKey"];
+    var secreto = config["Turnstile:Secret"];
+    if (ServicioCaptcha.EstaActivo(site, secreto))
+        return (site!, secreto!);
+    if (!env.IsDevelopment())
+        return null;
+    return ("1x00000000000000000000AA", "1x0000000000000000000000000000000AA");
+}
+
+static async Task<bool> CaptchaValido(IHttpClientFactory clientes, string secreto, string token, string? ip)
+{
+    var cuerpo = new FormUrlEncodedContent(new Dictionary<string, string>
+    {
+        ["secret"] = secreto,
+        ["response"] = token,
+        ["remoteip"] = ip ?? ""
+    });
+    using var resp = await clientes.CreateClient("turnstile").PostAsync("turnstile/v0/siteverify", cuerpo);
+    if (!resp.IsSuccessStatusCode) return false;
+    using var json = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync());
+    return json.RootElement.TryGetProperty("success", out var exito) && exito.ValueKind == JsonValueKind.True;
+}
+
+static string AperturaContacto(IDataProtectionProvider proteccion) =>
+    proteccion.CreateProtector("contacto-apertura")
+        .Protect(DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+
+static TimeSpan? EdadApertura(IDataProtectionProvider proteccion, string? apertura)
+{
+    if (string.IsNullOrWhiteSpace(apertura) || apertura.Length > 400)
+        return null;
+    try
+    {
+        var texto = proteccion.CreateProtector("contacto-apertura").Unprotect(apertura);
+        if (!long.TryParse(texto, out var unix))
+            return null;
+        return DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeSeconds(unix);
+    }
+    catch (System.Security.Cryptography.CryptographicException)
+    {
+        return null;
+    }
+}
+
 static async Task<bool> FormularioContactoActivo(AppDbContext db)
 {
     var valor = await db.Ajustes.AsNoTracking()
@@ -2602,6 +2903,39 @@ static bool BoolConfig(string valor) => valor is "1" or "true" or "True";
 
 static int IntConfig(string valor, int defecto) =>
     int.TryParse(valor, NumberStyles.Integer, CultureInfo.InvariantCulture, out var resultado) && resultado >= 1 ? resultado : defecto;
+
+static async Task<bool> EsperaMercadoPago(AppDbContext db, VentaPedido pedido)
+{
+    var ids = pedido.Pagos.Select(p => p.IdMetodoPago).Distinct().ToList();
+    if (ids.Count == 0 && !string.IsNullOrWhiteSpace(pedido.MetodoPago))
+    {
+        var unico = await db.MetodosPago.FirstOrDefaultAsync(m => m.Activo && m.Descripcion == pedido.MetodoPago);
+        if (unico != null) ids.Add(unico.Id);
+    }
+    if (ids.Count == 0) return false;
+    var integraciones = await db.MetodosPago.Where(m => ids.Contains(m.Id)).Select(m => m.Integracion).ToListAsync();
+    return integraciones.Any(IntegracionPago.EsMercadoPago);
+}
+
+static string RedirectMercadoPago(IConfiguration config)
+{
+    var propia = config["MercadoPago:RedirectUri"];
+    if (!string.IsNullOrWhiteSpace(propia)) return propia;
+    var api = config["App:UrlApi"];
+    if (string.IsNullOrWhiteSpace(api))
+        throw new InvalidOperationException("Falta MercadoPago:RedirectUri.");
+    return $"{api.TrimEnd('/')}/mercadopago/vuelta";
+}
+
+static object VistaCobro(CobroMercadoPago cobro) => new
+{
+    cobro.Id,
+    cobro.Estado,
+    cobro.Modo,
+    cobro.Importe,
+    qrData = cobro.QrData,
+    cobro.IdInformeVenta
+};
 
 static async Task<List<PagoSolicitado>> MetodoUnico(AppDbContext db, string descripcion, decimal total)
 {

@@ -2,14 +2,15 @@ import { Component, OnInit } from '@angular/core';
 import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../servicios/api.service';
-import { TemaService } from '../servicios/tema.service';
+import { TemaComponent } from '../tema.component';
 
 @Component({
   selector: 'sc-contacto',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, TemaComponent],
   template: `
-    <div class="auth">
+    <sc-tema />
+    <div class="auth" style="padding-top:72px">
       <div class="panel auth-card" style="max-width:440px">
         <div class="brand" style="border:0;padding:0 0 8px">
           <strong>StockControl</strong>
@@ -30,22 +31,21 @@ import { TemaService } from '../servicios/tema.service';
             <label class="field">Nombre <input class="wide" type="text" name="nombre" maxlength="120" autocomplete="name" [(ngModel)]="nombre" /></label>
             <label class="field">Correo <input class="wide" type="email" name="correo" maxlength="200" autocomplete="email" [(ngModel)]="correo" /></label>
             <label class="field">Mensaje <textarea class="wide" name="mensaje" rows="4" maxlength="2000" [(ngModel)]="mensaje"></textarea></label>
+            <input type="hidden" name="apertura" [(ngModel)]="apertura" />
             <input class="campo-oculto" type="text" name="sitio" [(ngModel)]="sitio" tabindex="-1" autocomplete="off" aria-hidden="true" />
-            <button class="btn btn-primary" type="submit" [disabled]="enviando">{{ enviando ? 'Enviando...' : 'Enviar' }}</button>
+            <button class="btn btn-primary wide" type="submit" [disabled]="enviando">{{ enviando ? 'Enviando...' : 'Enviar' }}</button>
           </form>
           @if (aviso) { <p class="meta">{{ aviso }}</p> }
           @if (error) { <p class="error">{{ error }}</p> }
         } @else {
           <p class="meta">El formulario está desactivado. Escribinos por teléfono o por mail.</p>
         }
-        <button class="btn" type="button" (click)="volver()">Volver</button>
-        <p class="meta" style="margin-top:16px">
-          <button class="btn" type="button" (click)="tema.alternar()">
-            {{ tema.tema() === 'oscuro' ? 'Modo claro' : 'Modo oscuro' }}
-          </button>
-        </p>
+        <button class="btn wide contacto-volver" type="button" (click)="volver()">Volver</button>
       </div>
     </div>
+  `,
+  styles: `
+    .contacto-volver { display: block; margin-top: 36px; }
   `
 })
 export class ContactoComponent implements OnInit {
@@ -57,14 +57,14 @@ export class ContactoComponent implements OnInit {
   correo = '';
   mensaje = '';
   sitio = '';
+  apertura = '';
   enviando = false;
   aviso = '';
   error = '';
 
   constructor(
     private readonly lugar: Location,
-    private readonly api: ApiService,
-    readonly tema: TemaService
+    private readonly api: ApiService
   ) {}
 
   ngOnInit(): void {
@@ -74,6 +74,7 @@ export class ContactoComponent implements OnInit {
         this.email = r.email;
         this.url = r.url;
         this.formularioActivo = r.formularioActivo;
+        this.apertura = r.apertura ?? '';
       }
     });
   }
@@ -90,7 +91,8 @@ export class ContactoComponent implements OnInit {
       nombre: this.nombre.trim(),
       correo: this.correo.trim(),
       mensaje: this.mensaje.trim(),
-      sitio: this.sitio
+      sitio: this.sitio,
+      apertura: this.apertura
     }).subscribe({
       next: () => {
         this.nombre = '';
@@ -103,7 +105,9 @@ export class ContactoComponent implements OnInit {
       error: (e) => {
         this.enviando = false;
         this.aviso = '';
-        this.error = typeof e.error === 'string' ? e.error : 'No se pudo enviar el mensaje.';
+        this.error = e.status === 429
+          ? 'Demasiados envíos. Probá de nuevo en unos minutos.'
+          : typeof e.error === 'string' ? e.error : 'No se pudo enviar el mensaje.';
       }
     });
   }

@@ -25,28 +25,31 @@ public static class ServicioCobro
                     throw new ErrorNegocio($"El producto {item.Nombre} no existe.");
             }
 
-            var linea = ArmarLinea(item, producto, pedido.DescuentoPorcentaje, pedido.CobrarAlCosto);
+            var linea = ArmarLinea(item, producto, pedido);
             DescontarStock(producto, item.Cantidad, pedido.StockRigido);
             resultado.Lineas.Add(linea);
         }
 
+        ServicioCombos.Aplicar(pedido, resultado.Lineas);
         resultado.Subtotal = resultado.Lineas.Sum(l => l.SubTotal);
         resultado.Total = resultado.Subtotal;
         return resultado;
     }
 
-    private static LineaVenta ArmarLinea(ItemCarrito item, Producto? producto, int descuento, bool alCosto)
+    private static LineaVenta ArmarLinea(ItemCarrito item, Producto? producto, PedidoCobro pedido)
     {
         decimal? costo = producto?.Costo;
         var precioLibre = producto == null || producto.ProductoSector || producto.EsGenerico;
+        var oferta = precioLibre ? null : ServicioOfertas.Aplicable(pedido, producto!.Id);
         var precio = PrecioVenta.PrecioUnitario(
-            producto?.Precio ?? 0,
-            producto?.Costo ?? 0,
-            descuento,
-            alCosto,
+            ServicioOfertas.PrecioUnitarioConOferta(oferta, producto?.Precio ?? 0, item.Cantidad),
+            pedido.CobrarAlCosto ? ServicioOfertas.PrecioConOferta(oferta, costo ?? 0) : costo ?? 0,
+            pedido.DescuentoPorcentaje,
+            pedido.CobrarAlCosto,
             precioLibre,
             item.PrecioUnitario);
-        var sub = Math.Round(precio * item.Cantidad, 2, MidpointRounding.AwayFromZero);
+        var cobradas = ServicioOfertas.CantidadCobrada(oferta, item.Cantidad);
+        var sub = Math.Round(precio * cobradas, 2, MidpointRounding.AwayFromZero);
 
         return new LineaVenta
         {
@@ -56,7 +59,8 @@ public static class ServicioCobro
             Cantidad = item.Cantidad,
             Precio = precio,
             Costo = costo,
-            SubTotal = sub
+            SubTotal = sub,
+            DescripcionOferta = ServicioOfertas.Descripcion(oferta)
         };
     }
 

@@ -18,6 +18,7 @@ public class LineaVenta
     public decimal Precio { get; set; }
     public decimal? Costo { get; set; }
     public decimal SubTotal { get; set; }
+    public string DescripcionOferta { get; set; } = "";
 }
 
 public class PedidoCobro
@@ -28,6 +29,10 @@ public class PedidoCobro
     public bool CobrarAlCosto { get; init; }
     public bool StockRigido { get; init; }
     public string MetodoPago { get; init; } = "Efectivo";
+    public IReadOnlyList<Oferta> Ofertas { get; init; } = [];
+    public IReadOnlyList<OfertaCombo> Combos { get; init; } = [];
+    public bool SinOfertas { get; init; }
+    public DateOnly Hoy { get; init; }
 }
 
 public class ResultadoCobro

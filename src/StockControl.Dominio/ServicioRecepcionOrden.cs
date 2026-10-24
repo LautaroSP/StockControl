@@ -37,7 +37,7 @@ public static class ServicioRecepcionOrden
                 continue;
             }
             if (p.ProductoSector || p.EsGenerico) continue;
-            p.Cantidad += linea.CantidadRecibida.Value;
+            p.Cantidad += linea.CantidadRecibida.Value * linea.UnidadesPack;
             p.FechaModificacion = fecha;
             p.UsuarioModificacion = nombreUsuario;
             resultado.ProductosActualizados++;

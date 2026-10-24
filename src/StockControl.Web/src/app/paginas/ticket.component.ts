@@ -20,9 +20,16 @@ import { VentaDetalleDto } from '../servicios/api.service';
           <span>{{ i.cantidad }} × {{ dinero(i.precio) }}</span>
           <span>{{ dinero(i.subTotal) }}</span>
         </div>
+        @if (i.descripcionOferta) {
+          <div>Oferta {{ i.descripcionOferta }}</div>
+        }
       </div>
     }
     <p class="ticket-total">Total {{ dinero(venta.total) }}</p>
+    @if (pendiente !== null) {
+      <p class="ticket-total">Pendiente de pago</p>
+      <p>Saldo {{ dinero(pendiente) }}</p>
+    }
     @if (venta.descuento > 0) {
       <p>Descuento {{ venta.descuento }}%</p>
     }
@@ -38,6 +45,7 @@ export class TicketComponent {
   @Input({ required: true }) venta!: VentaDetalleDto;
   @Input() nombreLocal = 'Local';
   @Input() formato = 'POS-80';
+  @Input() pendiente: number | null = null;
 
   dinero(n: number): string {
     return `$ ${Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

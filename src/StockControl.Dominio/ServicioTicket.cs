@@ -7,6 +7,7 @@ public sealed class LineaTicket
     public decimal Cantidad { get; init; }
     public decimal Precio { get; init; }
     public decimal SubTotal { get; init; }
+    public string DescripcionOferta { get; init; } = "";
 }
 
 public sealed class Ticket
@@ -52,7 +53,8 @@ public static class ServicioTicket
             Nombre = string.IsNullOrWhiteSpace(l.Nombre) ? l.Codigo : l.Nombre,
             Cantidad = l.Cantidad,
             Precio = l.Precio,
-            SubTotal = l.SubTotal
+            SubTotal = l.SubTotal,
+            DescripcionOferta = l.DescripcionOferta
         }).ToList();
         if (lista.Count == 0)
             throw new ErrorNegocio("El ticket no tiene ítems.");

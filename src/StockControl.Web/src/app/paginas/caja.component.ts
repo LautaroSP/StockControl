@@ -2,8 +2,21 @@ import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, OnInit, 
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { toDataURL } from 'qrcode';
-import { ApiService, CobroMercadoPagoDto, ItemVenta, MetodoPagoDto, ProductoDto, VentaDetalleDto } from '../servicios/api.service';
+import {
+  ApiService,
+  ClienteDto,
+  CobroMercadoPagoDto,
+  CuentaDto,
+  ItemVenta,
+  MetodoPagoDto,
+  ComboVigenteDto,
+  OfertaVigenteDto,
+  PedidoEsperaDto,
+  ProductoDto,
+  VentaDetalleDto
+} from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
+import { cantidadCobrada, descuentoCombos, precioConOferta, precioUnitarioConOferta } from '../servicios/oferta-caja';
 import { CarritoCaja, LineaCarritoPendiente, SesionService } from '../servicios/sesion.service';
 import { TicketComponent } from './ticket.component';
 
@@ -100,6 +113,15 @@ const FIJOS = 4;
                 <tr class="clickable" (dblclick)="sacar(l)">
                   <td>
                     {{ l.nombre }}
+                    @if (l.precioAnterior != null) {
+                      <span class="badge badge-aviso">Antes {{ dinero(l.precioAnterior) }}</span>
+                    }
+                    @if (ofertaDe(l); as o) {
+                      <span class="badge badge-aviso">{{ o.descripcion }}</span>
+                      @if (o.tipo === 'llevaPaga') {
+                        <span class="meta">llevás {{ l.cantidad }}, pagás {{ cobradas(l) }}</span>
+                      }
+                    }
                     @if (l.generico || l.sector) {
                       <input
                         class="precio"
@@ -126,12 +148,15 @@ const FIJOS = 4;
                       (dblclick)="$event.stopPropagation()"
                     />
                   </td>
-                  <td class="num">{{ dinero(precioLinea(l) * l.cantidad) }}</td>
+                  <td class="num">{{ dinero(subtotalLinea(l)) }}</td>
                 </tr>
               }
             </tbody>
           </table>
         </div>
+        @if (descuentoDeCombos > 0) {
+          <p class="meta">Combo aplicado: ahorrás {{ dinero(descuentoDeCombos) }}</p>
+        }
         <div class="total-box">
           <div>
             <div class="lbl">Ítems</div>
@@ -168,6 +193,12 @@ const FIJOS = 4;
             <input type="checkbox" [(ngModel)]="activo.imprimirTicket" />
             Imprimir ticket
           </label>
+          @if (hayOfertaOpcional() || hayCombo()) {
+            <label class="check">
+              <input type="checkbox" [(ngModel)]="activo.sinOfertas" />
+              No aplicar ofertas
+            </label>
+          }
         </div>
         <div class="payment-list" (keydown)="teclaMedio($event)">
           @for (p of activo.pagos; track $index) {
@@ -217,6 +248,52 @@ const FIJOS = 4;
           </button>
           <button class="btn" type="button" (click)="cancelar()">Cancelar</button>
         </div>
+        @if (puedeFiar) {
+          <div class="row">
+            <button class="btn grow" type="button" [disabled]="cobrando || activo.lineas.length === 0" (click)="abrirFiar()">Dejar a cuenta</button>
+          </div>
+        }
+        @if (fiando) {
+          <div class="panel pad">
+            <p><strong>Dejar a cuenta · {{ dinero(total) }}</strong></p>
+            <input type="search" [(ngModel)]="buscarCliente" (ngModelChange)="buscarClientes()" placeholder="Buscar cliente" />
+            @for (c of clientes; track c.id) {
+              <div class="row">
+                <span class="grow">{{ c.nombre }} @if (c.telefono) { <span class="meta">{{ c.telefono }}</span> }</span>
+                <button class="btn btn-primary" type="button" [disabled]="cobrando" (click)="fiar(c.id)">Elegir</button>
+              </div>
+            }
+            <div class="row">
+              <input class="grow" type="text" maxlength="80" [(ngModel)]="nuevoNombre" placeholder="Cliente nuevo" />
+              <input type="tel" maxlength="30" style="width:140px" [(ngModel)]="nuevoTelefono" placeholder="Teléfono (opcional)" />
+            </div>
+            <div class="row">
+              <button class="btn btn-primary grow" type="button" [disabled]="cobrando || !nuevoNombre.trim()" (click)="fiar()">Crear y dejar a cuenta</button>
+              <button class="btn" type="button" (click)="cerrarFiar()">Volver</button>
+            </div>
+          </div>
+        }
+        <div class="row">
+          <button class="btn grow" type="button" [disabled]="cobrando || activo.lineas.length === 0" (click)="guardarEnEspera()">
+            Guardar en espera
+          </button>
+          <button class="btn grow" type="button" [disabled]="cobrando" (click)="alternarEspera()">
+            Pedidos en espera ({{ pedidosEspera.length }})
+          </button>
+        </div>
+        @if (verEspera) {
+          <div class="panel pad">
+            @for (p of pedidosEspera; track p.id) {
+              <div class="row">
+                <span class="grow">{{ p.nota || 'Sin nota' }} · {{ p.productos }} {{ p.productos === 1 ? 'producto' : 'productos' }} · {{ hora(p.fecha) }}</span>
+                <button class="btn" type="button" (click)="cargarEspera(p.id)">Cargar</button>
+                <button class="btn btn-danger" type="button" (click)="borrarEspera(p)">Borrar</button>
+              </div>
+            } @empty {
+              <p class="meta">No hay pedidos en espera en este puesto.</p>
+            }
+          </div>
+        }
         }
         @if (mensaje) {
           <p class="meta">{{ mensaje }}</p>
@@ -229,7 +306,7 @@ const FIJOS = 4;
     }
     <div class="toast" [class.show]="toast">{{ toast }}</div>
     @if (ticket) {
-      <sc-ticket [venta]="ticket" [nombreLocal]="nombreTicket" [formato]="formatoTicket" />
+      <sc-ticket [venta]="ticket" [nombreLocal]="nombreTicket" [formato]="formatoTicket" [pendiente]="ticketPendiente" />
     }
   `
 })
@@ -259,6 +336,17 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   mpVinculado = false;
   esperando: CobroMercadoPagoDto | null = null;
   qrEspera = '';
+  pedidosEspera: PedidoEsperaDto[] = [];
+  verEspera = false;
+  private ofertas = new Map<number, OfertaVigenteDto>();
+  private combos: ComboVigenteDto[] = [];
+  puedeFiar = false;
+  fiando = false;
+  buscarCliente = '';
+  clientes: ClienteDto[] = [];
+  nuevoNombre = '';
+  nuevoTelefono = '';
+  ticketPendiente: number | null = null;
   private relojEspera: ReturnType<typeof setInterval> | null = null;
   private relojOcio: ReturnType<typeof setTimeout> | null = null;
   private descuentoPorEnter = false;
@@ -283,14 +371,57 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get total(): number {
-    return this.activo.lineas.reduce((n, l) => n + this.precioLinea(l) * Number(l.cantidad), 0);
+    return Math.round((this.activo.lineas.reduce((n, l) => n + this.subtotalLinea(l), 0) - this.descuentoDeCombos) * 100) / 100;
+  }
+
+  get descuentoDeCombos(): number {
+    const a = this.activo;
+    if (a.sinOfertas || a.alCosto || this.descuentoCaja() > 0) return 0;
+    const lineas = a.lineas
+      .filter((l) => !l.sector && !l.generico)
+      .map((l) => ({ idProducto: l.idProducto, cantidad: Number(l.cantidad), subtotal: this.subtotalLinea(l) }));
+    return descuentoCombos(this.combos, lineas);
+  }
+
+  hayCombo(): boolean {
+    const ids = new Set(this.activo.lineas.map((l) => l.idProducto));
+    return this.combos.some((c) => c.lineas.every((x) => ids.has(x.idProducto)));
+  }
+
+  ofertaDe(l: LineaCarritoPendiente): OfertaVigenteDto | undefined {
+    const o = this.ofertaVigente(l);
+    if (!o) return undefined;
+    if (this.activo.sinOfertas && o.permiteNoAplicarEnCaja) return undefined;
+    if (this.activo.alCosto && o.anulaConAlCosto) return undefined;
+    if (this.descuentoCaja() > 0 && o.anulaConDescuentoCaja) return undefined;
+    return o;
+  }
+
+  hayOfertaOpcional(): boolean {
+    return this.activo.lineas.some((l) => this.ofertaVigente(l)?.permiteNoAplicarEnCaja);
+  }
+
+  private ofertaVigente(l: LineaCarritoPendiente): OfertaVigenteDto | undefined {
+    return l.sector || l.generico ? undefined : this.ofertas.get(l.idProducto);
+  }
+
+  private descuentoCaja(): number {
+    return this.activo.usarDesc ? Number(this.activo.descuento) || 0 : 0;
+  }
+
+  cobradas(l: LineaCarritoPendiente): number {
+    return cantidadCobrada(this.ofertaDe(l), Number(l.cantidad));
+  }
+
+  subtotalLinea(l: LineaCarritoPendiente): number {
+    return Math.round(this.precioLinea(l) * this.cobradas(l) * 100) / 100;
   }
 
   precioLinea(l: LineaCarritoPendiente): number {
     if (l.sector || l.generico) return Number(l.precioUnitario);
-    if (this.activo.alCosto) return Number(l.costo);
+    if (this.activo.alCosto) return precioConOferta(this.ofertaDe(l), Number(l.costo));
     const desc = this.activo.usarDesc ? Math.min(100, Math.max(0, Number(this.activo.descuento) || 0)) : 0;
-    const lista = Number(l.precioUnitario);
+    const lista = precioUnitarioConOferta(this.ofertaDe(l), Number(l.precioUnitario), Number(l.cantidad));
     const costo = Number(l.costo);
     const margen = Math.max(0, lista - costo);
     return Math.round((lista - (margen * desc) / 100) * 100) / 100;
@@ -360,6 +491,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   @HostListener('document:visibilitychange')
   alVolver(): void {
     if (document.visibilityState === 'hidden') return;
+    this.cargarOfertas();
     this.focoLector();
   }
 
@@ -445,6 +577,9 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     });
     this.api.gruposFiltro().subscribe({ next: (r) => (this.gruposFiltro = r) });
     this.reanudarEspera();
+    this.refrescarEspera();
+    this.cargarOfertas();
+    this.api.permisosCuentas().subscribe({ next: (p) => (this.puedeFiar = p.puedeFiar) });
     this.cargar();
   }
 
@@ -610,13 +745,8 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.activo.lineas.length === 0) return;
     this.cobrando = true;
     this.error = '';
-    const items: ItemVenta[] = this.activo.lineas.map((l) => ({
-      idProducto: l.idProducto,
-      codigo: l.codigo,
-      nombre: l.nombre,
-      cantidad: Number(l.cantidad),
-      precioUnitario: Number(l.precioUnitario)
-    }));
+    const items = this.itemsActivo();
+    const idEspera = this.activo.idPedidoEspera;
     const desc = this.activo.usarDesc ? Number(this.activo.descuento) || 0 : 0;
     const pagos = this.activo.pagos.map((p, i) => ({ idMetodoPago: p.idMetodoPago, importe: this.importePago(p, i) }));
     const imprimir = this.activo.imprimirTicket;
@@ -627,7 +757,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
         this.cobrando = false;
         return;
       }
-      this.api.iniciarCobroMercadoPago(items, pagos, desc, this.sesion.esDueno() && this.activo.alCosto).subscribe({
+      this.api.iniciarCobroMercadoPago(items, pagos, desc, this.sesion.esDueno() && this.activo.alCosto, idEspera, !!this.activo.sinOfertas).subscribe({
         next: (r) => {
           this.activo.idCobro = r.id;
           this.mostrarEspera(r, imprimir);
@@ -635,16 +765,18 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
         error: (err) => {
           this.error = typeof err.error === 'string' ? err.error : 'No se pudo iniciar el cobro.';
           this.cobrando = false;
+          if (err.status === 409) this.refrescarEspera();
         }
       });
       return;
     }
-    this.api.cobrar(items, pagos, desc, this.sesion.esDueno() && this.activo.alCosto).subscribe({
+    this.api.cobrar(items, pagos, desc, this.sesion.esDueno() && this.activo.alCosto, idEspera, !!this.activo.sinOfertas).subscribe({
       next: (r) => {
         this.toast = `Cobrado ${this.dinero(r.total)}`;
         this.cerrarTrasCobro();
         this.cobrando = false;
         this.cargar();
+        if (idEspera) this.refrescarEspera();
         if (imprimir) this.imprimirVenta(r.idInformeVenta, r.total);
         else {
           this.focoLector();
@@ -655,8 +787,188 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
         this.error = typeof err.error === 'string' ? err.error : 'No se pudo cobrar.';
         this.cobrando = false;
         if (err.status === 402) this.api.abonoActual().subscribe({ next: (a) => this.sesion.abono.set(a) });
+        if (err.status === 409) this.refrescarEspera();
       }
     });
+  }
+
+  async guardarEnEspera(): Promise<void> {
+    if (this.activo.lineas.length === 0) return;
+    const nota = await this.dialogo.pedir('Nota del pedido (ej. María, pedido de las 11)');
+    if (nota === null) {
+      this.focoLector();
+      return;
+    }
+    const carrito = this.activo;
+    const anterior = carrito.idPedidoEspera;
+    const desc = carrito.usarDesc ? Number(carrito.descuento) || 0 : 0;
+    this.api.guardarPedidoEspera(this.itemsActivo(), nota.slice(0, 80), desc, this.sesion.esDueno() && carrito.alCosto).subscribe({
+      next: () => {
+        const listo = () => this.refrescarEspera();
+        if (anterior) this.api.borrarPedidoEspera(anterior).subscribe({ next: listo, error: listo });
+        else listo();
+        if (carrito === this.activo) this.cerrarTrasCobro();
+        this.error = '';
+        this.mensaje = '';
+        this.toast = 'Pedido guardado en espera';
+        setTimeout(() => (this.toast = ''), 2500);
+        this.focoLector();
+      },
+      error: (err) => (this.error = typeof err.error === 'string' ? err.error : 'No se pudo guardar el pedido.')
+    });
+  }
+
+  abrirFiar(): void {
+    this.fiando = true;
+    this.buscarCliente = '';
+    this.nuevoNombre = '';
+    this.nuevoTelefono = '';
+    this.buscarClientes();
+  }
+
+  cerrarFiar(): void {
+    this.fiando = false;
+    this.focoLector();
+  }
+
+  buscarClientes(): void {
+    this.api.clientes(this.buscarCliente.trim()).subscribe({ next: (r) => (this.clientes = r) });
+  }
+
+  fiar(idCliente?: number): void {
+    if (this.activo.lineas.length === 0) return;
+    this.cobrando = true;
+    this.error = '';
+    const imprimir = this.activo.imprimirTicket;
+    this.api.fiar({
+      items: this.itemsActivo(),
+      descuentoPorcentaje: this.descuentoCaja(),
+      cobrarAlCosto: this.sesion.esDueno() && this.activo.alCosto,
+      sinOfertas: !!this.activo.sinOfertas,
+      idCliente,
+      clienteNuevo: idCliente ? undefined : { nombre: this.nuevoNombre.trim(), telefono: this.nuevoTelefono.trim() }
+    }).subscribe({
+      next: (c) => {
+        this.cobrando = false;
+        this.fiando = false;
+        this.cerrarTrasCobro();
+        this.cargar();
+        this.toast = `A cuenta de ${c.cliente}: ${this.dinero(c.importe)}`;
+        if (imprimir) this.imprimirCuenta(c);
+        else {
+          this.focoLector();
+          setTimeout(() => (this.toast = ''), 2500);
+        }
+      },
+      error: (err) => {
+        this.cobrando = false;
+        this.error = typeof err.error === 'string' ? err.error : 'No se pudo dejar a cuenta.';
+        if (err.status === 402) this.api.abonoActual().subscribe({ next: (a) => this.sesion.abono.set(a) });
+      }
+    });
+  }
+
+  private imprimirCuenta(c: CuentaDto): void {
+    this.ticket = {
+      idInformeVenta: c.id,
+      fecha: c.fecha,
+      total: c.importe,
+      subtotal: c.importe,
+      metodoPago: `A cuenta de ${c.cliente}`,
+      descuento: 0,
+      precioCosto: 'NO',
+      pagos: [],
+      items: c.lineas.map((l) => ({
+        idInformeVentaDetalle: l.id,
+        idProducto: l.idProducto,
+        codigo: l.codigo,
+        nombre: l.nombre,
+        cantidad: l.cantidad,
+        precio: l.precio,
+        subTotal: l.subTotal,
+        descripcionOferta: l.descripcionOferta
+      }))
+    };
+    this.ticketPendiente = c.saldo;
+    setTimeout(() => {
+      try {
+        window.print();
+      } catch {
+        /* el diálogo no corrió */
+      }
+      this.ticket = null;
+      this.ticketPendiente = null;
+      this.focoLector();
+      setTimeout(() => (this.toast = ''), 4000);
+    }, 50);
+  }
+
+  alternarEspera(): void {
+    this.verEspera = !this.verEspera;
+    if (this.verEspera) this.refrescarEspera();
+  }
+
+  async cargarEspera(id: number): Promise<void> {
+    if (this.activo.lineas.length > 0 && !await this.dialogo.confirmar('El carrito actual se reemplaza por el pedido. ¿Seguir?')) {
+      this.focoLector();
+      return;
+    }
+    this.api.cargarPedidoEspera(id).subscribe({
+      next: (p) => {
+        const c = this.activo;
+        c.lineas = p.lineas.map((l) => ({ ...l }));
+        c.usarDesc = p.descuentoPorcentaje > 0;
+        c.descuento = p.descuentoPorcentaje;
+        c.alCosto = p.alCosto && this.sesion.esDueno();
+        c.idPedidoEspera = p.id;
+        this.verEspera = false;
+        this.error = p.faltantes.length ? `No se cargó porque ya no está en el catálogo: ${p.faltantes.join(', ')}.` : '';
+        this.mensaje = p.lineas.some((l) => l.precioAnterior != null) ? 'Hay precios que cambiaron desde que se guardó.' : '';
+        this.focoLector();
+      },
+      error: (err) => {
+        this.error = typeof err.error === 'string' ? err.error : 'No se pudo cargar el pedido.';
+        this.refrescarEspera();
+      }
+    });
+  }
+
+  async borrarEspera(p: PedidoEsperaDto): Promise<void> {
+    if (!await this.dialogo.confirmar(`¿Borrar el pedido "${p.nota || 'Sin nota'}"?`)) return;
+    this.api.borrarPedidoEspera(p.id).subscribe({
+      next: () => this.quitarEspera(p.id),
+      error: () => this.quitarEspera(p.id)
+    });
+  }
+
+  hora(fecha: string): string {
+    return new Date(fecha).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+
+  private quitarEspera(id: number): void {
+    for (const c of this.carritos) {
+      if (c.idPedidoEspera === id) c.idPedidoEspera = undefined;
+    }
+    this.refrescarEspera();
+  }
+
+  private cargarOfertas(): void {
+    this.api.ofertasVigentes().subscribe({ next: (r) => (this.ofertas = new Map(r.map((o) => [o.idProducto, o]))) });
+    this.api.combosVigentes().subscribe({ next: (r) => (this.combos = r) });
+  }
+
+  private refrescarEspera(): void {
+    this.api.pedidosEspera().subscribe({ next: (r) => (this.pedidosEspera = r) });
+  }
+
+  private itemsActivo(): ItemVenta[] {
+    return this.activo.lineas.map((l) => ({
+      idProducto: l.idProducto,
+      codigo: l.codigo,
+      nombre: l.nombre,
+      cantidad: Number(l.cantidad),
+      precioUnitario: Number(l.precioUnitario)
+    }));
   }
 
   bloqueada(): boolean {
@@ -756,6 +1068,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
       this.toast = `Cobrado ${this.dinero(r.importe)}`;
       this.cerrarTrasCobro();
       this.cargar();
+      this.refrescarEspera();
       if (imprimir) this.imprimirVenta(r.idInformeVenta, r.importe);
       else {
         this.focoLector();
@@ -848,6 +1161,8 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     c.usarDesc = false;
     c.descuento = 0;
     c.alCosto = false;
+    c.idPedidoEspera = undefined;
+    c.sinOfertas = false;
     if (c.pagos.length > 1) c.pagos = c.pagos.slice(0, 1);
   }
 

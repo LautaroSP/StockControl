@@ -7,6 +7,8 @@ public sealed class LineaOrdenPedida
 {
     public int IdProducto { get; init; }
     public decimal Cantidad { get; init; }
+    public string NombrePack { get; init; } = "";
+    public int UnidadesPack { get; init; } = 1;
 }
 
 public static class ServicioOrdenCompra
@@ -37,9 +39,10 @@ public static class ServicioOrdenCompra
             IdUsuario = idUsuario,
             NombreUsuario = nombreUsuario
         };
-        foreach (var g in pedidas.GroupBy(l => l.IdProducto))
+        var normalizadas = pedidas.Select(l => (Linea: l, Pack: ServicioVinculosProveedor.NormalizarPack(l.NombrePack, l.UnidadesPack)));
+        foreach (var g in normalizadas.GroupBy(x => (x.Linea.IdProducto, x.Pack)))
         {
-            if (!productos.TryGetValue(g.Key, out var p))
+            if (!productos.TryGetValue(g.Key.IdProducto, out var p))
                 throw new ErrorNegocio("Hay productos que no están en el local.");
             orden.Lineas.Add(new OrdenCompraLinea
             {
@@ -47,11 +50,17 @@ public static class ServicioOrdenCompra
                 IdProducto = p.Id,
                 Codigo = p.Codigo,
                 Nombre = p.Nombre,
-                Cantidad = g.Sum(l => l.Cantidad)
+                Cantidad = g.Sum(x => x.Linea.Cantidad),
+                NombrePack = g.Key.Pack.Nombre,
+                UnidadesPack = g.Key.Pack.Unidades
             });
         }
         return orden;
     }
+
+    /// <summary>«Pack de Coca 1.75 lt» si la línea es por pack; el nombre solo si es por unidad.</summary>
+    public static string Descripcion(OrdenCompraLinea linea) =>
+        linea.NombrePack.Length > 0 ? $"{linea.NombrePack} de {linea.Nombre}" : linea.Nombre;
 
     /// <summary>
     /// Formato internacional de celular argentino para wa.me: 549 + área + número (10 dígitos), sin 0 ni 15.
@@ -74,7 +83,7 @@ public static class ServicioOrdenCompra
         var dia = TimeZoneInfo.ConvertTime(fecha, DiaArgentina.Zona).ToString("dd/MM/yyyy", Ar);
         var texto = new StringBuilder($"Hola {nombreProveedor}, pedido de {nombreLocal} ({dia}):");
         foreach (var l in lineas)
-            texto.Append($"\n- {l.Cantidad.ToString("0.###", Ar)} x {l.Nombre} ({l.Codigo})");
+            texto.Append($"\n- {l.Cantidad.ToString("0.###", Ar)} {(l.NombrePack.Length > 0 ? "" : "x ")}{Descripcion(l)}");
         return texto.ToString();
     }
 

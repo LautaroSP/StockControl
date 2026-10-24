@@ -6,6 +6,7 @@ import { DialogoService } from '../servicios/dialogo.service';
 interface FilaRecepcion {
   idLinea: number;
   nombre: string;
+  unidadesPack: number;
   pedida: number;
   recibida: number | null;
 }
@@ -32,7 +33,10 @@ interface FilaRecepcion {
               <tbody>
                 @for (f of filas; track f.idLinea) {
                   <tr>
-                    <td>{{ f.nombre }}</td>
+                    <td>
+                      {{ f.nombre }}
+                      @if (f.unidadesPack > 1) { <div class="meta">{{ f.unidadesPack }} unidades cada uno · suma {{ (f.recibida || 0) * f.unidadesPack }} al stock</div> }
+                    </td>
                     <td class="num">{{ f.pedida }}</td>
                     <td class="num">
                       @if (orden.recibida) {
@@ -82,7 +86,8 @@ export class RecibirOrdenComponent implements OnInit {
         this.nombreProveedor = r.nombreProveedor;
         this.filas = r.orden.lineas.map((l) => ({
           idLinea: l.id ?? 0,
-          nombre: l.nombre,
+          nombre: l.descripcion || l.nombre,
+          unidadesPack: l.unidadesPack,
           pedida: l.cantidad,
           recibida: l.cantidadRecibida ?? l.cantidad
         }));

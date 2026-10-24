@@ -65,17 +65,15 @@ public static class ExcelProveedor
         hoja.Cell(3, 2).Value = TimeZoneInfo.ConvertTime(orden.Fecha, DiaArgentina.Zona).ToString("dd/MM/yyyy HH:mm", Ar);
         hoja.Range(1, 1, 3, 1).Style.Font.Bold = true;
 
-        hoja.Cell(5, 1).Value = "Código";
-        hoja.Cell(5, 2).Value = "Producto";
-        hoja.Cell(5, 3).Value = "Cantidad";
+        hoja.Cell(5, 1).Value = "Producto";
+        hoja.Cell(5, 2).Value = "Cantidad";
         hoja.Row(5).Style.Font.Bold = true;
 
         var nro = 6;
         foreach (var l in orden.Lineas)
         {
-            hoja.Cell(nro, 1).Value = l.Codigo;
-            hoja.Cell(nro, 2).Value = l.Nombre;
-            hoja.Cell(nro, 3).Value = l.Cantidad;
+            hoja.Cell(nro, 1).Value = ServicioOrdenCompra.Descripcion(l);
+            hoja.Cell(nro, 2).Value = l.Cantidad;
             nro++;
         }
         hoja.Columns().AdjustToContents();

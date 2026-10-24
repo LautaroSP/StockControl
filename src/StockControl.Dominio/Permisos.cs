@@ -41,6 +41,15 @@ public static class Permisos
     public static bool PuedeAdministrarMetodosPago(string rol) =>
         EsDuenoOperativo(rol);
 
+    public static bool PuedeAdministrarOfertas(string rol) =>
+        EsDuenoOperativo(rol);
+
+    public static bool PuedeFiar(string rol, bool empleadoHabilitado) =>
+        EsDuenoOperativo(rol) || (rol == Roles.Empleado && empleadoHabilitado);
+
+    public static bool PuedeAnularCuenta(string rol) =>
+        EsDuenoOperativo(rol);
+
     public static bool EsDuenoOperativo(string rol) =>
         rol is Roles.Dueno or Roles.Socio or Roles.Admin;
 

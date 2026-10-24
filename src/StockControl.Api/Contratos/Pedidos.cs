@@ -62,6 +62,115 @@ public class VentaPedido
     public int DescuentoPorcentaje { get; set; }
 
     public bool CobrarAlCosto { get; set; }
+
+    public int? IdPedidoEspera { get; set; }
+
+    public bool SinOfertas { get; set; }
+}
+
+public class PedidoEsperaPedido
+{
+    [Required, MinLength(1)]
+    public List<ItemVentaPedido> Items { get; set; } = new();
+
+    [MaxLength(80)]
+    public string Nota { get; set; } = "";
+
+    [Range(0, 100)]
+    public int DescuentoPorcentaje { get; set; }
+
+    public bool AlCosto { get; set; }
+}
+
+public class ClientePedido
+{
+    [Required, MaxLength(80)]
+    public string Nombre { get; set; } = "";
+
+    [MaxLength(30)]
+    public string? Telefono { get; set; }
+}
+
+public class CuentaPedido
+{
+    [Required, MinLength(1)]
+    public List<ItemVentaPedido> Items { get; set; } = new();
+
+    [Range(0, 100)]
+    public int DescuentoPorcentaje { get; set; }
+
+    public bool CobrarAlCosto { get; set; }
+
+    public bool SinOfertas { get; set; }
+
+    public int? IdCliente { get; set; }
+
+    public ClientePedido? ClienteNuevo { get; set; }
+}
+
+public class PagoCuentaPedido
+{
+    [Range(0.01, 999999999)]
+    public decimal Importe { get; set; }
+
+    public int IdMetodoPago { get; set; }
+}
+
+public class OfertaPedido
+{
+    [Range(1, int.MaxValue)]
+    public int IdProducto { get; set; }
+
+    [Required, MaxLength(20)]
+    public string Tipo { get; set; } = "";
+
+    public int Porcentaje { get; set; }
+
+    public int Lleva { get; set; }
+
+    public int Paga { get; set; }
+
+    [Range(0, 999999999)]
+    public decimal PrecioUnidad { get; set; }
+
+    public DateOnly FechaDesde { get; set; }
+
+    public DateOnly FechaHasta { get; set; }
+
+    public bool SinFin { get; set; }
+
+    public bool AnulaConDescuentoCaja { get; set; }
+
+    public bool AnulaConAlCosto { get; set; } = true;
+
+    public bool PermiteNoAplicarEnCaja { get; set; }
+}
+
+public class ComboPedido
+{
+    [Required, MaxLength(60)]
+    public string Nombre { get; set; } = "";
+
+    [Range(0, 999999999)]
+    public decimal PrecioTotal { get; set; }
+
+    public DateOnly FechaDesde { get; set; }
+
+    public DateOnly FechaHasta { get; set; }
+
+    public bool SinFin { get; set; }
+
+    [Required, MaxLength(20)]
+    public List<ComboLineaPedido> Lineas { get; set; } = [];
+}
+
+public class ComboLineaPedido
+{
+    [Range(1, int.MaxValue)]
+    public int IdProducto { get; set; }
+
+    [Range(1, 100)]
+    public int Cantidad { get; set; }
 }
 
 public class PrecioProductoPedido
@@ -187,6 +296,8 @@ public class ConfiguracionLocalPedido
     public decimal UmbralStockBajo { get; set; }
 
     public bool EmpleadoPuedeModificarPrecios { get; set; }
+
+    public bool EmpleadoPuedeFiar { get; set; }
 
     [Required, MaxLength(10)]
     public string FormatoTicket { get; set; } = "POS-80";
@@ -320,6 +431,21 @@ public class LineaOrdenCompraPedido
 
     [Range(0.001, 999999)]
     public decimal Cantidad { get; set; }
+
+    [MaxLength(30)]
+    public string NombrePack { get; set; } = "";
+
+    [Range(1, 10000)]
+    public int UnidadesPack { get; set; } = 1;
+}
+
+public class PackProductoPedido
+{
+    [MaxLength(30)]
+    public string NombrePack { get; set; } = "";
+
+    [Range(1, 10000)]
+    public int UnidadesPack { get; set; } = 1;
 }
 
 public class LineaRecibidaPedido

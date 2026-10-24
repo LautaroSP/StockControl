@@ -9,7 +9,8 @@ import {
   ItemVentaDelDiaDto,
   ItemVentaGrupoDto,
   LocalDto,
-  ResumenEstadisticasDto
+  ResumenEstadisticasDto,
+  DeudaDto
 } from '../servicios/api.service';
 import { SesionService } from '../servicios/sesion.service';
 
@@ -205,6 +206,26 @@ interface OpcionMes {
           </div>
         </div>
       </div>
+
+      <section class="panel pad" style="margin-bottom:16px">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+          <strong>Se debe ahora</strong>
+          <span class="meta">Cuentas pendientes abiertas, sin importar el período</span>
+        </div>
+        <div class="kpi" style="margin-bottom:10px"><div class="n">{{ dinero(deuda.total) }}</div></div>
+        @if (deuda.porCliente.length) {
+          <table class="data">
+            <thead><tr><th>Cliente</th><th class="num">Cuentas</th><th class="num">Debe</th></tr></thead>
+            <tbody>
+              @for (d of deuda.porCliente; track d.idCliente) {
+                <tr><td>{{ d.nombre }}</td><td class="num">{{ d.cuentas }}</td><td class="num">{{ dinero(d.saldo) }}</td></tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <p class="meta">Nadie debe nada.</p>
+        }
+      </section>
 
       <div class="split" style="margin-bottom:16px">
         <!-- Top 20 Productos -->
@@ -437,6 +458,7 @@ export class EstadisticasComponent implements OnInit, AfterViewChecked, OnDestro
   private observador?: IntersectionObserver;
   private elementoObservado?: HTMLElement;
 
+  deuda: DeudaDto = { total: 0, porCliente: [] };
   resumen: ResumenEstadisticasDto = {
     totalVendido: 0,
     cantidadTickets: 0,
@@ -599,6 +621,7 @@ export class EstadisticasComponent implements OnInit, AfterViewChecked, OnDestro
           stockBajo: [],
           ventasDelDia: []
         };
+        this.deuda = resp.deuda ?? { total: 0, porCliente: [] };
         if (resp.locales && resp.locales.length > 0 && this.locales.length === 0) {
           this.locales = resp.locales;
         }

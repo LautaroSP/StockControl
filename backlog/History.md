@@ -8,7 +8,7 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 
 ## Siguiente
 
-**#33 · 33 Guardar ticket sin vender**
+**#29 · 29 Tienda: URL pública y catálogo**
 
 ## Tablero
 
@@ -46,9 +46,9 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 | 30 | 30 | [Mantenimiento y 404](30-mantenimiento-y-404.md) | sí | Página estática si Kestrel no responde. El 404 de una ruta lo muestra Angular. Sin test de dominio: no hay regla nueva |
 | 31 | 32 | [Teclado de la caja](32-teclado-caja.md) | sí | Foco al lector al volver y tras 10 s. Enter y + como en el escritorio. Sin test de dominio: es foco, no hay regla nueva |
 | 32 | 31 | [Iconos](31-iconos.md) | sí | Barra y Configuración. Mercado Pago: check verde y «Conectar otra cuenta» |
-| 33 | 33 | [Guardar ticket sin vender](33-ticket-sin-venta.md) | no | Pedido en espera: el carrito se guarda sin cobrar y es del puesto de caja. Si cancelan y vuelven, se carga de nuevo. No mueve stock ni entra en la caja |
-| 34 | 34 | [Configurar ofertas](34-ofertas.md) | no | Descuento por producto con fecha, o llevás N y pagás M. El carrito lo aplica solo. El descuento manual de la caja sigue |
-| 35 | 35 | [Cuentas pendientes](35-cuentas-pendientes.md) | no | Fiado: baja el stock, no es venta hasta el pago. Pagos parciales. Empleado fía si el dueño lo habilita. Incobrable = pérdida. Total por cliente en Estadísticas |
+| 33 | 33 | [Guardar ticket sin vender](33-ticket-sin-venta.md) | sí | Pedido en espera del puesto de caja. No mueve stock ni entra en la caja. Cobrar lo borra en la misma transacción; la otra pestaña recibe aviso. Volver a guardar un pedido cargado lo reemplaza. Requiere migración `PedidosEspera` |
+| 34 | 34 | [Configurar ofertas](34-ofertas.md) | sí | Pantalla Ofertas del dueño. Descuento de 1 a 99 % o llevás N y pagás M, con fechas en día de Argentina. Cada oferta elige si el descuento de caja o al costo la deshabilitan, y si la caja puede no aplicarla. El detalle de la venta guarda la oferta. Requiere migraciones `Ofertas` y `OpcionesOferta` |
+| 35 | 35 | [Cuentas pendientes](35-cuentas-pendientes.md) | sí | Dejar a cuenta desde la caja y pantalla Cuentas. Cada pago es una venta de una línea `CUENTA-` con ganancia proporcional. Anular ese pago devuelve el saldo. Incobrable queda en la cuenta. Requiere migración `CuentasPendientes` |
 | 36 | 29 | [Tienda: URL pública y catálogo](29-tienda-online.md) | no | Última etapa. `/tienda/{alias}` única por local, pública, sin login. Mapa OpenStreetMap con la ubicación del local. Publicar productos, activar/pausar |
 | 37 | 36 | [Tienda: imágenes](36-tienda-imagenes.md) | no | Propuesta por código de barras (Open Food Facts) con Aceptar o Subir propia. Hasta 2 por producto, 400 × 400 px |
 | 38 | 37 | [Tienda: carrito y pedido](37-tienda-carrito-pedido.md) | no | Retiro en el local, stock reservado, precio congelado, consulta sin cuenta |
@@ -56,8 +56,33 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 | 40 | 38 | [Tienda: Mercado Pago y gestión](38-tienda-mercado-pago.md) | no | Checkout Pro con la cuenta MP de la 21. Gestión: importe fijo en Configuración |
 | 41 | 39 | [Tienda: transferencia](39-tienda-transferencia.md) | no | A confirmar con plazo del dueño; gestión suma al abono |
 | 42 | 40 | [Tienda: envío por km](40-tienda-envio-km.md) | no | Precio por km, mínimo, radio, gratis desde |
+| 43 | 45 | [Vista de cliente (web)](45-vista-cliente.md) | no | Botón arriba del carrito: pestaña aparte para el cliente, al instante por `BroadcastChannel`. Muestra QR de MP y «Gracias» al cobrar |
+| 44 | 46 | [Vista de cliente (escritorio)](46-vista-cliente-escritorio.md) | no | Lo mismo en WinForms: ventana en el segundo monitor, atada a `CarritoSesion` |
+| 45 | 42 | [Sesión: cortar el token](42-sesion-revocar-token.md) | no | Versión de sesión en el usuario y en el JWT. Cambiar rol o clave corta los tokens viejos. Emisor y audiencia |
+| 46 | 43 | [SQL injection](43-sql-injection.md) | no | Inventario de SQL crudo, regla contra `*Raw` con datos, escapar comodines de `ILike`, usuario de base sin privilegios |
+| 47 | 44 | [Auditoría de seguridad](44-auditoria-seguridad.md) | no | Última antes de producción. Informe con gravedad; lo crítico se corrige ahí. Incluye RLS, validación de contratos, CSP, CORS, secretos y dependencias |
+| 48 | 47 | [Mejorar los tickets](47-mejorar-tickets.md) | no | Combos y ofertas en línea aparte con el ahorro; cantidad × precio coincide con el subtotal. Sin orden definido: se puede mover antes de la tienda |
 
 ## Log
+
+- 2026-10-24 · 47 Mejorar los tickets · no · alta de tarjeta (el combo reparte el descuento dentro de cada línea y el ticket no se puede verificar; pasa a línea de ahorro aparte)
+- 2026-10-24 · 26 Proveedores y órdenes · ajuste · Cada proveedor tiene su lista de productos vinculados (varios proveedores por producto), con buscador, «Agregar a la orden» y «Editar pack». La orden pide por unidad o por pack/caja/bulto (nombre y unidades); el mensaje dice «6 Pack de Coca 1.75 lt» y recibir suma packs × unidades al stock. Mandar un producto no vinculado crea el vínculo. La orden ya no lleva código de barras. Requiere migración `PacksProveedor`
+- 2026-10-24 · 34 Configurar ofertas · ajuste · Tipos nuevos: precio por unidad desde N o exactamente N, y oferta sin fecha de fin. Combos de varios productos por un precio total (pantalla Combos): se repiten por cada set completo, no aplican con descuento de caja, al costo ni «No aplicar ofertas», y solo si le conviene al cliente. Requiere migración `OfertasPrecioYCombos`
+- 2026-10-24 · 35 Cuentas pendientes · ajuste · Al abrir una cuenta se ve lo que el cliente debe en total y sus otras cuentas abiertas
+- 2026-10-23 · 46 Vista de cliente (escritorio) · no · alta de tarjeta (ventana aparte en WinForms, segundo monitor, se actualiza con el carrito)
+- 2026-10-23 · 45 Vista de cliente (web) · no · alta de tarjeta (pestaña aparte para el cliente, al instante con `BroadcastChannel`, QR de MP y «Gracias»)
+
+- 2026-10-23 · 44 Auditoría de seguridad · no · alta de tarjeta (última antes de producción; informe con gravedad; RLS, validación, cabeceras, CORS, secretos, dependencias)
+- 2026-10-23 · 43 SQL injection · no · alta de tarjeta (SQL crudo sin datos del usuario, comodines de `ILike`, usuario de base sin privilegios)
+- 2026-10-23 · 42 Sesión: cortar el token · no · alta de tarjeta (cambiar rol o clave invalida los JWT anteriores)
+
+- 2026-10-23 · 35 Cuentas pendientes · sí · Dejar a cuenta con cliente del local; baja stock y no es venta. Cada pago, parcial o total, crea una venta de una línea `CUENTA-{id}` en la caja de ese momento, con medio sin Mercado Pago y ganancia proporcional. Anular esa venta devuelve el saldo. Incobrable queda guardado en la cuenta, sin indicador en Estadísticas. Estadísticas: deuda actual por cliente; lo fiado suma unidades en top y ventas del día sin plata. Configuración «El empleado puede fiar». Requiere migración `CuentasPendientes`
+
+- 2026-10-23 · 34 Configurar ofertas · ajuste · Cada oferta elige si el descuento de la caja la deshabilita, si al costo la deshabilita (viene marcado) y si la caja muestra el tilde «No aplicar ofertas» (dueño y empleado). Requiere migración `OpcionesOferta`
+
+- 2026-10-23 · 34 Configurar ofertas · sí · Pantalla Ofertas (dueño): alta, edición y baja, sin fechas que se pisen por producto. La caja muestra la oferta en la línea y el ticket la imprime. El stock baja lo llevado y la venta guarda lo cobrado. Requiere migración `Ofertas`
+
+- 2026-10-23 · 33 Guardar ticket sin vender · sí · Botones Guardar en espera y Pedidos en espera debajo de COBRAR. Al cargarlo, el común toma el precio actual y avisa en la línea; el producto borrado no entra. Con Mercado Pago se borra al acreditarse. Tope de 50 por puesto. Requiere migración `PedidosEspera`
 
 - 2026-10-22 · 29 Tienda: URL pública y catálogo · ajuste · La tienda muestra un mapa de OpenStreetMap con la ubicación del local. La 40 reutiliza esa ubicación
 

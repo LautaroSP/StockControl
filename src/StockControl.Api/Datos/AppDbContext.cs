@@ -35,6 +35,16 @@ public class AppDbContext : DbContext
     public DbSet<CuentaMercadoPago> CuentasMercadoPago => Set<CuentaMercadoPago>();
     public DbSet<PuestoMercadoPago> PuestosMercadoPago => Set<PuestoMercadoPago>();
     public DbSet<CobroMercadoPago> CobrosMercadoPago => Set<CobroMercadoPago>();
+    public DbSet<PedidoEspera> PedidosEspera => Set<PedidoEspera>();
+    public DbSet<LineaPedidoEspera> LineasPedidoEspera => Set<LineaPedidoEspera>();
+    public DbSet<Oferta> Ofertas => Set<Oferta>();
+    public DbSet<ProductoProveedor> ProductosProveedor => Set<ProductoProveedor>();
+    public DbSet<OfertaCombo> OfertasCombo => Set<OfertaCombo>();
+    public DbSet<LineaOfertaCombo> LineasOfertaCombo => Set<LineaOfertaCombo>();
+    public DbSet<Cliente> Clientes => Set<Cliente>();
+    public DbSet<CuentaPendiente> CuentasPendientes => Set<CuentaPendiente>();
+    public DbSet<LineaCuenta> LineasCuenta => Set<LineaCuenta>();
+    public DbSet<PagoCuenta> PagosCuenta => Set<PagoCuenta>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -173,6 +183,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Costo).HasPrecision(14, 2);
             e.Property(x => x.SubTotal).HasPrecision(14, 2);
             e.Property(x => x.Cantidad).HasPrecision(14, 3);
+            e.Property(x => x.DescripcionOferta).HasMaxLength(20).HasDefaultValue("");
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
 
@@ -229,6 +240,18 @@ public class AppDbContext : DbContext
             e.Property(x => x.Nombre).HasMaxLength(200);
             e.Property(x => x.Cantidad).HasPrecision(14, 3);
             e.Property(x => x.CantidadRecibida).HasPrecision(14, 3);
+            e.Property(x => x.NombrePack).HasMaxLength(30).HasDefaultValue("");
+            e.Property(x => x.UnidadesPack).HasDefaultValue(1);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<ProductoProveedor>(e =>
+        {
+            e.ToTable("ProductosProveedor");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.NombrePack).HasMaxLength(30);
+            e.HasIndex(x => new { x.IdLocal, x.IdProveedor, x.IdProducto }).IsUnique();
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
 
@@ -308,6 +331,117 @@ public class AppDbContext : DbContext
                 .IsUnique()
                 .HasFilter("\"Estado\" = 'esperando' AND \"Modo\" = 'qr_impreso'")
                 .HasDatabaseName("IX_CobrosMercadoPago_QrAbierto");
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<PedidoEspera>(e =>
+        {
+            e.ToTable("PedidosEspera");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Nota).HasMaxLength(80);
+            e.HasIndex(x => new { x.IdLocal, x.NroCaja, x.Fecha });
+            e.HasMany(x => x.Lineas).WithOne().HasForeignKey(l => l.IdPedidoEspera).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<LineaPedidoEspera>(e =>
+        {
+            e.ToTable("LineasPedidoEspera");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Codigo).HasMaxLength(80);
+            e.Property(x => x.Nombre).HasMaxLength(200);
+            e.Property(x => x.Cantidad).HasPrecision(14, 3);
+            e.Property(x => x.PrecioUnitario).HasPrecision(14, 2);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<Oferta>(e =>
+        {
+            e.ToTable("Ofertas");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Tipo).HasMaxLength(20);
+            e.Property(x => x.PrecioUnidad).HasPrecision(14, 2);
+            e.Ignore(x => x.SinFin);
+            e.Property(x => x.AnulaConAlCosto).HasDefaultValue(true).HasSentinel(true);
+            e.HasIndex(x => new { x.IdLocal, x.IdProducto, x.FechaDesde });
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<OfertaCombo>(e =>
+        {
+            e.ToTable("OfertasCombo");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Nombre).HasMaxLength(60);
+            e.Property(x => x.PrecioTotal).HasPrecision(14, 2);
+            e.HasIndex(x => new { x.IdLocal, x.FechaDesde });
+            e.HasMany(x => x.Lineas).WithOne().HasForeignKey(l => l.IdOfertaCombo).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<LineaOfertaCombo>(e =>
+        {
+            e.ToTable("LineasOfertaCombo");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<Cliente>(e =>
+        {
+            e.ToTable("Clientes");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Nombre).HasMaxLength(80);
+            e.Property(x => x.Telefono).HasMaxLength(30);
+            e.HasIndex(x => new { x.IdLocal, x.Nombre });
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<CuentaPendiente>(e =>
+        {
+            e.ToTable("CuentasPendientes");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.NombreUsuario).HasMaxLength(80);
+            e.Property(x => x.Importe).HasPrecision(14, 2);
+            e.Property(x => x.Saldo).HasPrecision(14, 2).IsConcurrencyToken();
+            e.Property(x => x.GananciaEstimada).HasPrecision(14, 2);
+            e.Property(x => x.Estado).HasMaxLength(20);
+            e.Property(x => x.UsuarioIncobrable).HasMaxLength(80);
+            e.HasIndex(x => new { x.IdLocal, x.Estado, x.IdCliente });
+            e.HasIndex(x => new { x.IdLocal, x.Fecha });
+            e.HasOne<Cliente>().WithMany().HasForeignKey(x => x.IdCliente).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Lineas).WithOne().HasForeignKey(l => l.IdCuentaPendiente).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Pagos).WithOne().HasForeignKey(p => p.IdCuentaPendiente).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<LineaCuenta>(e =>
+        {
+            e.ToTable("LineasCuenta");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Codigo).HasMaxLength(80);
+            e.Property(x => x.Nombre).HasMaxLength(200);
+            e.Property(x => x.Cantidad).HasPrecision(14, 3);
+            e.Property(x => x.Precio).HasPrecision(14, 2);
+            e.Property(x => x.Costo).HasPrecision(14, 2);
+            e.Property(x => x.SubTotal).HasPrecision(14, 2);
+            e.Property(x => x.DescripcionOferta).HasMaxLength(20);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<PagoCuenta>(e =>
+        {
+            e.ToTable("PagosCuenta");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Importe).HasPrecision(14, 2);
+            e.HasIndex(x => x.IdInformeVenta);
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
     }

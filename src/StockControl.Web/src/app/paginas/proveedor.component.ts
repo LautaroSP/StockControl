@@ -7,6 +7,7 @@ import {
   OrdenGeneradaDto,
   OrdenResumenDto,
   ProductoDto,
+  ProductoProveedorDto,
   ProveedorFichaDto
 } from '../servicios/api.service';
 import { descargar } from '../servicios/descargar';
@@ -60,8 +61,8 @@ import { RecibirOrdenComponent } from './recibir-orden.component';
             <table class="data">
               <thead><tr><th>Producto</th><th class="num">Cantidad</th></tr></thead>
               <tbody>
-                @for (l of ultima.lineas; track l.idProducto) {
-                  <tr><td>{{ l.nombre }}</td><td class="num">{{ l.cantidad }}</td></tr>
+                @for (l of ultima.lineas; track l.id) {
+                  <tr><td>{{ l.descripcion || l.nombre }}</td><td class="num">{{ l.cantidad }}</td></tr>
                 }
               </tbody>
             </table>
@@ -81,7 +82,7 @@ import { RecibirOrdenComponent } from './recibir-orden.component';
               type="search"
               [ngModel]="q"
               (ngModelChange)="buscar($event)"
-              placeholder="Buscar en tus productos"
+              placeholder="Buscar un producto nuevo para este proveedor"
             />
             @if (resultados.length) {
               <div class="scroll" style="max-height:200px;overflow:auto;margin-top:8px">
@@ -101,17 +102,26 @@ import { RecibirOrdenComponent } from './recibir-orden.component';
                 </table>
               </div>
             }
+            <datalist id="presentaciones">
+              <option value="Pack"></option>
+              <option value="Caja"></option>
+              <option value="Bulto"></option>
+            </datalist>
             <table class="data" style="margin-top:12px">
-              <thead><tr><th>Producto</th><th class="num">Cantidad</th><th></th></tr></thead>
+              <thead><tr><th>Producto</th><th class="num">Cantidad</th><th>Presentación</th><th class="num">Unid. por pack</th><th></th></tr></thead>
               <tbody>
-                @for (l of lineas; track l.idProducto) {
+                @for (l of lineas; track $index) {
                   <tr>
                     <td>{{ l.nombre }}</td>
-                    <td class="num"><input type="number" min="0.001" style="width:90px" [(ngModel)]="l.cantidad" /></td>
+                    <td class="num"><input type="number" min="0.001" style="width:80px" [(ngModel)]="l.cantidad" /></td>
+                    <td><input type="text" list="presentaciones" maxlength="30" style="width:110px" placeholder="Unidad" [(ngModel)]="l.nombrePack" /></td>
+                    <td class="num">
+                      <input type="number" min="2" max="10000" style="width:80px" [disabled]="!l.nombrePack.trim()" [(ngModel)]="l.unidadesPack" />
+                    </td>
                     <td class="num"><button class="btn" type="button" (click)="quitar(l)">Quitar</button></td>
                   </tr>
                 } @empty {
-                  <tr><td colspan="3" class="meta">Buscá un producto y tocá Agregar.</td></tr>
+                  <tr><td colspan="5" class="meta">Elegí un producto de la lista de abajo o buscá uno nuevo.</td></tr>
                 }
               </tbody>
             </table>
@@ -165,6 +175,63 @@ import { RecibirOrdenComponent } from './recibir-orden.component';
           </tbody>
         </table>
       </section>
+
+      <section class="panel" style="margin-top:12px">
+        <div class="toolbar" style="padding:12px 12px 0">
+          <h2 style="margin:0;font-size:16px" class="grow">Productos de {{ proveedor.nombre }}</h2>
+          <span class="meta">{{ totalVinculados }} en total</span>
+        </div>
+        <div style="padding:8px 12px">
+          <input
+            class="wide"
+            type="search"
+            [ngModel]="qVinculados"
+            (ngModelChange)="buscarVinculados($event)"
+            placeholder="Buscar entre los productos de este proveedor"
+          />
+        </div>
+        <table class="data">
+          <thead><tr><th>Producto</th><th class="num">Stock</th><th>Presentación</th><th></th></tr></thead>
+          <tbody>
+            @for (v of vinculados; track v.idProducto) {
+              <tr>
+                <td>{{ v.nombre }}</td>
+                <td class="num">{{ v.stock }}</td>
+                <td>
+                  @if (editandoPack?.idProducto === v.idProducto) {
+                    <input type="text" list="presentaciones" maxlength="30" style="width:110px" placeholder="Unidad" [(ngModel)]="edNombrePack" />
+                    <input type="number" min="2" max="10000" style="width:80px" [disabled]="!edNombrePack.trim()" [(ngModel)]="edUnidadesPack" />
+                    <span class="meta">unidades</span>
+                  } @else {
+                    {{ v.nombrePack ? v.nombrePack + ' de ' + v.unidadesPack : 'Por unidad' }}
+                  }
+                </td>
+                <td class="num">
+                  @if (editandoPack?.idProducto === v.idProducto) {
+                    <button class="btn btn-primary" type="button" (click)="guardarPack(v)">Guardar</button>
+                    <button class="btn" type="button" (click)="editandoPack = null">Cancelar</button>
+                  } @else {
+                    @if (proveedor.activo) {
+                      <button class="btn btn-primary" type="button" (click)="agregarVinculado(v)">Agregar a la orden</button>
+                    }
+                    <button class="btn" type="button" (click)="editarPack(v)">Editar pack</button>
+                    <button class="btn btn-danger" type="button" (click)="desvincular(v)">Quitar</button>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4" class="meta">Este proveedor todavía no tiene productos. Se suman solos al mandarle una orden.</td></tr>
+            }
+          </tbody>
+        </table>
+        @if (totalVinculados > 20) {
+          <div class="row pad">
+            <button class="btn" type="button" [disabled]="paginaVinculados <= 1" (click)="cargarVinculados(paginaVinculados - 1)">Anterior</button>
+            <span class="meta">Página {{ paginaVinculados }}</span>
+            <button class="btn" type="button" [disabled]="paginaVinculados * 20 >= totalVinculados" (click)="cargarVinculados(paginaVinculados + 1)">Siguiente</button>
+          </div>
+        }
+      </section>
     }
 
     @if (ordenAbierta) {
@@ -178,10 +245,10 @@ import { RecibirOrdenComponent } from './recibir-orden.component';
         <p><strong>Proveedor:</strong> {{ proveedor?.nombre }}</p>
         <p><strong>Fecha:</strong> {{ fecha(impresa.orden.fecha) }}</p>
         <table>
-          <thead><tr><th>Código</th><th>Producto</th><th class="num">Cantidad</th></tr></thead>
+          <thead><tr><th>Producto</th><th class="num">Cantidad</th></tr></thead>
           <tbody>
-            @for (l of impresa.orden.lineas; track l.idProducto) {
-              <tr><td>{{ l.codigo }}</td><td>{{ l.nombre }}</td><td class="num">{{ l.cantidad }}</td></tr>
+            @for (l of impresa.orden.lineas; track l.id) {
+              <tr><td>{{ l.descripcion || l.nombre }}</td><td class="num">{{ l.cantidad }}</td></tr>
             }
           </tbody>
         </table>
@@ -203,6 +270,14 @@ export class ProveedorComponent implements OnInit {
   totalOrdenes = 0;
   paginaOrdenes = 1;
   ordenAbierta = 0;
+  vinculados: ProductoProveedorDto[] = [];
+  totalVinculados = 0;
+  paginaVinculados = 1;
+  qVinculados = '';
+  editandoPack: ProductoProveedorDto | null = null;
+  edNombrePack = '';
+  edUnidadesPack = 2;
+  private temporizadorVinculados?: ReturnType<typeof setTimeout>;
   urlPendiente = '';
   error = '';
   mensaje = '';
@@ -229,6 +304,7 @@ export class ProveedorComponent implements OnInit {
       error: () => (this.error = 'No se pudo cargar el proveedor.')
     });
     this.cargarOrdenes(this.paginaOrdenes);
+    this.cargarVinculados(this.paginaVinculados);
   }
 
   cargarOrdenes(pagina: number): void {
@@ -273,9 +349,63 @@ export class ProveedorComponent implements OnInit {
   }
 
   agregar(p: ProductoDto): void {
-    const linea = this.lineas.find((l) => l.idProducto === p.id);
+    this.sumarLinea(p.id, p.nombre, '', 1);
+  }
+
+  agregarVinculado(v: ProductoProveedorDto): void {
+    this.sumarLinea(v.idProducto, v.nombre, v.nombrePack, v.unidadesPack);
+  }
+
+  private sumarLinea(idProducto: number, nombre: string, nombrePack: string, unidadesPack: number): void {
+    const linea = this.lineas.find((l) => l.idProducto === idProducto && l.nombrePack === nombrePack);
     if (linea) linea.cantidad += 1;
-    else this.lineas = [...this.lineas, { idProducto: p.id, codigo: p.codigo, nombre: p.nombre, cantidad: 1 }];
+    else this.lineas = [...this.lineas, { idProducto, nombre, cantidad: 1, nombrePack, unidadesPack }];
+  }
+
+  buscarVinculados(texto: string): void {
+    this.qVinculados = texto;
+    clearTimeout(this.temporizadorVinculados);
+    this.temporizadorVinculados = setTimeout(() => this.cargarVinculados(1), 250);
+  }
+
+  cargarVinculados(pagina: number): void {
+    this.api.productosProveedor(this.id, this.qVinculados.trim(), pagina).subscribe({
+      next: (r) => {
+        this.vinculados = r.items;
+        this.totalVinculados = r.total;
+        this.paginaVinculados = r.pagina;
+      },
+      error: () => (this.error = 'No se pudieron cargar los productos del proveedor.')
+    });
+  }
+
+  editarPack(v: ProductoProveedorDto): void {
+    this.editandoPack = v;
+    this.edNombrePack = v.nombrePack;
+    this.edUnidadesPack = v.unidadesPack;
+  }
+
+  guardarPack(v: ProductoProveedorDto): void {
+    const nombre = this.edNombrePack.trim();
+    const unidades = nombre ? Number(this.edUnidadesPack) : 1;
+    this.api.fijarPackProveedor(this.id, v.idProducto, nombre, unidades).subscribe({
+      next: () => {
+        this.editandoPack = null;
+        this.error = '';
+        this.cargarVinculados(this.paginaVinculados);
+      },
+      error: (e) => (this.error = typeof e.error === 'string' ? e.error : 'No se pudo guardar el pack.')
+    });
+  }
+
+  desvincular(v: ProductoProveedorDto): void {
+    this.api.desvincularProducto(this.id, v.idProducto).subscribe({
+      next: () => {
+        this.cargarVinculados(this.paginaVinculados);
+        this.cargar();
+      },
+      error: () => (this.error = 'No se pudo quitar el producto del proveedor.')
+    });
   }
 
   quitar(linea: LineaOrdenCompraDto): void {
@@ -296,7 +426,10 @@ export class ProveedorComponent implements OnInit {
     this.error = '';
     this.mensaje = '';
     this.urlPendiente = '';
-    const pedido = this.lineas.map((l) => ({ idProducto: l.idProducto, cantidad: Number(l.cantidad) }));
+    const pedido = this.lineas.map((l) => {
+      const nombrePack = (l.nombrePack ?? '').trim();
+      return { idProducto: l.idProducto, cantidad: Number(l.cantidad), nombrePack, unidadesPack: nombrePack ? Number(l.unidadesPack) : 1 };
+    });
     this.api.crearOrdenCompra(this.id, pedido).subscribe({
       next: (r) => {
         this.generando = false;

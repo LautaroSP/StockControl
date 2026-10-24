@@ -1,11 +1,32 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, DestroyRef, OnInit } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs';
 import { ApiService } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
 import { IconoComponent } from '../icono.component';
 import { TemaComponent } from '../tema.component';
+
+type Grupo = 'reportes' | 'administracion' | 'configuracion';
+
+const CLAVE_GRUPOS = 'sc-barra-grupos';
+
+const RUTAS_GRUPO: Record<Grupo, string[]> = {
+  reportes: ['/informes', '/cajas', '/estadisticas'],
+  administracion: ['/proveedores', '/usuarios'],
+  configuracion: ['/configuracion', '/medios-pago', '/activar']
+};
+
+function leerGrupos(): Record<Grupo, boolean> {
+  const cerrados = { reportes: false, administracion: false, configuracion: false };
+  try {
+    return { ...cerrados, ...JSON.parse(localStorage.getItem(CLAVE_GRUPOS) ?? '{}') };
+  } catch {
+    return cerrados;
+  }
+}
 
 @Component({
   selector: 'sc-shell',
@@ -28,27 +49,68 @@ import { TemaComponent } from '../tema.component';
         <nav class="nav" (click)="menuAbierto = false">
           <a routerLink="/caja" routerLinkActive="active"><sc-icono nombre="caja" /> Caja</a>
           <a routerLink="/productos" routerLinkActive="active"><sc-icono nombre="productos" /> Productos</a>
+          @if (puedeFiar) {
+            <a routerLink="/cuentas" routerLinkActive="active"><sc-icono nombre="tickets" /> Cuentas</a>
+          }
           @if (sesion.esDueno()) {
-            <a routerLink="/estadisticas" routerLinkActive="active"><sc-icono nombre="estadisticas" /> Estadísticas</a>
             <a routerLink="/grupos" routerLinkActive="active"><sc-icono nombre="grupos" /> Grupos</a>
-            <a routerLink="/medios-pago" routerLinkActive="active"><sc-icono nombre="medios" /> Medios de pago</a>
+            <a routerLink="/ofertas" routerLinkActive="active"><sc-icono nombre="precios" /> Ofertas</a>
+            <a routerLink="/combos" routerLinkActive="active"><sc-icono nombre="precios" /> Combos</a>
           }
-          @if (sesion.puedeGestionarProveedores()) {
-            <a routerLink="/proveedores" routerLinkActive="active"><sc-icono nombre="proveedores" /> Proveedores</a>
+
+          <button class="nav-grupo" type="button" [attr.aria-expanded]="abierto('reportes')" (click)="alternar('reportes', $event)">
+            Reportes <span class="flecha">▸</span>
+          </button>
+          @if (abierto('reportes')) {
+            <div class="nav-sub">
+              <a routerLink="/informes" routerLinkActive="active"><sc-icono nombre="informes" /> Informes</a>
+              <a routerLink="/cajas" routerLinkActive="active"><sc-icono nombre="cajas" /> Cajas</a>
+              @if (sesion.esDueno()) {
+                <a routerLink="/estadisticas" routerLinkActive="active"><sc-icono nombre="estadisticas" /> Estadísticas</a>
+              }
+            </div>
           }
-          @if (sesion.puedeGestionarUsuarios()) {
-            <a routerLink="/usuarios" routerLinkActive="active"><sc-icono nombre="usuarios" /> Usuarios</a>
+
+          @if (sesion.puedeGestionarProveedores() || sesion.puedeGestionarUsuarios()) {
+            <button class="nav-grupo" type="button" [attr.aria-expanded]="abierto('administracion')" (click)="alternar('administracion', $event)">
+              Administración <span class="flecha">▸</span>
+            </button>
+            @if (abierto('administracion')) {
+              <div class="nav-sub">
+                @if (sesion.puedeGestionarProveedores()) {
+                  <a routerLink="/proveedores" routerLinkActive="active"><sc-icono nombre="proveedores" /> Proveedores</a>
+                }
+                @if (sesion.puedeGestionarUsuarios()) {
+                  <a routerLink="/usuarios" routerLinkActive="active"><sc-icono nombre="usuarios" /> Usuarios</a>
+                }
+              </div>
+            }
           }
-          @if (sesion.puedeConfigurarLocal()) {
-            <a routerLink="/configuracion" routerLinkActive="active"><sc-icono nombre="configuracion" /> Configuración</a>
-            <a routerLink="/activar" routerLinkActive="active"><sc-icono nombre="abono" /> Abono</a>
+
+          @if (sesion.esDueno() || sesion.puedeConfigurarLocal()) {
+            <button class="nav-grupo" type="button" [attr.aria-expanded]="abierto('configuracion')" (click)="alternar('configuracion', $event)">
+              Configuración <span class="flecha">▸</span>
+            </button>
+            @if (abierto('configuracion')) {
+              <div class="nav-sub">
+                @if (sesion.puedeConfigurarLocal()) {
+                  <a routerLink="/configuracion" routerLinkActive="active"><sc-icono nombre="configuracion" /> Local</a>
+                }
+                @if (sesion.esDueno()) {
+                  <a routerLink="/medios-pago" routerLinkActive="active"><sc-icono nombre="medios" /> Medios de pago</a>
+                }
+                @if (sesion.puedeConfigurarLocal()) {
+                  <a routerLink="/activar" routerLinkActive="active"><sc-icono nombre="abono" /> Abono</a>
+                }
+              </div>
+            }
           }
-          <a routerLink="/informes" routerLinkActive="active"><sc-icono nombre="informes" /> Informes</a>
-          <a routerLink="/cajas" routerLinkActive="active"><sc-icono nombre="cajas" /> Cajas</a>
-          <a routerLink="/elegir-caja"><sc-icono nombre="cambiar" /> Cambiar caja</a>
-          <a routerLink="/locales"><sc-icono nombre="locales" /> Locales</a>
         </nav>
         <div class="sidebar-foot">
+          <div class="foot-links" (click)="menuAbierto = false">
+            <a routerLink="/elegir-caja"><sc-icono nombre="cambiar" /> Cambiar caja</a>
+            <a routerLink="/locales"><sc-icono nombre="locales" /> Cambiar local</a>
+          </div>
           <div>{{ sesion.nombre() }} · {{ sesion.rol() }}</div>
           <button class="btn btn-ghost" type="button" (click)="salir()">Salir</button>
         </div>
@@ -103,16 +165,39 @@ import { TemaComponent } from '../tema.component';
 })
 export class ShellComponent implements OnInit {
   menuAbierto = false;
+  puedeFiar = false;
+  private grupos: Record<Grupo, boolean> = leerGrupos();
 
   constructor(
     readonly sesion: SesionService,
     private readonly api: ApiService,
     private readonly router: Router,
-    private readonly dialogo: DialogoService
+    private readonly dialogo: DialogoService,
+    private readonly destruir: DestroyRef
   ) {}
 
   ngOnInit(): void {
     this.api.abonoActual().subscribe({ next: (a) => this.sesion.abono.set(a) });
+    this.api.permisosCuentas().subscribe({ next: (p) => (this.puedeFiar = p.puedeFiar) });
+    this.abrirGrupoDe(this.router.url);
+    this.router.events
+      .pipe(filter((e) => e instanceof NavigationEnd), takeUntilDestroyed(this.destruir))
+      .subscribe((e) => this.abrirGrupoDe((e as NavigationEnd).urlAfterRedirects));
+  }
+
+  abierto(grupo: Grupo): boolean {
+    return this.grupos[grupo];
+  }
+
+  alternar(grupo: Grupo, e: Event): void {
+    e.stopPropagation();
+    this.grupos = { ...this.grupos, [grupo]: !this.grupos[grupo] };
+    localStorage.setItem(CLAVE_GRUPOS, JSON.stringify(this.grupos));
+  }
+
+  private abrirGrupoDe(url: string): void {
+    const grupo = (Object.keys(RUTAS_GRUPO) as Grupo[]).find((g) => RUTAS_GRUPO[g].some((r) => url.startsWith(r)));
+    if (grupo && !this.grupos[grupo]) this.grupos = { ...this.grupos, [grupo]: true };
   }
 
   async salir(): Promise<void> {

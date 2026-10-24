@@ -82,6 +82,7 @@
       <nav class="nav">
         <div class="section">Mostrador</div>
         <a class="${active === "caja" ? "active" : ""}" href="caja.html">Caja</a>
+        <a class="${active === "pedidos" ? "active" : ""}" href="pedidos.html">Pedidos tienda</a>
         <a class="${active === "productos" ? "active" : ""}" href="productos.html">Productos</a>
         ${d ? `<a class="${active === "grupos" ? "active" : ""}" href="grupos.html">Grupos</a>` : ""}
         <a class="${active === "informes" ? "active" : ""}" href="informes.html">Informes</a>

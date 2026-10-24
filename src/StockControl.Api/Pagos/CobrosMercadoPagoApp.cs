@@ -265,8 +265,13 @@ public static class CobrosMercadoPagoApp
         var productos = await db.Productos.IgnoreQueryFilters().Where(p => p.IdLocal == cobro.IdLocal).ToListAsync();
         var rigido = (await db.Configuracion.IgnoreQueryFilters()
             .FirstOrDefaultAsync(c => c.IdLocal == cobro.IdLocal && c.Clave == "StockRigido"))?.Valor == "1";
+        var hoy = DiaArgentina.Hoy();
         var resultado = ServicioCobro.Cobrar(new PedidoCobro
         {
+            Ofertas = await OfertasVigentes.DelDia(db, cobro.IdLocal, hoy),
+            Combos = await OfertasVigentes.CombosDelDia(db, cobro.IdLocal, hoy),
+            Hoy = hoy,
+            SinOfertas = pedido.SinOfertas,
             ProductosDelLocal = productos,
             Items = pedido.Items,
             DescuentoPorcentaje = pedido.DescuentoPorcentaje,
@@ -275,6 +280,10 @@ public static class CobrosMercadoPagoApp
             MetodoPago = "Mercado Pago"
         });
         var venta = await RegistrarVenta.Guardar(db, cobro.IdLocal, cobro.IdUsuario, cobro.NroCaja, resultado, pedido.Pagos);
+        if (pedido.IdPedidoEspera is int idEspera)
+            await db.PedidosEspera.IgnoreQueryFilters()
+                .Where(p => p.Id == idEspera && p.IdLocal == cobro.IdLocal && p.NroCaja == cobro.NroCaja)
+                .ExecuteDeleteAsync();
         await db.SaveChangesAsync();
         cobro.IdInformeVenta = venta.IdInformeVenta;
         await db.SaveChangesAsync();

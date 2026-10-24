@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lo de Pepe — Almagro · Tienda</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body class="tienda">
+  <header class="tienda-head">
+    <div class="tienda-head-in">
+      <div>
+        <p class="eyebrow">stockcontrol.com.ar/tienda/lo-de-pepe-almagro</p>
+        <h1 id="nombreLocal">Lo de Pepe — Almagro</h1>
+        <div class="tienda-datos">
+          <span class="badge">Abierto ahora</span>
+          <span id="direccion"></span>
+          <span id="horario"></span>
+          <span id="envio"></span>
+        </div>
+      </div>
+      <div class="row">
+        <a class="btn" id="whatsappLocal" target="_blank" rel="noopener">WhatsApp del local</a>
+        <button class="btn" type="button" id="btnTema">Modo oscuro</button>
+        <button class="btn btn-primary tienda-carrito-btn" type="button" id="btnCarritoMovil">Carrito <span id="cantMovil">0</span></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="tienda-main" id="vistaCatalogo">
+    <section class="tienda-catalogo">
+      <div class="toolbar tienda-buscador">
+        <input class="grow" type="search" id="buscar" placeholder="Buscar por nombre o código" />
+      </div>
+      <div class="chips" id="grupos"></div>
+      <p class="meta" id="cantResultados"></p>
+      <div class="tienda-grilla" id="grilla"></div>
+      <div class="row tienda-paginas">
+        <button class="btn" type="button" disabled>Anterior</button>
+        <span class="meta">Página 1 de 1</span>
+        <button class="btn" type="button" disabled>Siguiente</button>
+      </div>
+    </section>
+
+    <aside class="tienda-lateral">
+      <section class="panel tienda-carrito" id="panelCarrito">
+        <div class="row">
+          <h2 class="grow">Tu pedido</h2>
+          <button class="btn btn-ghost tienda-cerrar" type="button" id="cerrarCarrito">Cerrar</button>
+        </div>
+        <div id="lineasCarrito"></div>
+        <div class="tienda-total">
+          <span>Total</span>
+          <strong id="totalCarrito">$ 0</strong>
+        </div>
+        <button class="btn btn-charge" type="button" id="btnConfirmar" disabled>Hacer pedido</button>
+        <p class="meta">Retirás en el local. Los precios se confirman al hacer el pedido.</p>
+      </section>
+
+      <section class="panel tienda-mapa-panel">
+        <div id="mapa" class="tienda-mapa"></div>
+        <div class="pad">
+          <strong>Dónde estamos</strong>
+          <p class="meta" id="direccionMapa"></p>
+          <a class="btn" id="comoLlegar" target="_blank" rel="noopener">Cómo llegar</a>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <main class="tienda-main tienda-seguimiento" id="vistaSeguimiento" hidden>
+    <section class="panel pad seguimiento-card">
+      <p class="eyebrow">Pedido recibido</p>
+      <h2 id="segTitulo">Pedido #1041</h2>
+      <p class="meta" id="segSub"></p>
+      <ol class="pasos" id="pasos"></ol>
+      <div class="seguimiento-cancelado" id="segCancelado" hidden>El local canceló este pedido. Si tenés dudas, escribile por WhatsApp.</div>
+      <div id="segPago"></div>
+      <table class="data" id="segLineas"></table>
+      <div class="tienda-total"><span>Total</span><strong id="segTotal"></strong></div>
+      <div class="field">
+        <label>Guardá este link para ver tu pedido (no hace falta cuenta)</label>
+        <input class="wide" type="text" id="segLink" readonly />
+      </div>
+      <div class="row">
+        <a class="btn btn-primary" id="segWhatsapp" target="_blank" rel="noopener">Avisar al local por WhatsApp</a>
+        <a class="btn" href="tienda.html">Volver a la tienda</a>
+      </div>
+      <p class="meta en-vivo"><span class="punto-vivo"></span> Este estado se actualiza solo cuando el local lo cambia.</p>
+    </section>
+  </main>
+
+  <footer class="site-foot tienda-pie">
+    <div class="foot-row" style="margin-top:0;border-top:0;padding-top:0">
+      <span>Lo de Pepe — Almagro · Tienda hecha con StockControl</span>
+      <nav>
+        <a href="#">Términos de la tienda</a>
+        <a href="#">Privacidad</a>
+        <a href="#" id="btnArrepentimiento"><strong>Botón de arrepentimiento</strong></a>
+      </nav>
+    </div>
+  </footer>
+
+  <div class="modal-back" id="modalCheckout">
+    <form class="modal tienda-checkout" id="formCheckout">
+      <h2>Datos para el pedido</h2>
+      <label class="field">Nombre <input class="wide" type="text" name="nombre" required maxlength="80" /></label>
+      <label class="field">Teléfono <input class="wide" type="tel" name="telefono" required maxlength="30" placeholder="11 5555-5555" /></label>
+      <label class="field">Mail <input class="wide" type="email" name="mail" maxlength="120" placeholder="Opcional, para avisarte" /></label>
+      <input type="text" name="sitio" class="cebo" tabindex="-1" autocomplete="off" aria-hidden="true" />
+
+      <fieldset class="opciones">
+        <legend>Entrega</legend>
+        <label class="check"><input type="radio" name="entrega" value="retiro" checked /> Retiro en el local</label>
+        <label class="check"><input type="radio" name="entrega" value="envio" /> Envío a domicilio · $ 1.500 (hasta 5 km)</label>
+        <label class="field" id="campoDireccion" hidden>Dirección <input class="wide" type="text" name="direccion" maxlength="160" /></label>
+      </fieldset>
+
+      <fieldset class="opciones">
+        <legend>Pago</legend>
+        <label class="check"><input type="radio" name="pago" value="local" checked /> Pago al retirar</label>
+        <label class="check"><input type="radio" name="pago" value="mp" /> Mercado Pago</label>
+        <label class="check"><input type="radio" name="pago" value="transferencia" /> Transferencia</label>
+      </fieldset>
+
+      <div class="tienda-total"><span>Total</span><strong id="totalCheckout">$ 0</strong></div>
+      <div class="row">
+        <button class="btn btn-charge grow" type="submit">Confirmar pedido</button>
+        <button class="btn" type="button" id="cancelarCheckout">Volver</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/tienda-datos.js"></script>
+  <script src="js/tienda.js"></script>
+</body>
+</html>

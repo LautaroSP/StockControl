@@ -17,17 +17,17 @@ Debajo de la fila COBRAR y Cancelar, dos botones: **Guardar en espera** y **Pedi
 
 ## Criterios de aceptación
 
-- [ ] Desde la caja, guardar el carrito actual sin cobrar, con un nombre o nota ("María", "pedido de las 11"). Guarda productos, cantidades, precio de genérico y sector, descuento y cobrar al costo.
-- [ ] El pedido es del puesto que lo guardó. Otro puesto del mismo local no lo ve ni lo carga.
-- [ ] Guardar no descuenta stock, no reserva stock, no crea una venta y no suma al cierre.
-- [ ] El pedido no aparece en Informes ni en Estadísticas.
-- [ ] Listar los pedidos en espera de ese puesto y cargar uno en el carrito, sin volver a escanear.
-- [ ] Al cargarlo, un producto común toma el precio actual. Si cambió desde que se guardó, la caja lo avisa en esa línea.
-- [ ] Al cargarlo, el pedido sigue guardado. Se borra a mano, o cuando esa venta se cobra.
-- [ ] El cobro y el borrado del pedido van juntos. Si ya se cobró desde otra pestaña de ese mismo puesto, la segunda recibe un aviso y no lo cobra de nuevo.
-- [ ] Un producto que se borró del catálogo no se carga; la caja avisa cuál faltó.
-- [ ] Con stock rígido, si al cobrar falta mercadería, el cobro falla como cualquier venta.
-- [ ] Un carrito vacío no se guarda.
+- [x] Desde la caja, guardar el carrito actual sin cobrar, con un nombre o nota ("María", "pedido de las 11"). Guarda productos, cantidades, precio de genérico y sector, descuento y cobrar al costo.
+- [x] El pedido es del puesto que lo guardó. Otro puesto del mismo local no lo ve ni lo carga.
+- [x] Guardar no descuenta stock, no reserva stock, no crea una venta y no suma al cierre.
+- [x] El pedido no aparece en Informes ni en Estadísticas.
+- [x] Listar los pedidos en espera de ese puesto y cargar uno en el carrito, sin volver a escanear.
+- [x] Al cargarlo, un producto común toma el precio actual. Si cambió desde que se guardó, la caja lo avisa en esa línea.
+- [x] Al cargarlo, el pedido sigue guardado. Se borra a mano, o cuando esa venta se cobra.
+- [x] El cobro y el borrado del pedido van juntos. Si ya se cobró desde otra pestaña de ese mismo puesto, la segunda recibe un aviso y no lo cobra de nuevo.
+- [x] Un producto que se borró del catálogo no se carga; la caja avisa cuál faltó.
+- [x] Con stock rígido, si al cobrar falta mercadería, el cobro falla como cualquier venta.
+- [x] Un carrito vacío no se guarda.
 
 ## Fuera
 

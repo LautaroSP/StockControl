@@ -358,4 +358,57 @@ public class ServicioEstadisticasTests
         Assert.Equal(1, res.VentasDelDia[2].CantidadVentas);
         Assert.Equal(12, res.VentasDelDia[2].StockRestante);
     }
+
+    private static List<InformeVentaDetalle> Fiado(string codigo, decimal cantidad, decimal subtotal) =>
+        ServicioCuentas.UnidadesFiadas([new CuentaPendiente
+        {
+            IdLocal = 1,
+            Lineas = [new LineaCuenta { IdLocal = 1, IdProducto = 1, Codigo = codigo, Nombre = codigo, Cantidad = cantidad, Precio = subtotal / cantidad, Costo = 100, SubTotal = subtotal }]
+        }]);
+
+    [Fact]
+    public void Fiado_sin_pagar_no_suma_total_ticket_ni_ganancia()
+    {
+        var venta = CrearVenta(1, 1, 1000, detalles: [new() { Codigo = "PAN", Nombre = "Pan", Cantidad = 1, Costo = 600, SubTotal = 1000 }]);
+
+        var res = ServicioEstadisticas.Calcular([venta], [], [], [], [CrearLocal(1, "Central")], fiadoPeriodo: Fiado("LECHE", 3, 3000));
+
+        Assert.Equal(1000, res.TotalVendido);
+        Assert.Equal(1, res.CantidadTickets);
+        Assert.Equal(400, res.MargenEstimado);
+    }
+
+    [Fact]
+    public void Fiado_suma_unidades_en_el_top_sin_plata()
+    {
+        var res = ServicioEstadisticas.Calcular([], [], [], [], [CrearLocal(1, "Central")], fiadoPeriodo: Fiado("LECHE", 3, 3000));
+
+        var leche = Assert.Single(res.TopPorUnidades);
+        Assert.Equal(3, leche.Cantidad);
+        Assert.Equal(0, leche.Total);
+        Assert.Empty(res.TopPorDinero);
+    }
+
+    [Fact]
+    public void Fiado_de_hoy_suma_en_ventas_del_dia()
+    {
+        var res = ServicioEstadisticas.Calcular([], [], [], [], [CrearLocal(1, "Central")], fiadoHoy: Fiado("LECHE", 2, 2000));
+
+        Assert.Equal(2, Assert.Single(res.VentasDelDia).CantidadVentas);
+    }
+
+    [Fact]
+    public void Pago_de_cuenta_suma_plata_pero_no_aparece_en_el_top()
+    {
+        var pago = CrearVenta(1, 1, 1500, detalles: [new() { Codigo = "CUENTA-9", Nombre = "Pago cuenta de María", Cantidad = 1, Costo = 1000, SubTotal = 1500 }]);
+
+        var res = ServicioEstadisticas.Calcular([pago], [pago], [], [], [CrearLocal(1, "Central")]);
+
+        Assert.Equal(1500, res.TotalVendido);
+        Assert.Equal(500, res.MargenEstimado);
+        Assert.Empty(res.TopPorUnidades);
+        Assert.Empty(res.TopPorDinero);
+        Assert.Empty(res.VentasDelDia);
+        Assert.Empty(res.VentasPorGrupo);
+    }
 }

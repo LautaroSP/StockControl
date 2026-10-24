@@ -46,7 +46,8 @@ public static class RegistrarVenta
                 Cantidad = l.Cantidad,
                 Precio = l.Precio,
                 Costo = l.Costo,
-                SubTotal = l.SubTotal
+                SubTotal = l.SubTotal,
+                DescripcionOferta = l.DescripcionOferta
             });
         }
         venta.Pagos.AddRange(pagos.Select(p => new PagoVenta

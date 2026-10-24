@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pedidos de la tienda — StockControl</title>
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body>
+  <div class="app">
+    <aside data-shell data-active="pedidos"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1>Pedidos de la tienda</h1>
+          <p class="meta en-vivo"><span class="punto-vivo"></span> En vivo · los pedidos nuevos aparecen solos</p>
+        </div>
+        <div class="row">
+          <a class="btn" href="tienda.html" target="_blank" rel="noopener">Abrir la tienda</a>
+          <button class="btn" type="button" id="btnSimular">Simular pedido</button>
+          <label class="check"><input type="checkbox" id="chkSonido" checked /> Sonido</label>
+          <button class="btn" type="button" id="btnAvisos">Activar avisos del navegador</button>
+          <div class="campanita-wrap">
+            <button class="btn campanita" type="button" id="btnCampana" aria-label="Avisos">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>
+              <span class="contador" id="contador" hidden>0</span>
+            </button>
+            <div class="panel campanita-lista" id="listaAvisos" hidden>
+              <div class="row pad" style="padding-bottom:8px">
+                <strong class="grow">Avisos</strong>
+                <button class="btn btn-ghost" type="button" id="marcarTodas">Marcar todas</button>
+              </div>
+              <div id="avisos"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="banner ok" id="ayuda">
+        <span>Prototipo: abrí <strong>la tienda</strong> en otra pestaña, hacé un pedido y mirá cómo entra acá sin recargar. Si cambiás el estado, el comprador lo ve en su pantalla.</span>
+        <button class="btn" type="button" onclick="this.parentElement.remove()">Entendido</button>
+      </div>
+
+      <div class="tablero" id="tablero"></div>
+    </main>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="js/shell.js"></script>
+  <script src="js/tienda-datos.js"></script>
+  <script src="js/pedidos.js"></script>
+</body>
+</html>

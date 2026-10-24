@@ -90,4 +90,6 @@ public class PedidoGuardado
     public List<PagoSolicitado> Pagos { get; set; } = new();
     public int DescuentoPorcentaje { get; set; }
     public bool CobrarAlCosto { get; set; }
+    public int? IdPedidoEspera { get; set; }
+    public bool SinOfertas { get; set; }
 }

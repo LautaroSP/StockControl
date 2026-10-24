@@ -12,4 +12,5 @@ public class InformeVentaDetalle
     public decimal? Costo { get; set; }
     public decimal Precio { get; set; }
     public decimal SubTotal { get; set; }
+    public string DescripcionOferta { get; set; } = "";
 }

@@ -17,6 +17,7 @@ export interface LineaCarritoPendiente {
   costo: number;
   sector: boolean;
   generico: boolean;
+  precioAnterior?: number | null;
 }
 
 export interface CarritoCaja {
@@ -28,6 +29,8 @@ export interface CarritoCaja {
   alCosto: boolean;
   imprimirTicket: boolean;
   idCobro?: number;
+  idPedidoEspera?: number;
+  sinOfertas?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })

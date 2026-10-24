@@ -128,6 +128,7 @@ export interface ConfiguracionLocalDto {
   stockRigido: boolean;
   umbralStockBajo: number;
   empleadoPuedeModificarPrecios: boolean;
+  empleadoPuedeFiar: boolean;
   formatoTicket: string;
   imprimirTicketAlCobrar: boolean;
   cantidadCajas: number;
@@ -163,6 +164,99 @@ export interface MetodoPagoDto {
 export interface CuentaMercadoPagoDto {
   vinculada: boolean;
   puestos: { nroCaja: number; listo: boolean; urlQr: string; idLector: string }[];
+}
+
+export type TipoOferta = 'descuento' | 'llevaPaga' | 'precioDesde' | 'precioExacto';
+
+export interface OpcionesOfertaDto {
+  anulaConDescuentoCaja: boolean;
+  anulaConAlCosto: boolean;
+  permiteNoAplicarEnCaja: boolean;
+}
+
+export interface OfertaVigenteDto extends OpcionesOfertaDto {
+  idProducto: number;
+  tipo: TipoOferta;
+  porcentaje: number;
+  lleva: number;
+  paga: number;
+  precioUnidad: number;
+  descripcion: string;
+}
+
+export interface OfertaPedidoDto extends OpcionesOfertaDto {
+  idProducto: number;
+  tipo: TipoOferta;
+  porcentaje: number;
+  lleva: number;
+  paga: number;
+  precioUnidad: number;
+  fechaDesde: string;
+  fechaHasta: string;
+  sinFin: boolean;
+}
+
+export interface OfertaDto extends OfertaPedidoDto {
+  id: number;
+  codigo: string;
+  nombre: string;
+  descripcion: string;
+  vigente: boolean;
+}
+
+export interface ComboLineaDto {
+  idProducto: number;
+  cantidad: number;
+}
+
+export interface ComboVigenteDto {
+  id: number;
+  nombre: string;
+  precioTotal: number;
+  lineas: ComboLineaDto[];
+}
+
+export interface ComboPedidoDto {
+  nombre: string;
+  precioTotal: number;
+  fechaDesde: string;
+  fechaHasta: string;
+  sinFin: boolean;
+  lineas: ComboLineaDto[];
+}
+
+export interface ComboDto extends Omit<ComboPedidoDto, 'lineas'> {
+  id: number;
+  vigente: boolean;
+  lineas: (ComboLineaDto & { nombre: string })[];
+}
+
+export interface PedidoEsperaDto {
+  id: number;
+  nota: string;
+  fecha: string;
+  productos: number;
+}
+
+export interface LineaPedidoCargadaDto {
+  idProducto: number;
+  codigo: string;
+  nombre: string;
+  cantidad: number;
+  precioUnitario: number;
+  costo: number;
+  sector: boolean;
+  generico: boolean;
+  precioAnterior: number | null;
+}
+
+export interface PedidoCargadoDto {
+  id: number;
+  nota: string;
+  descuentoPorcentaje: number;
+  alCosto: boolean;
+  lineas: LineaPedidoCargadaDto[];
+  faltantes: string[];
 }
 
 export interface CobroMercadoPagoDto {
@@ -376,13 +470,112 @@ export class ApiService {
     return this.http.post<ProductoDto>(`${this.base}/productos/${id}/stock`, { cantidad });
   }
 
-  cobrar(items: ItemVenta[], pagos: PagoVenta[], descuentoPorcentaje: number, cobrarAlCosto: boolean) {
+  cobrar(items: ItemVenta[], pagos: PagoVenta[], descuentoPorcentaje: number, cobrarAlCosto: boolean, idPedidoEspera?: number, sinOfertas = false) {
     return this.http.post<{ idInformeVenta: number; total: number }>(`${this.base}/ventas`, {
       items,
       pagos,
       descuentoPorcentaje,
-      cobrarAlCosto
+      cobrarAlCosto,
+      idPedidoEspera,
+      sinOfertas
     });
+  }
+
+  permisosCuentas() {
+    return this.http.get<{ puedeFiar: boolean; puedeAnular: boolean }>(`${this.base}/cuentas/permisos`);
+  }
+
+  clientes(q: string) {
+    return this.http.get<ClienteDto[]>(`${this.base}/clientes`, { params: new HttpParams().set('q', q) });
+  }
+
+  fiar(cuenta: {
+    items: ItemVenta[];
+    descuentoPorcentaje: number;
+    cobrarAlCosto: boolean;
+    sinOfertas: boolean;
+    idCliente?: number;
+    clienteNuevo?: { nombre: string; telefono: string };
+  }) {
+    return this.http.post<CuentaDto>(`${this.base}/cuentas`, cuenta);
+  }
+
+  cuentas(opts: { cliente?: string; estado?: string; idCliente?: number; pagina?: number }) {
+    let params = new HttpParams().set('pagina', String(opts.pagina ?? 1));
+    if (opts.idCliente) params = params.set('idCliente', String(opts.idCliente));
+    if (opts.cliente) params = params.set('cliente', opts.cliente);
+    if (opts.estado) params = params.set('estado', opts.estado);
+    return this.http.get<{ total: number; saldo: number; pagina: number; tamano: number; items: CuentaListaDto[] }>(`${this.base}/cuentas`, { params });
+  }
+
+  cuenta(id: number) {
+    return this.http.get<CuentaDto>(`${this.base}/cuentas/${id}`);
+  }
+
+  pagarCuenta(id: number, importe: number, idMetodoPago: number) {
+    return this.http.post<{ idInformeVenta: number; saldo: number; estado: string }>(`${this.base}/cuentas/${id}/pagos`, { importe, idMetodoPago });
+  }
+
+  cuentaIncobrable(id: number) {
+    return this.http.post(`${this.base}/cuentas/${id}/incobrable`, {});
+  }
+
+  ofertas(pagina = 1) {
+    return this.http.get<{ total: number; pagina: number; tamano: number; items: OfertaDto[] }>(`${this.base}/ofertas`, {
+      params: new HttpParams().set('pagina', String(pagina))
+    });
+  }
+
+  ofertasVigentes() {
+    return this.http.get<OfertaVigenteDto[]>(`${this.base}/ofertas/vigentes`);
+  }
+
+  crearOferta(oferta: OfertaPedidoDto) {
+    return this.http.post<{ id: number }>(`${this.base}/ofertas`, oferta);
+  }
+
+  editarOferta(id: number, oferta: OfertaPedidoDto) {
+    return this.http.put(`${this.base}/ofertas/${id}`, oferta);
+  }
+
+  borrarOferta(id: number) {
+    return this.http.delete(`${this.base}/ofertas/${id}`);
+  }
+
+  combos() {
+    return this.http.get<ComboDto[]>(`${this.base}/combos`);
+  }
+
+  combosVigentes() {
+    return this.http.get<ComboVigenteDto[]>(`${this.base}/combos/vigentes`);
+  }
+
+  crearCombo(combo: ComboPedidoDto) {
+    return this.http.post<{ id: number }>(`${this.base}/combos`, combo);
+  }
+
+  editarCombo(id: number, combo: ComboPedidoDto) {
+    return this.http.put(`${this.base}/combos/${id}`, combo);
+  }
+
+  borrarCombo(id: number) {
+    return this.http.delete(`${this.base}/combos/${id}`);
+  }
+
+  pedidosEspera() {
+    return this.http.get<PedidoEsperaDto[]>(`${this.base}/pedidos-espera`);
+  }
+
+  guardarPedidoEspera(items: ItemVenta[], nota: string, descuentoPorcentaje: number, alCosto: boolean) {
+    return this.http.post<{ id: number }>(`${this.base}/pedidos-espera`, { items, nota, descuentoPorcentaje, alCosto });
+  }
+
+  cargarPedidoEspera(id: number) {
+    return this.http.get<PedidoCargadoDto>(`${this.base}/pedidos-espera/${id}`);
+  }
+
+  borrarPedidoEspera(id: number) {
+    return this.http.delete(`${this.base}/pedidos-espera/${id}`);
   }
 
   editarPrecioProducto(id: number, precio: number) {
@@ -421,9 +614,9 @@ export class ApiService {
     return this.http.get<CobroMercadoPagoDto | null>(`${this.base}/ventas/mercadopago/abierto`);
   }
 
-  iniciarCobroMercadoPago(items: ItemVenta[], pagos: PagoVenta[], descuentoPorcentaje: number, cobrarAlCosto: boolean) {
+  iniciarCobroMercadoPago(items: ItemVenta[], pagos: PagoVenta[], descuentoPorcentaje: number, cobrarAlCosto: boolean, idPedidoEspera?: number, sinOfertas = false) {
     return this.http.post<CobroMercadoPagoDto>(`${this.base}/ventas/mercadopago`, {
-      items, pagos, descuentoPorcentaje, cobrarAlCosto
+      items, pagos, descuentoPorcentaje, cobrarAlCosto, idPedidoEspera, sinOfertas
     });
   }
 
@@ -656,8 +849,25 @@ export class ApiService {
     );
   }
 
-  crearOrdenCompra(id: number, lineas: { idProducto: number; cantidad: number }[]) {
+  crearOrdenCompra(id: number, lineas: { idProducto: number; cantidad: number; nombrePack: string; unidadesPack: number }[]) {
     return this.http.post<OrdenGeneradaDto>(`${this.base}/proveedores/${id}/ordenes`, { lineas });
+  }
+
+  productosProveedor(id: number, q: string, pagina = 1) {
+    let params = new HttpParams().set('pagina', pagina).set('tamano', 20);
+    if (q) params = params.set('q', q);
+    return this.http.get<{ total: number; pagina: number; tamano: number; items: ProductoProveedorDto[] }>(
+      `${this.base}/proveedores/${id}/productos`,
+      { params }
+    );
+  }
+
+  fijarPackProveedor(id: number, idProducto: number, nombrePack: string, unidadesPack: number) {
+    return this.http.put(`${this.base}/proveedores/${id}/productos/${idProducto}`, { nombrePack, unidadesPack });
+  }
+
+  desvincularProducto(id: number, idProducto: number) {
+    return this.http.delete(`${this.base}/proveedores/${id}/productos/${idProducto}`);
   }
 
   excelOrdenCompra(id: number) {
@@ -710,10 +920,20 @@ export interface ProveedorListaDto extends ProveedorFormDto {
 export interface LineaOrdenCompraDto {
   id?: number;
   idProducto: number;
-  codigo: string;
   nombre: string;
   cantidad: number;
   cantidadRecibida?: number | null;
+  nombrePack: string;
+  unidadesPack: number;
+  descripcion?: string;
+}
+
+export interface ProductoProveedorDto {
+  idProducto: number;
+  nombre: string;
+  stock: number;
+  nombrePack: string;
+  unidadesPack: number;
 }
 
 export interface OrdenCompraDto {
@@ -820,6 +1040,7 @@ export interface VentaDetalleDto {
     precio: number;
     costo?: number | null;
     subTotal: number;
+    descripcionOferta?: string;
   }[];
 }
 
@@ -944,5 +1165,37 @@ export interface EstadisticasRespuestaDto {
     hoy?: string;
   };
   locales: { idLocal: number; nombre: string }[];
+  deuda?: DeudaDto;
+}
+
+export interface DeudaDto {
+  total: number;
+  porCliente: { idCliente: number; nombre: string; saldo: number; cuentas: number }[];
+}
+
+export interface ClienteDto {
+  id: number;
+  nombre: string;
+  telefono: string;
+}
+
+export interface CuentaListaDto {
+  id: number;
+  idCliente: number;
+  cliente: string;
+  telefono: string;
+  fecha: string;
+  importe: number;
+  saldo: number;
+  estado: 'abierta' | 'pagada' | 'incobrable';
+  nombreUsuario: string;
+}
+
+export interface CuentaDto extends CuentaListaDto {
+  nroCaja: number;
+  fechaIncobrable: string | null;
+  usuarioIncobrable: string;
+  lineas: { id: number; idProducto: number | null; codigo: string; nombre: string; cantidad: number; precio: number; subTotal: number; descripcionOferta: string }[];
+  pagos: { id: number; fecha: string; importe: number; idInformeVenta: number | null }[];
 }
 

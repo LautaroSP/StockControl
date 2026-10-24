@@ -87,7 +87,9 @@ public static class ServicioEstadisticas
         IEnumerable<Local> locales,
         IDictionary<int, decimal>? umbralesPorLocal = null,
         int topN = 20,
-        IDictionary<int, FactoresGananciaLibre>? factoresPorLocal = null)
+        IDictionary<int, FactoresGananciaLibre>? factoresPorLocal = null,
+        IEnumerable<InformeVentaDetalle>? fiadoPeriodo = null,
+        IEnumerable<InformeVentaDetalle>? fiadoHoy = null)
     {
         var listaVentas = ventasPeriodo.ToList();
         var listaVentasHoy = ventasHoy.ToList();
@@ -114,7 +116,7 @@ public static class ServicioEstadisticas
         var (gananciaHoy, _) = SumarGanancia(listaVentasHoy, listaProductos, factoresPorLocal);
         resumen.GananciaDelDia = Math.Round(gananciaHoy, 2, MidpointRounding.AwayFromZero);
 
-        var todosDetallesPeriodo = listaVentas.SelectMany(v => v.Detalles).ToList();
+        var todosDetallesPeriodo = DetallesConFiado(listaVentas, fiadoPeriodo);
 
         // Mapa de productos por código para saber si es sector
         var productosPorCodigo = listaProductos
@@ -287,7 +289,7 @@ public static class ServicioEstadisticas
             .ToList();
 
         // 8. Ventas del día (consolida todas las cajas, ordenado por cantidad descendente)
-        var todosDetallesHoy = listaVentasHoy.SelectMany(v => v.Detalles).ToList();
+        var todosDetallesHoy = DetallesConFiado(listaVentasHoy, fiadoHoy);
         resumen.VentasDelDia = todosDetallesHoy
             .GroupBy(d => d.Codigo, StringComparer.OrdinalIgnoreCase)
             .Select(g =>
@@ -326,6 +328,13 @@ public static class ServicioEstadisticas
 
         return resumen;
     }
+
+    /// <summary>Unidades vendidas: sin la línea de pago de cuenta (no es mercadería) y con lo fiado (salió del stock).</summary>
+    static List<InformeVentaDetalle> DetallesConFiado(IEnumerable<InformeVenta> ventas, IEnumerable<InformeVentaDetalle>? fiado) =>
+        ventas.SelectMany(v => v.Detalles)
+            .Where(d => !ServicioCuentas.EsPagoDeCuenta(d.Codigo))
+            .Concat(fiado ?? [])
+            .ToList();
 
     /// <summary>
     /// Con costo, la ganancia es precio − costo. Sector o genérico sin costo: precio − precio / factor del local.

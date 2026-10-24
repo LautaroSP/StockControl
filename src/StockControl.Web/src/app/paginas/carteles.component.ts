@@ -18,6 +18,7 @@ const POR_HOJA: Record<TamanoCartel, number> = { grande: 6, chico: 30 };
       <input class="grow" type="search" [ngModel]="q" (ngModelChange)="buscar($event)" placeholder="Buscar nombre o código" />
       <label class="check"><input type="radio" name="tamano" value="grande" [(ngModel)]="tamano" /> Grande (6 por hoja)</label>
       <label class="check"><input type="radio" name="tamano" value="chico" [(ngModel)]="tamano" /> Chico (30 por hoja)</label>
+      <label class="check"><input type="checkbox" name="llenar" [(ngModel)]="llenar" /> Llenar la hoja repitiendo los carteles</label>
       <span class="meta">{{ elegidos.size }} seleccionados · {{ hojas() }} hoja(s)</span>
       <button class="btn btn-primary" type="button" [disabled]="elegidos.size === 0 || generando" (click)="generar()">
         {{ generando ? 'Generando...' : 'Generar' }}
@@ -78,6 +79,7 @@ const POR_HOJA: Record<TamanoCartel, number> = { grande: 6, chico: 30 };
 export class CartelesComponent implements OnInit {
   q = '';
   tamano: TamanoCartel = 'grande';
+  llenar = false;
   productos: ProductoDto[] = [];
   elegidos = new Set<number>();
   carteles: CartelesDto | null = null;
@@ -127,7 +129,7 @@ export class CartelesComponent implements OnInit {
     this.api.generarCarteles([...this.elegidos], this.tamano).subscribe({
       next: (r) => {
         this.generando = false;
-        this.carteles = r;
+        this.carteles = this.llenar ? { ...r, hojas: r.hojas.map((h) => this.repetir(h)) } : r;
         setTimeout(() => {
           try {
             window.print();
@@ -142,6 +144,11 @@ export class CartelesComponent implements OnInit {
         this.error = typeof e.error === 'string' ? e.error : 'No se pudieron generar los carteles.';
       }
     });
+  }
+
+  private repetir<T>(hoja: T[]): T[] {
+    const total = POR_HOJA[this.tamano];
+    return hoja.length === 0 ? hoja : Array.from({ length: total }, (_, i) => hoja[i % hoja.length]);
   }
 
   precio(n: number): string {

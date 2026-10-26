@@ -25,6 +25,7 @@ export const routes: Routes = [
   { path: 'confirmar', loadComponent: () => import('./paginas/confirmar.component').then((m) => m.ConfirmarComponent) },
   { path: 'contacto', loadComponent: () => import('./paginas/contacto.component').then(m => m.ContactoComponent) },
   { path: 'admin', loadComponent: () => import('./paginas/admin.component').then(m => m.AdminComponent), canActivate: [adminGuard] },
+  { path: 'vista-cliente', loadComponent: () => import('./paginas/vista-cliente.component').then((m) => m.VistaClienteComponent) },
   { path: 'locales', component: LocalesComponent, canActivate: [sesionGuard] },
   { path: 'elegir-caja', component: ElegirCajaComponent, canActivate: [localGuard] },
   {

@@ -18,6 +18,7 @@ import {
 import { DialogoService } from '../servicios/dialogo.service';
 import { cantidadCobrada, descuentoCombos, precioConOferta, precioUnitarioConOferta } from '../servicios/oferta-caja';
 import { CarritoCaja, LineaCarritoPendiente, SesionService } from '../servicios/sesion.service';
+import { EstadoVistaCliente, VistaClienteService } from '../servicios/vista-cliente.service';
 import { TicketComponent } from './ticket.component';
 
 const FIJOS = 4;
@@ -98,6 +99,7 @@ const FIJOS = 4;
         </div>
       </section>
       <aside class="panel cart">
+        <button class="btn" type="button" (click)="abrirVistaCliente()">Vista de cliente</button>
         <h2>Carrito</h2>
         <div class="scroll" style="min-height:180px;border:1px solid var(--line);border-radius:8px">
           <table class="data">
@@ -349,6 +351,16 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   ticketPendiente: number | null = null;
   private relojEspera: ReturnType<typeof setInterval> | null = null;
   private relojOcio: ReturnType<typeof setTimeout> | null = null;
+  private relojVista: ReturnType<typeof setInterval> | null = null;
+  private qrVista = '';
+  private totalUltimoCobro = 0;
+  private jsonVista = '';
+  private cantidadesVista: number[] = [];
+  private idCarritoVista = 0;
+  private ultimaVista = { linea: -1, marca: 0 };
+  private graciasVista: { total: number; medio: string; hasta: number } | null = null;
+  private medioUltimoCobro = '';
+  private latidoVista = 0;
   private descuentoPorEnter = false;
   error = '';
   toast = '';
@@ -359,7 +371,8 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   constructor(
     private readonly api: ApiService,
     readonly sesion: SesionService,
-    private readonly dialogo: DialogoService
+    private readonly dialogo: DialogoService,
+    private readonly vista: VistaClienteService
   ) {}
 
   get activo(): CarritoCaja {
@@ -581,6 +594,8 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cargarOfertas();
     this.api.permisosCuentas().subscribe({ next: (p) => (this.puedeFiar = p.puedeFiar) });
     this.cargar();
+    this.vista.abrir(this.sesion.idLocal(), this.sesion.nroCaja());
+    this.relojVista = setInterval(() => this.emitirVista(), 250);
   }
 
   ngAfterViewInit(): void {
@@ -590,6 +605,8 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.pararEspera();
+    if (this.relojVista) clearInterval(this.relojVista);
+    this.vista.cerrar();
     if (this.relojOcio) clearTimeout(this.relojOcio);
     this.sesion.guardarCarritos(this.carritos, this.indiceActivo);
   }
@@ -745,6 +762,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.activo.lineas.length === 0) return;
     this.cobrando = true;
     this.error = '';
+    this.guardarDatosCobroVista();
     const items = this.itemsActivo();
     const idEspera = this.activo.idPedidoEspera;
     const desc = this.activo.usarDesc ? Number(this.activo.descuento) || 0 : 0;
@@ -773,6 +791,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.api.cobrar(items, pagos, desc, this.sesion.esDueno() && this.activo.alCosto, idEspera, !!this.activo.sinOfertas).subscribe({
       next: (r) => {
         this.toast = `Cobrado ${this.dinero(r.total)}`;
+        this.avisarGracias();
         this.cerrarTrasCobro();
         this.cobrando = false;
         this.cargar();
@@ -1038,6 +1057,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.qrEspera = '';
     if (r.modo === 'qr_pantalla' && r.qrData) {
       void toDataURL(r.qrData, { margin: 1, width: 220 }).then((url) => (this.qrEspera = url));
+      void toDataURL(r.qrData, { margin: 1, width: 600 }).then((url) => (this.qrVista = url));
     }
     this.pararEspera();
     this.relojEspera = setInterval(() => this.consultarEspera(imprimir), 3000);
@@ -1061,10 +1081,12 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cobrando = false;
     this.esperando = null;
     this.qrEspera = '';
+    this.qrVista = '';
     for (const c of this.carritos) {
       if (c.idCobro === r.id) c.idCobro = undefined;
     }
     if (r.estado === 'pagado' && r.idInformeVenta) {
+      this.avisarGracias();
       this.toast = `Cobrado ${this.dinero(r.importe)}`;
       this.cerrarTrasCobro();
       this.cargar();
@@ -1188,6 +1210,85 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
         setTimeout(() => (this.toast = ''), 4000);
       }
     });
+  }
+
+  abrirVistaCliente(): void {
+    window.open(`/vista-cliente?caja=${this.sesion.nroCaja()}`, '_blank');
+  }
+
+  private guardarDatosCobroVista(): void {
+    const ids = new Set(this.activo.pagos.map((p) => p.idMetodoPago));
+    const nombre = this.mediosPago.find((m) => m.id === [...ids][0])?.descripcion ?? '';
+    this.medioUltimoCobro = ids.size === 1 ? nombre : 'Varios medios';
+    this.totalUltimoCobro = this.total;
+  }
+
+  private avisarGracias(): void {
+    this.graciasVista = { total: this.totalUltimoCobro, medio: this.medioUltimoCobro, hasta: Date.now() + 6000 };
+  }
+
+  private emitirVista(): void {
+    const ahora = Date.now();
+    if (this.graciasVista && ahora >= this.graciasVista.hasta) this.graciasVista = null;
+    const estado = this.graciasVista ? this.estadoGracias(this.graciasVista) : this.estadoCarrito(ahora);
+    const json = JSON.stringify(estado);
+    if (json === this.jsonVista && ahora - this.latidoVista < 2000) return;
+    this.jsonVista = json;
+    this.latidoVista = ahora;
+    this.vista.emitir(estado);
+  }
+
+  private estadoGracias(g: { total: number; medio: string }): EstadoVistaCliente {
+    return { ...this.estadoBase('gracias'), total: g.total, medio: g.medio };
+  }
+
+  private estadoBase(tipo: EstadoVistaCliente['tipo']): EstadoVistaCliente {
+    return { tipo, lineas: [], descuentoPorcentaje: 0, ahorroCombos: 0, total: 0, ultimaLinea: -1, marcaUltima: 0, qrDataUrl: '', medio: '' };
+  }
+
+  private estadoCarrito(ahora: number): EstadoVistaCliente {
+    const a = this.activo;
+    this.marcarUltimaLinea(ahora);
+    const lineas = a.lineas
+      .map((l) => ({
+        nombre: l.nombre,
+        cantidad: Number(l.cantidad),
+        precioUnitario: this.precioLinea(l),
+        subtotal: this.subtotalLinea(l),
+        oferta: this.textoOfertaVista(l)
+      }))
+      .reverse();
+    const ultima = this.ultimaVista.linea;
+    const conQr = !!this.esperando && this.esperando.modo === 'qr_pantalla' && !!this.qrVista;
+    return {
+      ...this.estadoBase(conQr ? 'cobrando' : 'carrito'),
+      lineas,
+      descuentoPorcentaje: a.alCosto ? 0 : this.descuentoCaja(),
+      ahorroCombos: this.descuentoDeCombos,
+      total: this.total,
+      ultimaLinea: ultima < 0 ? -1 : lineas.length - 1 - ultima,
+      marcaUltima: this.ultimaVista.marca,
+      qrDataUrl: conQr ? this.qrVista : ''
+    };
+  }
+
+  private textoOfertaVista(l: LineaCarritoPendiente): string {
+    const o = this.ofertaDe(l);
+    if (!o) return '';
+    if (o.tipo === 'llevaPaga') return `${o.descripcion} · llevás ${l.cantidad}, pagás ${this.cobradas(l)}`;
+    return o.descripcion;
+  }
+
+  private marcarUltimaLinea(ahora: number): void {
+    const actual = this.activo.lineas.map((l) => Number(l.cantidad));
+    if (this.activo.id !== this.idCarritoVista) {
+      this.idCarritoVista = this.activo.id;
+      this.ultimaVista = { linea: -1, marca: 0 };
+    } else if (actual.length >= this.cantidadesVista.length) {
+      const cambiada = actual.map((c, i) => c !== this.cantidadesVista[i]).lastIndexOf(true);
+      if (cambiada >= 0) this.ultimaVista = { linea: cambiada, marca: ahora };
+    }
+    this.cantidadesVista = actual;
   }
 
   private cerrarTrasCobro(): void {

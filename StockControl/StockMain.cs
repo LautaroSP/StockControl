@@ -32,6 +32,7 @@ namespace StockControl
         private List<ItemSeleccionado> prodGenericos = new();
         private int _medioPagoToken;
         private bool _clickEnCheckDescuento;
+        private frmVistaCliente? _vistaCliente;
 
         private BindingList<ItemSeleccionado> _carrito => _sesionActual.Items;
 
@@ -113,7 +114,32 @@ namespace StockControl
             dataGridView2.CellEndEdit += dataGridView2_CellEndEdit;
             dataGridView2.CellParsing += dataGridView2_CellParsing;
             dataGridView2.DataError += dataGridView2_DataError;
+            FormClosed += (_, _) => _vistaCliente?.Close();
+        }
 
+        private void btnVistaCliente_Click(object sender, EventArgs e)
+        {
+            if (_vistaCliente == null)
+            {
+                _vistaCliente = new frmVistaCliente(nombreLocal, _configuracionRepository);
+                _vistaCliente.FormClosed += (_, _) => _vistaCliente = null;
+                _vistaCliente.Show();
+            }
+            else
+                _vistaCliente.Activate();
+            CalcularTotal();
+            Activate();
+            VolverAScanner();
+        }
+
+        private void ActualizarVistaCliente(decimal total)
+        {
+            if (_vistaCliente == null)
+                return;
+            int descuento = 0;
+            if (chkDescuento.Checked)
+                int.TryParse(txtDescuento.Text.Replace("%", "").Trim(), out descuento);
+            _vistaCliente.Mostrar(_sesionActual, chkCosto.Checked, descuento, total);
         }
 
         private void CargarProductos()
@@ -565,6 +591,7 @@ namespace StockControl
 
                     // Primero guardamos la venta en BD
                     GenerarInformeDeVenta();
+                    _vistaCliente?.MostrarGracias(Math.Round(_carrito.Sum(i => i.Cantidad * i.Precio), 2, MidpointRounding.AwayFromZero));
 
                     // Solo después de guardar exitosamente, actualizamos el stock
                     foreach (var item in _carrito)
@@ -1299,6 +1326,7 @@ namespace StockControl
 
             decimal items = _carrito.Sum(i => i.Cantidad);
             lblItems.Text = items.ToString("0", new CultureInfo("es-AR"));
+            ActualizarVistaCliente(total);
         }
 
         private bool _descuentoPorEnter;

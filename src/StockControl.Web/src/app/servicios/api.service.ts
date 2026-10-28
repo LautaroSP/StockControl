@@ -77,6 +77,29 @@ export interface ProductoTiendaDto {
   imagenes: ImagenTiendaDto[];
 }
 
+export interface ItemCarritoTienda {
+  idProducto: number;
+  cantidad: number;
+}
+
+export interface CotizacionTiendaDto {
+  lineas: { idProducto: number; nombre: string; cantidad: number; precioUnitario: number; subTotal: number; maximo: number | null }[];
+  noDisponibles: number[];
+  total: number;
+}
+
+export interface PedidoTiendaDto {
+  numero: number;
+  estado: 'nuevo' | 'cancelado';
+  puedeCancelar: boolean;
+  creado: string;
+  nombre: string;
+  subtotal: number;
+  total: number;
+  lineas: { nombre: string; cantidad: number; precioUnitario: number; subTotal: number }[];
+  local: { nombre: string; direccion: string; horario: string; whatsApp: string };
+}
+
 export interface ImagenProductoDto {
   orden: number;
   origen: string;
@@ -878,6 +901,22 @@ export class ApiService {
       `${this.base}/tienda/${encodeURIComponent(alias)}/productos`,
       { params }
     );
+  }
+
+  cotizarCarritoTienda(alias: string, items: ItemCarritoTienda[]) {
+    return this.http.post<CotizacionTiendaDto>(`${this.base}/tienda/${encodeURIComponent(alias)}/carrito`, { items });
+  }
+
+  crearPedidoTienda(alias: string, pedido: { nombre: string; telefono: string; email: string; items: ItemCarritoTienda[]; sitio: string }) {
+    return this.http.post<{ numero: number; estado: string; codigo: string } | null>(`${this.base}/tienda/${encodeURIComponent(alias)}/pedidos`, pedido);
+  }
+
+  pedidoTienda(alias: string, codigo: string) {
+    return this.http.get<PedidoTiendaDto>(`${this.base}/tienda/${encodeURIComponent(alias)}/pedidos/${encodeURIComponent(codigo)}`);
+  }
+
+  cancelarPedidoTienda(alias: string, codigo: string) {
+    return this.http.post<{ estado: string }>(`${this.base}/tienda/${encodeURIComponent(alias)}/pedidos/${encodeURIComponent(codigo)}/cancelar`, {});
   }
 
   cerrarCaja(fecha?: string, desglose: 'medio' | 'usuario' = 'medio', todas = false) {

@@ -10,6 +10,8 @@ export const routes: Routes = [
   { path: 'admin', loadComponent: () => import('./paginas/admin.component').then(m => m.AdminComponent), canActivate: [adminGuard] },
   { path: 'vista-cliente', loadComponent: () => import('./paginas/vista-cliente.component').then((m) => m.VistaClienteComponent) },
   { path: 'tienda/:alias', loadComponent: () => import('./paginas/tienda.component').then((m) => m.TiendaComponent) },
+  { path: 'tienda/:alias/carrito', loadComponent: () => import('./paginas/carrito-tienda.component').then((m) => m.CarritoTiendaComponent) },
+  { path: 'tienda/:alias/pedido/:codigo', loadComponent: () => import('./paginas/pedido-tienda.component').then((m) => m.PedidoTiendaComponent) },
   { path: 'locales', loadComponent: () => import('./paginas/locales.component').then((m) => m.LocalesComponent), canActivate: [sesionGuard] },
   { path: 'elegir-caja', loadComponent: () => import('./paginas/elegir-caja.component').then((m) => m.ElegirCajaComponent), canActivate: [localGuard] },
   {

@@ -1,7 +1,8 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService, ImagenTiendaDto, ProductoTiendaDto, TiendaPublicaDto } from '../servicios/api.service';
+import { CarritoTiendaService, MAXIMO_POR_PRODUCTO } from '../servicios/carrito-tienda.service';
 import { TemaComponent } from '../tema.component';
 import { MapaComponent } from '../mapa.component';
 import { NoEncontradaComponent } from './no-encontrada.component';
@@ -9,7 +10,7 @@ import { NoEncontradaComponent } from './no-encontrada.component';
 @Component({
   selector: 'sc-tienda',
   standalone: true,
-  imports: [FormsModule, TemaComponent, MapaComponent, NoEncontradaComponent],
+  imports: [FormsModule, RouterLink, TemaComponent, MapaComponent, NoEncontradaComponent],
   template: `
     @if (noEncontrada) {
       <sc-no-encontrada />
@@ -18,7 +19,12 @@ import { NoEncontradaComponent } from './no-encontrada.component';
       <div class="tienda">
         <header class="tienda-cabecera">
           <h1>{{ t.nombre }}</h1>
-          <sc-tema [fijo]="false" />
+          <div class="row">
+            @if (t.vista === 'catalogo') {
+              <a class="btn btn-primary" [routerLink]="['/tienda', alias, 'carrito']">Carrito ({{ unidades }})</a>
+            }
+            <sc-tema [fijo]="false" />
+          </div>
         </header>
 
         @if (t.vista === 'cerrada') {
@@ -85,6 +91,15 @@ import { NoEncontradaComponent } from './no-encontrada.component';
                 <span class="tienda-nombre">{{ p.nombre }}</span>
                 <span class="tienda-precio">{{ precio(p.precio) }}</span>
                 <span [class]="p.hayStock ? 'badge' : 'badge badge-vencido'">{{ p.hayStock ? 'Hay stock' : 'Sin stock' }}</span>
+                @if (enCarrito(p.id); as n) {
+                  <span class="row tienda-cantidad">
+                    <button class="btn" type="button" [attr.aria-label]="'Restar ' + p.nombre" (click)="poner(p.id, n - 1)">−</button>
+                    <span aria-live="polite">{{ n }}</span>
+                    <button class="btn" type="button" [attr.aria-label]="'Sumar ' + p.nombre" [disabled]="n >= maximo" (click)="poner(p.id, n + 1)">+</button>
+                  </span>
+                } @else {
+                  <button class="btn" type="button" [disabled]="!p.hayStock" (click)="poner(p.id, 1)">Agregar</button>
+                }
               </li>
             }
           </ul>
@@ -111,17 +126,22 @@ export class TiendaComponent implements OnInit, OnDestroy {
   paginas = 1;
   cargando = false;
   error = '';
-  private alias = '';
+  alias = '';
+  unidades = 0;
+  cantidades: Record<number, number> = {};
+  readonly maximo = MAXIMO_POR_PRODUCTO;
   private espera?: ReturnType<typeof setTimeout>;
   private readonly tituloAnterior = document.title;
 
   constructor(
     private readonly ruta: ActivatedRoute,
-    private readonly api: ApiService
+    private readonly api: ApiService,
+    private readonly carrito: CarritoTiendaService
   ) {}
 
   ngOnInit(): void {
     this.alias = this.ruta.snapshot.paramMap.get('alias') ?? '';
+    this.leerCarrito();
     this.api.tienda(this.alias).subscribe({
       next: (t) => {
         this.tienda = t;
@@ -186,6 +206,21 @@ export class TiendaComponent implements OnInit, OnDestroy {
 
   elegirFoto(idProducto: number, posicion: number): void {
     this.fotoElegida = { ...this.fotoElegida, [idProducto]: posicion };
+  }
+
+  enCarrito(idProducto: number): number {
+    return this.cantidades[idProducto] ?? 0;
+  }
+
+  poner(idProducto: number, cantidad: number): void {
+    this.carrito.poner(this.alias, idProducto, cantidad);
+    this.leerCarrito();
+  }
+
+  private leerCarrito(): void {
+    const items = this.carrito.items(this.alias);
+    this.cantidades = Object.fromEntries(items.map((i) => [i.idProducto, i.cantidad]));
+    this.unidades = items.reduce((total, i) => total + i.cantidad, 0);
   }
 
   urlFoto(idImagen: number): string {

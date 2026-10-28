@@ -102,6 +102,9 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("tienda", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    o.AddPolicy("tienda-pedidos", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
     o.AddPolicy("tienda-imagenes", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 600, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
@@ -1152,7 +1155,7 @@ app.MapPut("/productos/publicados", async (PublicarProductosPedido pedido, AppDb
 
 app.MapGet("/tienda/{alias}", async (string alias, AppDbContext db, SesionActual sesion) =>
 {
-    var local = await LocalDeTienda(db, alias);
+    var local = await LocalesTienda.PorAlias(db, alias);
     var vista = local == null ? null : ServicioTienda.Vista(local, DateTimeOffset.UtcNow);
     if (local == null || vista == null) return Results.NotFound();
     var catalogo = vista == ServicioTienda.VistaCatalogo;
@@ -1179,7 +1182,7 @@ app.MapGet("/tienda/{alias}", async (string alias, AppDbContext db, SesionActual
 
 app.MapGet("/tienda/{alias}/productos", async (string alias, string? q, string? categorias, AppDbContext db, SesionActual sesion, int pagina = 1) =>
 {
-    var local = await LocalDeTienda(db, alias);
+    var local = await LocalesTienda.PorAlias(db, alias);
     if (local == null || ServicioTienda.Vista(local, DateTimeOffset.UtcNow) != ServicioTienda.VistaCatalogo)
         return Results.NotFound();
     sesion.IdLocal = local.IdLocal;
@@ -1193,16 +1196,17 @@ app.MapGet("/tienda/{alias}/productos", async (string alias, string? q, string? 
     var idsGrupo = items.Select(p => p.IdGrupoProducto).Where(id => id != 0).Distinct().ToList();
     var grupos = await db.GrupoProductos.AsNoTracking().Where(g => idsGrupo.Contains(g.IdGrupoProducto)).ToDictionaryAsync(g => g.IdGrupoProducto);
     var imagenes = await db.ImagenesProducto.AsNoTracking().Where(i => ids.Contains(i.IdProducto)).ToListAsync();
+    var reservado = await ReservasTienda.DelLocal(db, local.IdLocal);
     return Results.Ok(new
     {
         total, pagina, tamano,
-        items = items.Select(p => ServicioCatalogoTienda.AProductoTienda(p, grupos.GetValueOrDefault(p.IdGrupoProducto), imagenes))
+        items = items.Select(p => ServicioCatalogoTienda.AProductoTienda(p, grupos.GetValueOrDefault(p.IdGrupoProducto), imagenes, reservado))
     });
 }).RequireRateLimiting("tienda");
 
 app.MapGet("/tienda/{alias}/imagenes/{idImagen:int}", async (string alias, int idImagen, HttpContext http, AppDbContext db, SesionActual sesion, AlmacenImagenes almacen) =>
 {
-    var local = await LocalDeTienda(db, alias);
+    var local = await LocalesTienda.PorAlias(db, alias);
     if (local == null) return Results.NotFound();
     sesion.IdLocal = local.IdLocal;
     var imagen = await db.ImagenesProducto.AsNoTracking().FirstOrDefaultAsync(i => i.Id == idImagen);
@@ -1216,6 +1220,7 @@ app.MapGet("/tienda/{alias}/imagenes/{idImagen:int}", async (string alias, int i
 }).RequireRateLimiting("tienda-imagenes");
 
 app.MapImagenesProducto();
+app.MapPedidosTienda();
 
 app.MapGet("/usuarios", async (AppDbContext db, SesionActual sesion) =>
 {
@@ -2191,6 +2196,7 @@ app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual 
             DescuentoPorcentaje = pedido.DescuentoPorcentaje,
             CobrarAlCosto = pedido.CobrarAlCosto,
             StockRigido = rigido,
+            Reservado = await ReservasTienda.DelLocal(db, sesion.IdLocal.Value),
             MetodoPago = pedido.MetodoPago,
             Ofertas = ofertas,
             Combos = await OfertasVigentes.CombosDelDia(db, sesion.IdLocal.Value, hoy),
@@ -2539,6 +2545,7 @@ app.MapPost("/cuentas", async (CuentaPedido pedido, AppDbContext db, SesionActua
             DescuentoPorcentaje = pedido.DescuentoPorcentaje,
             CobrarAlCosto = pedido.CobrarAlCosto,
             StockRigido = configs.Any(c => c.Clave == "StockRigido" && c.Valor == "1"),
+            Reservado = await ReservasTienda.DelLocal(db, sesion.IdLocal.Value),
             MetodoPago = "A cuenta",
             Ofertas = await OfertasVigentes.DelDia(db, sesion.IdLocal.Value, hoy),
             Combos = await OfertasVigentes.CombosDelDia(db, sesion.IdLocal.Value, hoy),
@@ -2785,7 +2792,8 @@ app.MapPost("/ventas/mercadopago", async (VentaPedido pedido, AppDbContext db, S
             }).ToList(),
             DescuentoPorcentaje = pedido.DescuentoPorcentaje,
             CobrarAlCosto = pedido.CobrarAlCosto,
-            StockRigido = rigido
+            StockRigido = rigido,
+            Reservado = await ReservasTienda.DelLocal(db, sesion.IdLocal.Value)
         });
         var pagos = pedido.Pagos.Count > 0
             ? pedido.Pagos.Select(p => new PagoSolicitado(p.IdMetodoPago, p.Importe)).ToList()
@@ -3415,15 +3423,6 @@ app.MapPost("/cajas/cerrar", async (CerrarCajaPedido pedido, AppDbContext db, Se
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.Run();
-
-/// <summary>Busca por alias sin filtro de local. Un alias imposible ni llega a la base.</summary>
-static async Task<Local?> LocalDeTienda(AppDbContext db, string alias)
-{
-    var valor = alias.Trim().ToLowerInvariant();
-    if (valor.Length < ServicioTienda.LargoMinimoAlias || valor.Length > ServicioTienda.LargoMaximoAlias)
-        return null;
-    return await db.Locales.AsNoTracking().FirstOrDefaultAsync(l => l.AliasTienda == valor);
-}
 
 static List<int> IdsDeLista(string? lista, int maximo) =>
     (lista ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

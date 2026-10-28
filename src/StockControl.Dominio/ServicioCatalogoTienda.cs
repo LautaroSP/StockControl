@@ -40,8 +40,10 @@ public static class ServicioCatalogoTienda
             .Select(c => new CategoriaTienda(c.Id, c.Nombre));
     }
 
-    public static ProductoTienda AProductoTienda(Producto producto, GrupoProductos? grupo, IEnumerable<ImagenProducto>? imagenes = null) =>
-        new(producto.Id, producto.Codigo, producto.Nombre, producto.Precio, ServicioCategorias.Efectiva(producto, grupo), producto.Cantidad > 0,
+    public static ProductoTienda AProductoTienda(
+        Producto producto, GrupoProductos? grupo, IEnumerable<ImagenProducto>? imagenes = null, IReadOnlyDictionary<int, decimal>? reservado = null) =>
+        new(producto.Id, producto.Codigo, producto.Nombre, producto.Precio, ServicioCategorias.Efectiva(producto, grupo),
+            ServicioPedidosTienda.Disponible(producto, reservado ?? new Dictionary<int, decimal>()) > 0,
             (imagenes ?? []).Where(i => i.IdProducto == producto.Id).OrderBy(i => i.Orden).Select(ServicioImagenesTienda.ATienda).ToList());
 
     static IQueryable<Producto> Filtrar(IQueryable<Producto> productos, int idLocal, string? busqueda)

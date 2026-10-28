@@ -523,6 +523,52 @@ namespace StockControl.Api.Datos.Migraciones
                     b.ToTable("LineasPedidoEspera", (string)null);
                 });
 
+            modelBuilder.Entity("StockControl.Dominio.LineaPedidoTienda", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Cantidad")
+                        .HasPrecision(14, 3)
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int>("IdLocal")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("IdPedidoTienda")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("IdProducto")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<decimal>("PrecioUnitario")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<decimal>("SubTotal")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdPedidoTienda");
+
+                    b.ToTable("LineasPedidoTienda", (string)null);
+                });
+
             modelBuilder.Entity("StockControl.Dominio.Local", b =>
                 {
                     b.Property<int>("IdLocal")
@@ -1379,6 +1425,72 @@ namespace StockControl.Api.Datos.Migraciones
                     b.ToTable("PedidosEspera", (string)null);
                 });
 
+            modelBuilder.Entity("StockControl.Dominio.PedidoTienda", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("Cancelado")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("Creado")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("HashCodigo")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("IdLocal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int>("Numero")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<string>("Telefono")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HashCodigo")
+                        .IsUnique();
+
+                    b.HasIndex("IdLocal", "Estado");
+
+                    b.HasIndex("IdLocal", "Numero")
+                        .IsUnique();
+
+                    b.ToTable("PedidosTienda", (string)null);
+                });
+
             modelBuilder.Entity("StockControl.Dominio.PlantillaCartel", b =>
                 {
                     b.Property<int>("Id")
@@ -1679,6 +1791,15 @@ namespace StockControl.Api.Datos.Migraciones
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("StockControl.Dominio.LineaPedidoTienda", b =>
+                {
+                    b.HasOne("StockControl.Dominio.PedidoTienda", null)
+                        .WithMany("Lineas")
+                        .HasForeignKey("IdPedidoTienda")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("StockControl.Dominio.OrdenCompraLinea", b =>
                 {
                     b.HasOne("StockControl.Dominio.OrdenCompra", null)
@@ -1722,6 +1843,11 @@ namespace StockControl.Api.Datos.Migraciones
                 });
 
             modelBuilder.Entity("StockControl.Dominio.PedidoEspera", b =>
+                {
+                    b.Navigation("Lineas");
+                });
+
+            modelBuilder.Entity("StockControl.Dominio.PedidoTienda", b =>
                 {
                     b.Navigation("Lineas");
                 });

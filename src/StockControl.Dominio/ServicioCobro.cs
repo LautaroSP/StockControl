@@ -26,7 +26,7 @@ public static class ServicioCobro
             }
 
             var linea = ArmarLinea(item, producto, pedido);
-            DescontarStock(producto, item.Cantidad, pedido.StockRigido);
+            DescontarStock(producto, item.Cantidad, pedido.StockRigido, pedido.Reservado);
             resultado.Lineas.Add(linea);
         }
 
@@ -80,12 +80,12 @@ public static class ServicioCobro
 
     private static decimal Redondear(decimal valor) => Math.Round(valor, 2, MidpointRounding.AwayFromZero);
 
-    private static void DescontarStock(Producto? producto, decimal cantidad, bool stockRigido)
+    private static void DescontarStock(Producto? producto, decimal cantidad, bool stockRigido, IReadOnlyDictionary<int, decimal> reservado)
     {
         if (producto == null || producto.ProductoSector || producto.EsGenerico)
             return;
 
-        if (stockRigido && producto.Cantidad - cantidad < 0)
+        if (stockRigido && ServicioPedidosTienda.Disponible(producto, reservado) - cantidad < 0)
             throw new ErrorNegocio($"El producto {producto.Nombre} no tiene stock suficiente.");
 
         producto.Cantidad -= cantidad;

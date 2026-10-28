@@ -37,7 +37,7 @@ Todo lo de la tienda online junto, en un grupo **Tienda** de la barra lateral, i
 - [x] Imágenes de productos en su propia pantalla.
 - [x] Rutas `/mi-tienda/...` bajo demanda, sin chocar con `/tienda/{alias}`.
 - [x] Un empleado sin acceso no ve el grupo ni entra escribiendo la ruta.
-- [ ] Modo oscuro y celular.
+- [x] Modo oscuro y celular.
 - [x] Sin test de dominio si no hay regla nueva: es navegación y reubicación de pantallas.
 
 ## Fuera de v1

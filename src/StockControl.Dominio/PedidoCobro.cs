@@ -33,6 +33,8 @@ public class PedidoCobro
     public int DescuentoPorcentaje { get; init; }
     public bool CobrarAlCosto { get; init; }
     public bool StockRigido { get; init; }
+    /// <summary>Unidades apartadas por pedidos de la tienda: con stock rígido no se venden en caja.</summary>
+    public IReadOnlyDictionary<int, decimal> Reservado { get; init; } = new Dictionary<int, decimal>();
     public string MetodoPago { get; init; } = "Efectivo";
     public IReadOnlyList<Oferta> Ofertas { get; init; } = [];
     public IReadOnlyList<OfertaCombo> Combos { get; init; } = [];

@@ -277,6 +277,7 @@ public static class CobrosMercadoPagoApp
             DescuentoPorcentaje = pedido.DescuentoPorcentaje,
             CobrarAlCosto = pedido.CobrarAlCosto,
             StockRigido = rigido,
+            Reservado = await ReservasTienda.DelLocal(db, cobro.IdLocal),
             MetodoPago = "Mercado Pago"
         });
         var venta = await RegistrarVenta.Guardar(db, cobro.IdLocal, cobro.IdUsuario, cobro.NroCaja, resultado, pedido.Pagos);

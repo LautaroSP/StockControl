@@ -48,6 +48,8 @@ public class AppDbContext : DbContext
     public DbSet<PagoCuenta> PagosCuenta => Set<PagoCuenta>();
     public DbSet<ImagenProducto> ImagenesProducto => Set<ImagenProducto>();
     public DbSet<ImagenRechazada> ImagenesRechazadas => Set<ImagenRechazada>();
+    public DbSet<PedidoTienda> PedidosTienda => Set<PedidoTienda>();
+    public DbSet<LineaPedidoTienda> LineasPedidoTienda => Set<LineaPedidoTienda>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -493,6 +495,38 @@ public class AppDbContext : DbContext
             e.Property(x => x.Id).UseIdentityByDefaultColumn();
             e.Property(x => x.Url).HasMaxLength(500);
             e.HasIndex(x => new { x.IdLocal, x.IdProducto });
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<PedidoTienda>(e =>
+        {
+            e.ToTable("PedidosTienda");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.HashCodigo).HasMaxLength(64);
+            e.Property(x => x.Estado).HasMaxLength(20);
+            e.Property(x => x.Nombre).HasMaxLength(ServicioPedidosTienda.LargoMaximoNombre);
+            e.Property(x => x.Telefono).HasMaxLength(20);
+            e.Property(x => x.Email).HasMaxLength(ServicioPedidosTienda.LargoMaximoEmail);
+            e.Property(x => x.Subtotal).HasPrecision(14, 2);
+            e.Property(x => x.Total).HasPrecision(14, 2);
+            e.HasIndex(x => new { x.IdLocal, x.Numero }).IsUnique();
+            e.HasIndex(x => x.HashCodigo).IsUnique();
+            e.HasIndex(x => new { x.IdLocal, x.Estado });
+            e.HasMany(x => x.Lineas).WithOne().HasForeignKey(l => l.IdPedidoTienda).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<LineaPedidoTienda>(e =>
+        {
+            e.ToTable("LineasPedidoTienda");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Codigo).HasMaxLength(80);
+            e.Property(x => x.Nombre).HasMaxLength(200);
+            e.Property(x => x.Cantidad).HasPrecision(14, 3);
+            e.Property(x => x.PrecioUnitario).HasPrecision(14, 2);
+            e.Property(x => x.SubTotal).HasPrecision(14, 2);
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
     }

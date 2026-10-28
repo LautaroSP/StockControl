@@ -8,7 +8,7 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 
 ## Siguiente
 
-**#37 · 50 Tienda: panel** (falta probarla en el navegador; después se cierra la 36 en su pantalla final)
+**#40 · 37 Tienda: carrito y pedido** (falta probarla en el navegador con la base). Pendientes de prueba: 36 Imágenes y 49 Categorías
 
 ## Tablero
 
@@ -50,10 +50,10 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 | 34 | 34 | [Configurar ofertas](34-ofertas.md) | sí | Pantalla Ofertas del dueño. Descuento de 1 a 99 % o llevás N y pagás M, con fechas en día de Argentina. Cada oferta elige si el descuento de caja o al costo la deshabilitan, y si la caja puede no aplicarla. El detalle de la venta guarda la oferta. Requiere migraciones `Ofertas` y `OpcionesOferta` |
 | 35 | 35 | [Cuentas pendientes](35-cuentas-pendientes.md) | sí | Dejar a cuenta desde la caja y pantalla Cuentas. Cada pago es una venta de una línea `CUENTA-` con ganancia proporcional. Anular ese pago devuelve el saldo. Incobrable queda en la cuenta. Requiere migración `CuentasPendientes` |
 | 36 | 29 | [Tienda: URL pública y catálogo](29-tienda-online.md) | sí | `/tienda/{alias}` pública, alias en Configuración, publicar desde Productos, mapa OSM con Nominatim. Pausada y abono vencido tienen su página. Pie legal (términos, privacidad, arrepentimiento) diferido hasta tener textos: sin eso no se abre al público real. Requiere migración `Tienda` |
-| 37 | 50 | [Tienda: panel](50-tienda-panel.md) | parcial | Grupo Tienda en la barra (dueño y socio): Tienda online (estado, link, publicados y con imagen), Configuración (sale de Configuración del local), Imágenes de productos. Pedidos lo suma la 41. Rutas `/mi-tienda/...` lazy con `tiendaGuard`. Falta probar en el navegador, modo oscuro y celular |
+| 37 | 50 | [Tienda: panel](50-tienda-panel.md) | sí | Grupo Tienda en la barra (dueño y socio): Tienda online (estado, link, publicados y con imagen), Configuración (sale de Configuración del local), Imágenes de productos. Pedidos lo suma la 41. Rutas `/mi-tienda/...` lazy con `tiendaGuard` |
 | 38 | 36 | [Tienda: imágenes](36-tienda-imagenes.md) | parcial | Propuesta por código de barras (Open Food Facts) con Aceptar o Subir propia. Hasta 2 por producto, 400 × 400 px, WebP, SkiaSharp. Se prueba ya en Tienda › Imágenes de productos (50). Falta probarla en el navegador. Requiere migración `ImagenesTienda` y el volumen `Imagenes__Ruta` |
 | 39 | 49 | [Categorías de productos](49-categorias.md) | parcial | Pantalla Categorías del dueño. Opcional en el producto y en el grupo; el producto hereda la del grupo y la propia domina. Borrar deja productos y grupos sin categoría. En la tienda, chips con «Todas»; se pueden marcar varias. Reemplaza el filtro por grupo. Sin subcategorías. Requiere migración `Categorias`. Falta probar en el navegador con la base |
-| 40 | 37 | [Tienda: carrito y pedido](37-tienda-carrito-pedido.md) | no | Retiro en el local, stock reservado, precio congelado, consulta sin cuenta |
+| 40 | 37 | [Tienda: carrito y pedido](37-tienda-carrito-pedido.md) | parcial | Carrito en `localStorage`, el servidor cotiza. Retiro en el local, pago a coordinar. Precio congelado, stock reservado (la caja con stock rígido no lo vende), sin vencimiento. Link con código no adivinable (se guarda el hash); el comprador consulta y cancela. Requiere migración `PedidosTienda`. Falta probar en el navegador con la base |
 | 41 | 41 | [Tienda: panel de pedidos y avisos](41-tienda-panel-pedidos.md) | no | Estados, entregado = venta, campanita, Web Push, wa.me |
 | 42 | 38 | [Tienda: Mercado Pago y gestión](38-tienda-mercado-pago.md) | no | Checkout Pro con la cuenta MP de la 21. Gestión: importe fijo en Configuración |
 | 43 | 39 | [Tienda: transferencia](39-tienda-transferencia.md) | no | A confirmar con plazo del dueño; gestión suma al abono |
@@ -68,6 +68,9 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 | 52 | 48 | [Legales](48-legales.md) | no | Términos del servicio, privacidad (Ley 25.326), arrepentimiento y baja (consumidor), términos de la tienda, aceptación con versión. Faltan los datos del titular. Antes de producción y de abrir la tienda al público |
 
 ## Log
+
+- 2026-10-28 · 37 Tienda: carrito y pedido · parcial · `PedidoTienda` y `LineaPedidoTienda` (tablas `PedidosTienda` y `LineasPedidoTienda`, número correlativo por local, hash SHA-256 del código). `ServicioPedidosTienda`: cotizar (precio de lista del servidor, avisa cuánto queda con stock rígido, marca lo que ya no está publicado), crear (tienda abierta, nombre, teléfono AR, mail, de 1 a 99 por producto, hasta 50 productos), cancelar (solo Nuevo), reservado y disponible. La reserva no toca `Cantidad`: es la suma de los pedidos nuevos. `ServicioCobro` con stock rígido descuenta lo reservado; el catálogo muestra «Sin stock» si todo está reservado. Sin vencimiento. API pública: `POST /tienda/{alias}/carrito`, `POST /tienda/{alias}/pedidos` (honeypot, 10 cada 10 min por IP, lock por local para número y reserva), `GET` y `POST .../pedidos/{codigo}/cancelar`. Angular: Agregar y más/menos en la tienda, `/tienda/:alias/carrito` con checkout, `/tienda/:alias/pedido/:codigo` con Cancelar y WhatsApp al local. Requiere migración `PedidosTienda`. Falta probar en el navegador con la base
+- 2026-10-28 · 50 Tienda: panel · sí · Probada por el usuario
 
 - 2026-10-27 · 50 Tienda: panel · parcial · Grupo Tienda en la barra, después de Reportes, para dueño y socio. `/mi-tienda` (resumen nuevo: estado, link con Copiar y Ver mi tienda, publicados y con imagen, aviso sin alias), `/mi-tienda/configuracion` (la sección que estaba en Configuración del local, sin imágenes) y `/mi-tienda/imagenes`. `tiendaGuard` en la ruta. Configuración del local deja un enlace a Tienda. `GET /configuracion/tienda` suma `conImagen`. Íconos tienda e imágenes. Sin test de dominio: no hay regla nueva. Falta probar en el navegador
 

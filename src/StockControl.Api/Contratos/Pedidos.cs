@@ -556,3 +556,37 @@ public class AceptarImagenPedido
     [Range(1, ServicioImagenesTienda.MaximoPorProducto)]
     public int Orden { get; set; } = 1;
 }
+
+public class CarritoTiendaPedido
+{
+    [Required, MinLength(1), MaxLength(ServicioPedidosTienda.MaximoLineas)]
+    public List<ItemPedidoTiendaPedido> Items { get; set; } = new();
+}
+
+/// <summary>Pedido de la tienda pública. Sin importes: los pone el servidor.</summary>
+public class PedidoTiendaPedido
+{
+    [Required, MaxLength(ServicioPedidosTienda.LargoMaximoNombre)]
+    public string Nombre { get; set; } = "";
+
+    [Required, MaxLength(30)]
+    public string Telefono { get; set; } = "";
+
+    [Required, MaxLength(ServicioPedidosTienda.LargoMaximoEmail)]
+    public string Email { get; set; } = "";
+
+    [Required, MinLength(1), MaxLength(ServicioPedidosTienda.MaximoLineas)]
+    public List<ItemPedidoTiendaPedido> Items { get; set; } = new();
+
+    /// <summary>Campo oculto contra bots: una persona lo deja vacío.</summary>
+    [MaxLength(200)]
+    public string? Sitio { get; set; }
+}
+
+public class ItemPedidoTiendaPedido
+{
+    public int IdProducto { get; set; }
+
+    [Range(1, ServicioPedidosTienda.MaximoCantidad)]
+    public int Cantidad { get; set; }
+}

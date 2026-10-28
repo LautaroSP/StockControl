@@ -13,7 +13,7 @@ import {
   OfertaVigenteDto,
   PedidoEsperaDto,
   ProductoDto,
-  VentaDetalleDto
+  TicketDto
 } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { cantidadCobrada, descuentoCombos, precioConOferta, precioUnitarioConOferta } from '../servicios/oferta-caja';
@@ -308,7 +308,7 @@ const FIJOS = 4;
     }
     <div class="toast" [class.show]="toast">{{ toast }}</div>
     @if (ticket) {
-      <sc-ticket [venta]="ticket" [nombreLocal]="nombreTicket" [formato]="formatoTicket" [pendiente]="ticketPendiente" />
+      <sc-ticket [ticket]="ticket" [nombreLocal]="nombreTicket" [formato]="formatoTicket" [pendiente]="ticketPendiente" />
     }
   `
 })
@@ -364,7 +364,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   private descuentoPorEnter = false;
   error = '';
   toast = '';
-  ticket: VentaDetalleDto | null = null;
+  ticket: TicketDto | null = null;
   formatoTicket = 'POS-80';
   nombreTicket = '';
 
@@ -888,26 +888,8 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private imprimirCuenta(c: CuentaDto): void {
-    this.ticket = {
-      idInformeVenta: c.id,
-      fecha: c.fecha,
-      total: c.importe,
-      subtotal: c.importe,
-      metodoPago: `A cuenta de ${c.cliente}`,
-      descuento: 0,
-      precioCosto: 'NO',
-      pagos: [],
-      items: c.lineas.map((l) => ({
-        idInformeVentaDetalle: l.id,
-        idProducto: l.idProducto,
-        codigo: l.codigo,
-        nombre: l.nombre,
-        cantidad: l.cantidad,
-        precio: l.precio,
-        subTotal: l.subTotal,
-        descripcionOferta: l.descripcionOferta
-      }))
-    };
+    if (!c.ticket) return;
+    this.ticket = c.ticket;
     this.ticketPendiente = c.saldo;
     setTimeout(() => {
       try {
@@ -1191,7 +1173,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   private imprimirVenta(id: number, total: number): void {
     this.api.venta(id).subscribe({
       next: (venta) => {
-        this.ticket = venta;
+        this.ticket = venta.ticket ?? null;
         setTimeout(() => {
           try {
             window.print();

@@ -41,15 +41,19 @@ public static class ServicioCobro
         decimal? costo = producto?.Costo;
         var precioLibre = producto == null || producto.ProductoSector || producto.EsGenerico;
         var oferta = precioLibre ? null : ServicioOfertas.Aplicable(pedido, producto!.Id);
+        var precioOferta = ServicioOfertas.PrecioUnitarioConOferta(oferta, producto?.Precio ?? 0, item.Cantidad);
+        var costoOferta = pedido.CobrarAlCosto ? ServicioOfertas.PrecioConOferta(oferta, costo ?? 0) : costo ?? 0;
         var precio = PrecioVenta.PrecioUnitario(
-            ServicioOfertas.PrecioUnitarioConOferta(oferta, producto?.Precio ?? 0, item.Cantidad),
-            pedido.CobrarAlCosto ? ServicioOfertas.PrecioConOferta(oferta, costo ?? 0) : costo ?? 0,
+            precioOferta,
+            costoOferta,
             pedido.DescuentoPorcentaje,
             pedido.CobrarAlCosto,
             precioLibre,
             item.PrecioUnitario);
         var cobradas = ServicioOfertas.CantidadCobrada(oferta, item.Cantidad);
-        var sub = Math.Round(precio * cobradas, 2, MidpointRounding.AwayFromZero);
+        var sub = Redondear(precio * cobradas);
+        var precioBase = PrecioBase(producto, precioLibre, pedido.CobrarAlCosto, item.PrecioUnitario);
+        var conOferta = precioLibre || pedido.CobrarAlCosto ? sub : Redondear(precioOferta * cobradas);
 
         return new LineaVenta
         {
@@ -60,9 +64,21 @@ public static class ServicioCobro
             Precio = precio,
             Costo = costo,
             SubTotal = sub,
-            DescripcionOferta = ServicioOfertas.Descripcion(oferta)
+            DescripcionOferta = ServicioOfertas.Descripcion(oferta),
+            PrecioBase = precioBase,
+            AhorroOferta = Redondear(precioBase * item.Cantidad) - conOferta,
+            AhorroDescuento = conOferta - sub
         };
     }
+
+    /// <summary>Precio unitario antes de ofertas y descuento: lista, costo si se cobra al costo, o el de caja si es libre.</summary>
+    private static decimal PrecioBase(Producto? producto, bool precioLibre, bool alCosto, decimal precioEnCaja)
+    {
+        if (precioLibre) return Redondear(precioEnCaja);
+        return Redondear(alCosto ? producto!.Costo : producto!.Precio);
+    }
+
+    private static decimal Redondear(decimal valor) => Math.Round(valor, 2, MidpointRounding.AwayFromZero);
 
     private static void DescontarStock(Producto? producto, decimal cantidad, bool stockRigido)
     {

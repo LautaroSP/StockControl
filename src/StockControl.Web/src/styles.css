@@ -321,6 +321,7 @@ table.data tr:hover td { background: var(--table-hover); }
 table.data tr.low td { background: var(--low); }
 table.data tr.selected td { background: var(--table-selected); }
 table.data tr.clickable { cursor: pointer; }
+.tabla-scroll { overflow-x: auto; }
 .num {
   text-align: left;
   font-variant-numeric: tabular-nums;
@@ -480,19 +481,23 @@ table.data tr.clickable { cursor: pointer; }
   font-size: 12px;
   line-height: 1.35;
 }
-.ticket-print h1 {
-  margin: 0 0 8px;
-  font-size: 14px;
-  text-align: center;
-  color: #000;
-}
-.ticket-print p { margin: 4px 0; color: #000; }
-.ticket-linea { margin: 8px 0; }
+.ticket-print * { color: #000; }
+.ticket-print p { margin: 2px 0; }
+.ticket-cabecera { text-align: center; }
+.ticket-cabecera h1 { margin: 0 0 4px; font-size: 1.4em; font-weight: 700; }
+.ticket-sep { border-top: 1px dashed #000; margin: 6px 0; }
+.ticket-linea { margin: 4px 0; }
+.ticket-nombre { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ticket-fila { display: flex; justify-content: space-between; gap: 8px; }
-.ticket-total { margin-top: 10px; font-weight: 700; }
-.ticket-pos58 { width: 58mm; page: ticket-pos58; }
-.ticket-pos80 { width: 80mm; page: ticket-pos80; }
-.ticket-a4 { width: 180mm; max-width: 100%; page: ticket-a4; }
+.ticket-detalle, .ticket-ahorro { padding-left: 1.5ch; }
+.ticket-importe { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.ticket-total { font-size: 1.4em; font-weight: 700; }
+.ticket-pendiente { font-weight: 700; }
+.ticket-pie { margin-top: 8px; text-align: center; }
+.ticket-legal { margin-top: 6px; font-weight: 700; }
+.ticket-pos58 { width: 58mm; font-size: 11px; page: ticket-pos58; }
+.ticket-pos80 { width: 80mm; font-size: 12px; page: ticket-pos80; }
+.ticket-a4 { width: 180mm; max-width: 100%; font-size: 14px; page: ticket-a4; }
 
 @page ticket-pos58 { size: 58mm auto; margin: 2mm; }
 @page ticket-pos80 { size: 80mm auto; margin: 3mm; }
@@ -868,3 +873,76 @@ html.tema-suave .reel-track {
   .carteles-print, .orden-print { display: block !important; }
   :has(> .orden-print) > :not(.orden-print) { display: none !important; }
 }
+
+.tienda { min-height: 100vh; background: var(--paper); padding: 0 6vw 40px; }
+.tienda-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 18px;
+}
+.tienda-cabecera h1 { margin: 0; font-size: 26px; }
+.tienda-aviso { padding: 28px; text-align: center; }
+.tienda-aviso h2 { margin: 0; font-size: 20px; font-weight: 600; }
+.tienda-datos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 14px; margin-bottom: 18px; }
+.tienda-datos p { margin: 0 0 8px; }
+.tienda-mapa { padding: 10px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.tienda-filtros { margin-bottom: 14px; }
+.tienda-productos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.tienda-productos li { padding: 14px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.tienda-nombre { font-weight: 600; }
+.tienda-precio { font-size: 18px; font-variant-numeric: tabular-nums; }
+.tienda-foto {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  border-radius: 8px;
+  background: var(--paper);
+}
+.tienda-foto-vacia { display: flex; align-items: center; justify-content: center; color: var(--ink-soft); font-size: 13px; }
+.tienda-miniaturas { display: flex; gap: 6px; }
+.tienda-miniaturas button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+}
+.tienda-miniaturas button.activa { border-color: var(--forest-mid); font-weight: 600; }
+.tienda-atribucion { font-size: 11px; color: var(--ink-soft); }
+.tienda-paginas { justify-content: center; margin-top: 18px; }
+
+.imagenes-lista { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.imagenes-lista > li { border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.imagenes-apartado { margin-top: 10px; display: grid; gap: 10px; }
+.imagenes-propuesta { border: 1px dashed var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 8px; justify-items: start; }
+.imagenes-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.imagen-slot { display: grid; gap: 6px; justify-items: start; }
+.imagen-previa { width: 160px; height: 160px; object-fit: contain; border-radius: 8px; background: var(--paper); border: 1px solid var(--line); }
+.imagen-vacia { display: flex; align-items: center; justify-content: center; color: var(--ink-soft); font-size: 13px; }
+@media (max-width: 800px) { .tienda-datos { grid-template-columns: 1fr; } }
+
+.mapa { width: 100%; height: 260px; border-radius: 8px; z-index: 0; }
+.marcador-tienda span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--charge);
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+}
+.mapa .leaflet-control-attribution { font-size: 11px; }

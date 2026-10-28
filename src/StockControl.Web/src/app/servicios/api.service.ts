@@ -16,6 +16,78 @@ export interface ProductoDto {
   fechaModificacion?: string | null;
   usuarioModificacion?: string | null;
   puedeModificarPrecio?: boolean;
+  publicado?: boolean;
+  publicable?: boolean;
+}
+
+export type EstadoTienda = 'inactiva' | 'activa' | 'pausada';
+
+export type VistaTienda = 'catalogo' | 'pausada' | 'cerrada';
+
+export interface ConfiguracionTiendaDto {
+  alias: string;
+  estado: EstadoTienda;
+  direccion: string;
+  horario: string;
+  whatsApp: string;
+  haceEnvios: boolean;
+  latitud: number | null;
+  longitud: number | null;
+}
+
+export interface LugarEncontradoDto {
+  nombre: string;
+  latitud: number;
+  longitud: number;
+}
+
+export interface TiendaPublicaDto {
+  alias: string;
+  nombre: string;
+  vista: VistaTienda;
+  horario: string;
+  direccion: string;
+  whatsApp: string;
+  haceEnvios: boolean;
+  latitud: number | null;
+  longitud: number | null;
+  grupos: { id: number; nombre: string }[];
+}
+
+export interface ImagenTiendaDto {
+  id: number;
+  origen: string;
+  fuente: string;
+  enlace: string;
+  licencia: string;
+}
+
+export interface ProductoTiendaDto {
+  id: number;
+  codigo: string;
+  nombre: string;
+  precio: number;
+  idGrupo: number;
+  hayStock: boolean;
+  imagenes: ImagenTiendaDto[];
+}
+
+export interface ImagenProductoDto {
+  orden: number;
+  origen: string;
+  fuente: string;
+  enlace: string;
+  licencia: string;
+  datos: string | null;
+}
+
+export interface PropuestaImagenDto {
+  disponible: boolean;
+  sinRespuesta: boolean;
+  url: string;
+  fuente: string;
+  enlace: string;
+  licencia: string;
 }
 
 export type EstadoAbono = 'pendiente' | 'trial' | 'al_dia' | 'por_vencer' | 'vencido';
@@ -405,8 +477,9 @@ export class ApiService {
     return this.http.post<{ token: string }>(`${this.base}/locales/${id}/entrar`, {});
   }
 
-  productos(q = '', opts?: { sector?: boolean; codigo?: string; idGrupo?: number; sinGrupo?: boolean; stockBajo?: boolean; idProveedor?: number }) {
+  productos(q = '', opts?: { sector?: boolean; codigo?: string; idGrupo?: number; sinGrupo?: boolean; stockBajo?: boolean; idProveedor?: number; publicado?: boolean }) {
     let params = new HttpParams().set('tamano', 100);
+    if (opts?.publicado !== undefined) params = params.set('publicado', String(opts.publicado));
     if (opts?.idProveedor) params = params.set('idProveedor', String(opts.idProveedor));
     if (q) params = params.set('q', q);
     if (opts?.codigo) params = params.set('codigo', opts.codigo);
@@ -746,6 +819,60 @@ export class ApiService {
     return this.http.put<{ recalculados: number }>(`${this.base}/configuracion/local`, configuracion);
   }
 
+  configuracionTienda() {
+    return this.http.get<ConfiguracionTiendaDto & { vista: VistaTienda | null; publicados: number; conImagen: number }>(`${this.base}/configuracion/tienda`);
+  }
+
+  guardarConfiguracionTienda(tienda: ConfiguracionTiendaDto) {
+    return this.http.put<{ alias: string; estado: EstadoTienda; vista: VistaTienda | null }>(`${this.base}/configuracion/tienda`, tienda);
+  }
+
+  buscarUbicacion(q: string) {
+    return this.http.get<LugarEncontradoDto[]>(`${this.base}/configuracion/tienda/ubicacion`, { params: new HttpParams().set('q', q) });
+  }
+
+  publicarProductos(ids: number[], publicado: boolean) {
+    return this.http.put<{ actualizados: number }>(`${this.base}/productos/publicados`, { ids, publicado });
+  }
+
+  imagenesProducto(id: number) {
+    return this.http.get<{ publicado: boolean; maximo: number; imagenes: ImagenProductoDto[] }>(`${this.base}/productos/${id}/imagenes`);
+  }
+
+  propuestaImagen(id: number) {
+    return this.http.get<PropuestaImagenDto>(`${this.base}/productos/${id}/imagenes/propuesta`);
+  }
+
+  aceptarPropuestaImagen(id: number, orden: number) {
+    return this.http.post<{ orden: number }>(`${this.base}/productos/${id}/imagenes/propuesta/aceptar`, { orden });
+  }
+
+  subirImagenProducto(id: number, orden: number, imagen: string, rechazada?: string) {
+    return this.http.put<{ orden: number }>(`${this.base}/productos/${id}/imagenes/${orden}`, { imagen, rechazada: rechazada ?? null });
+  }
+
+  borrarImagenProducto(id: number, orden: number) {
+    return this.http.delete<void>(`${this.base}/productos/${id}/imagenes/${orden}`);
+  }
+
+  urlImagenTienda(alias: string, idImagen: number): string {
+    return `${this.base}/tienda/${encodeURIComponent(alias)}/imagenes/${idImagen}`;
+  }
+
+  tienda(alias: string) {
+    return this.http.get<TiendaPublicaDto>(`${this.base}/tienda/${encodeURIComponent(alias)}`);
+  }
+
+  productosTienda(alias: string, opts: { q?: string; idGrupo?: number; pagina?: number }) {
+    let params = new HttpParams().set('pagina', String(opts.pagina ?? 1));
+    if (opts.q) params = params.set('q', opts.q);
+    if (opts.idGrupo) params = params.set('idGrupo', String(opts.idGrupo));
+    return this.http.get<{ total: number; pagina: number; tamano: number; items: ProductoTiendaDto[] }>(
+      `${this.base}/tienda/${encodeURIComponent(alias)}/productos`,
+      { params }
+    );
+  }
+
   cerrarCaja(fecha?: string, desglose: 'medio' | 'usuario' = 'medio', todas = false) {
     return this.http.post<{
       idCierre: number;
@@ -1042,6 +1169,31 @@ export interface VentaDetalleDto {
     subTotal: number;
     descripcionOferta?: string;
   }[];
+  ticket?: TicketDto | null;
+}
+
+export interface AhorroTicketDto {
+  descripcion: string;
+  importe: number;
+}
+
+export interface LineaTicketDto {
+  nombre: string;
+  cantidad: number;
+  precio: number;
+  subTotal: number;
+  ahorro: AhorroTicketDto | null;
+  nota: string;
+}
+
+export interface TicketDto {
+  fecha: string;
+  nroCaja: number | null;
+  lineas: LineaTicketDto[];
+  ahorros: AhorroTicketDto[];
+  total: number;
+  medios: { descripcion: string; importe: number }[];
+  items: number;
 }
 
 export interface CajaListaDto {
@@ -1197,5 +1349,6 @@ export interface CuentaDto extends CuentaListaDto {
   usuarioIncobrable: string;
   lineas: { id: number; idProducto: number | null; codigo: string; nombre: string; cantidad: number; precio: number; subTotal: number; descripcionOferta: string }[];
   pagos: { id: number; fecha: string; importe: number; idInformeVenta: number | null }[];
+  ticket?: TicketDto | null;
 }
 

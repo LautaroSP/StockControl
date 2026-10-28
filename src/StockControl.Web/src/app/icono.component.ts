@@ -81,6 +81,15 @@ import { Component, Input } from '@angular/core';
           <rect x="4" y="5" width="16" height="12" rx="1.5" />
           <path d="M8 20h8M9 17l2-3 2 2 2-3 2 4" />
         }
+        @case ('tienda') {
+          <path d="M4 9.5 5.5 4h13L20 9.5a2.7 2.7 0 0 1-5.3 0 2.7 2.7 0 0 1-5.4 0 2.7 2.7 0 0 1-5.3 0z" />
+          <path d="M5.5 12v8h13v-8M10 20v-4.5h4V20" />
+        }
+        @case ('imagenes') {
+          <rect x="4" y="5" width="16" height="14" rx="1.5" />
+          <circle cx="9" cy="10" r="1.5" />
+          <path d="m4 17 5-4.5 3.5 3 2.5-2 5 3.5" />
+        }
         @case ('check') {
           <circle cx="12" cy="12" r="9" />
           <path d="M8 12.5 10.5 15 16 9.5" />

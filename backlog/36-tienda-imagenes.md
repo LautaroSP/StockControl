@@ -8,7 +8,7 @@
 
 Cada producto publicado puede tener hasta **2 imágenes**. En el panel de la tienda hay un apartado de imagen por producto. El sistema **propone** imágenes a partir del código de barras; el dueño las acepta o sube las propias.
 
-## Apartado de imagen (panel de la tienda)
+## Apartado de imagen (Tienda › Imágenes de productos, tarjeta 50)
 
 Por cada producto publicado:
 
@@ -43,14 +43,14 @@ Por cada producto publicado:
 
 - [ ] Cada producto publicado tiene un apartado de imagen con el aviso de origen.
 - [ ] Con código de barras, se propone la imagen de Open Food Facts; con **Aceptar** el servidor la descarga y la guarda.
-- [ ] **Subir propia** permite cargar un archivo; se rechaza lo que no sea JPG, PNG o WebP reales o pese de más.
-- [ ] Sin código de barras o sin resultado, solo «Subir propia».
-- [ ] Si Open Food Facts no responde, el apartado sigue funcionando.
-- [ ] Hasta 2 imágenes por producto, en 400 × 400 px como máximo.
-- [ ] La atribución de la imagen aceptada se muestra en la tienda.
-- [ ] Una propuesta rechazada no se vuelve a ofrecer.
-- [ ] Una imagen de producto no publicado o de otro local no se sirve.
-- [ ] Tests xUnit: propuesta solo con código de barras, aceptar guarda con atribución, rechazar no la repite, tope de 2, tipo real inválido, peso máximo, imagen de producto no publicado no disponible, caída de la fuente no rompe.
+- [x] **Subir propia** permite cargar un archivo; se rechaza lo que no sea JPG, PNG o WebP reales o pese de más.
+- [ ] Sin código de barras o sin resultado, solo «Subir propia». *(código y tests listos; falta verlo en el navegador)*
+- [x] Si Open Food Facts no responde, el apartado sigue funcionando.
+- [x] Hasta 2 imágenes por producto, en 400 × 400 px como máximo.
+- [ ] La atribución de la imagen aceptada se muestra en la tienda. *(código listo; falta verlo en el navegador)*
+- [x] Una propuesta rechazada no se vuelve a ofrecer.
+- [x] Una imagen de producto no publicado o de otro local no se sirve.
+- [x] Tests xUnit: propuesta solo con código de barras, aceptar guarda con atribución, rechazar no la repite, tope de 2, tipo real inválido, peso máximo, imagen de producto no publicado no disponible, caída de la fuente no rompe.
 
 ## Fuera de v1
 

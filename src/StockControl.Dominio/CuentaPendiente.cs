@@ -27,7 +27,7 @@ public class CuentaPendiente
     public List<PagoCuenta> Pagos { get; set; } = new();
 }
 
-public class LineaCuenta
+public class LineaCuenta : ILineaVendida
 {
     public int Id { get; set; }
     public int IdLocal { get; set; }
@@ -40,6 +40,11 @@ public class LineaCuenta
     public decimal? Costo { get; set; }
     public decimal SubTotal { get; set; }
     public string DescripcionOferta { get; set; } = "";
+    public decimal? PrecioBase { get; set; }
+    public decimal AhorroOferta { get; set; }
+    public decimal AhorroDescuento { get; set; }
+    public decimal AhorroCombo { get; set; }
+    public string NombreCombo { get; set; } = "";
 }
 
 public class PagoCuenta

@@ -9,18 +9,19 @@ import { SesionService } from '../servicios/sesion.service';
 import { IconoComponent } from '../icono.component';
 import { TemaComponent } from '../tema.component';
 
-type Grupo = 'reportes' | 'administracion' | 'configuracion';
+type Grupo = 'reportes' | 'tienda' | 'administracion' | 'configuracion';
 
 const CLAVE_GRUPOS = 'sc-barra-grupos';
 
 const RUTAS_GRUPO: Record<Grupo, string[]> = {
   reportes: ['/informes', '/cajas', '/estadisticas'],
+  tienda: ['/mi-tienda'],
   administracion: ['/proveedores', '/usuarios'],
   configuracion: ['/configuracion', '/medios-pago', '/activar']
 };
 
 function leerGrupos(): Record<Grupo, boolean> {
-  const cerrados = { reportes: false, administracion: false, configuracion: false };
+  const cerrados = { reportes: false, tienda: false, administracion: false, configuracion: false };
   try {
     return { ...cerrados, ...JSON.parse(localStorage.getItem(CLAVE_GRUPOS) ?? '{}') };
   } catch {
@@ -69,6 +70,19 @@ function leerGrupos(): Record<Grupo, boolean> {
                 <a routerLink="/estadisticas" routerLinkActive="active"><sc-icono nombre="estadisticas" /> Estadísticas</a>
               }
             </div>
+          }
+
+          @if (sesion.puedeConfigurarLocal()) {
+            <button class="nav-grupo" type="button" [attr.aria-expanded]="abierto('tienda')" (click)="alternar('tienda', $event)">
+              Tienda <span class="flecha">▸</span>
+            </button>
+            @if (abierto('tienda')) {
+              <div class="nav-sub">
+                <a routerLink="/mi-tienda" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"><sc-icono nombre="tienda" /> Tienda online</a>
+                <a routerLink="/mi-tienda/configuracion" routerLinkActive="active"><sc-icono nombre="configuracion" /> Configuración</a>
+                <a routerLink="/mi-tienda/imagenes" routerLinkActive="active"><sc-icono nombre="imagenes" /> Imágenes de productos</a>
+              </div>
+            }
           }
 
           @if (sesion.puedeGestionarProveedores() || sesion.puedeGestionarUsuarios()) {

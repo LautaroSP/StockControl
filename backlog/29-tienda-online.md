@@ -23,11 +23,11 @@ La tienda viene **incluida** en los $ 14.999 por mes del local. No hay abono ext
 ## Tienda (comprador)
 
 - Sin autenticación. La ruta Angular es lazy y pública.
-- Datos visibles: nombre del local, dirección, horario, WhatsApp, si hace envíos o solo retiro.
+- Datos visibles: nombre del local, dirección, horario, WhatsApp, si hace envíos o solo retiro. Esos datos **no existen todavía**: se agregan al local y el dueño los carga en Configuración.
 - **Mapa** con la ubicación del local (ver Mapa).
-- Buscador por nombre y código. Filtro por categoría si existe.
+- Buscador por nombre y código. Filtro por **grupo de producto** (no hay otra categoría).
 - Listado paginado con tope. Cada producto: nombre, precio y si hay stock (sin cantidad exacta).
-- Pie: términos y privacidad de la tienda y **botón de arrepentimiento** (Res. 424/2020).
+- Pie con términos, privacidad y **botón de arrepentimiento** (Res. 424/2020): **se arma después**, cuando haya textos legales. No se inventan. Hasta entonces la tienda no se abre al público real.
 - Modo oscuro y estilos del resto del sitio.
 
 ## Mapa
@@ -43,11 +43,12 @@ La tienda viene **incluida** en los $ 14.999 por mes del local. No hay abono ext
 
 ## Panel del local (dueño)
 
-- Activar o pausar la tienda. Pausada: se ve el catálogo, no recibe pedidos.
+- Activar o pausar la tienda. Pausada: sin catálogo, una página con «En este momento la tienda no se encuentra disponible, intentá en los horarios {Horario}». Sin horario cargado, solo la primera parte.
 - Elegir alias y datos visibles.
 - Elegir qué productos se publican. Por defecto ninguno.
 - Producto sector y genérico **no** se publican: no tienen precio fijo.
-- Abono vencido: la tienda se pausa sola.
+- Abono vencido o pendiente: la tienda activa muestra la página **«Tienda temporalmente cerrada»**, sin catálogo. Se calcula al leer, como el estado del abono (02).
+- El precio que se muestra es el de lista. Las ofertas en la tienda van con el carrito (37).
 
 ## Seguridad
 
@@ -62,20 +63,23 @@ La tienda viene **incluida** en los $ 14.999 por mes del local. No hay abono ext
 
 ## Criterios de aceptación
 
-- [ ] Dueño elige un alias único; el sistema rechaza repetidos, reservados y con caracteres inválidos.
-- [ ] `/tienda/{alias}` abre el catálogo del local a cualquier persona, sin login.
-- [ ] Un dueño con varios locales tiene una URL distinta por local.
-- [ ] Alias inexistente o tienda sin activar muestran el mismo 404.
-- [ ] Dueño activa o pausa la tienda y publica u oculta productos; sector y genérico no se pueden publicar.
-- [ ] La tienda pública muestra solo productos publicados, con buscador, filtro y paginado.
-- [ ] El endpoint público no devuelve costo, stock exacto ni datos de otro local.
-- [ ] Dueño marca la ubicación del local (búsqueda de dirección o marcador) y se guardan latitud y longitud.
-- [ ] La tienda muestra el mapa de OpenStreetMap con el marcador, «Cómo llegar» y la atribución.
-- [ ] Sin ubicación, la tienda no muestra el mapa y sigue andando.
-- [ ] Tienda pausada si el abono está vencido.
-- [ ] Pie con términos, privacidad y botón de arrepentimiento.
-- [ ] Rate limit en los endpoints públicos.
-- [ ] Tests xUnit: alias único, reservado e inválido; latitud y longitud dentro de rango; sin ubicación no hay mapa; tienda inactiva no resuelve; solo productos publicados; sector/genérico no publicables; abono vencido pausa la tienda; un local no ve productos de otro.
+- [x] Dueño elige un alias único; el sistema rechaza repetidos, reservados y con caracteres inválidos.
+- [x] `/tienda/{alias}` abre el catálogo del local a cualquier persona, sin login.
+- [x] Un dueño con varios locales tiene una URL distinta por local.
+- [x] Alias inexistente o tienda sin activar muestran el mismo 404.
+- [x] Dueño activa o pausa la tienda y publica u oculta productos; sector y genérico no se pueden publicar.
+- [x] La tienda pública muestra solo productos publicados, con buscador, filtro y paginado.
+- [x] El endpoint público no devuelve costo, stock exacto ni datos de otro local.
+- [x] Dueño marca la ubicación del local (búsqueda de dirección o marcador) y se guardan latitud y longitud.
+- [x] La tienda muestra el mapa de OpenStreetMap con el marcador, «Cómo llegar» y la atribución.
+- [x] Sin ubicación, la tienda no muestra el mapa y sigue andando.
+- [x] Abono vencido o pendiente: «Tienda temporalmente cerrada», sin catálogo.
+- [x] Tienda pausada por el dueño: página «no se encuentra disponible» con el horario, sin catálogo.
+- [x] Dueño carga dirección, horario, WhatsApp y si hace envíos; se ven en la tienda.
+- [x] El filtro por grupo de producto funciona en la tienda pública.
+- [ ] (Diferido) Pie con términos, privacidad y botón de arrepentimiento, cuando haya textos legales.
+- [x] Rate limit en los endpoints públicos.
+- [x] Tests xUnit: alias único, reservado e inválido; latitud y longitud dentro de rango; sin ubicación no hay mapa; tienda inactiva no resuelve; solo productos publicados; sector/genérico no publicables; abono vencido o pendiente cierra la tienda; un local no ve productos de otro.
 
 ## Fuera de v1
 

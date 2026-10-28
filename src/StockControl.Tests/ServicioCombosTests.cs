@@ -41,7 +41,16 @@ public class ServicioCombosTests
         var r = Cobrar(2, 1, Combo(12000));
 
         Assert.Equal(12000, r.Total);
-        Assert.All(r.Lineas, l => Assert.Equal("Combo", l.DescripcionOferta));
+        Assert.All(r.Lineas, l => Assert.Equal("2 Coca + Fernet", l.NombreCombo));
+    }
+
+    [Fact]
+    public void Combo_guarda_su_ahorro_en_las_lineas()
+    {
+        var r = Cobrar(2, 1, Combo(12000));
+
+        Assert.Equal(2000, r.Lineas.Sum(l => l.AhorroCombo));
+        Assert.All(r.Lineas, l => Assert.Equal(l.PrecioBase * l.Cantidad - l.AhorroCombo, l.SubTotal));
     }
 
     [Fact]
@@ -66,7 +75,7 @@ public class ServicioCombosTests
         var r = Cobrar(1, 1, Combo(12000));
 
         Assert.Equal(12000, r.Total);
-        Assert.All(r.Lineas, l => Assert.Equal("", l.DescripcionOferta));
+        Assert.All(r.Lineas, l => Assert.Equal("", l.NombreCombo));
     }
 
     [Fact]

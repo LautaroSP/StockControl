@@ -491,3 +491,54 @@ public class DebitoPedido
     [Required, MaxLength(200)]
     public string MailPagador { get; set; } = "";
 }
+
+public class TiendaPedido
+{
+    [MaxLength(ServicioTienda.LargoMaximoAlias)]
+    public string? Alias { get; set; }
+
+    [Required, MaxLength(20)]
+    public string Estado { get; set; } = ServicioTienda.Inactiva;
+
+    [MaxLength(ServicioTienda.LargoMaximoDato)]
+    public string? Direccion { get; set; }
+
+    [MaxLength(ServicioTienda.LargoMaximoDato)]
+    public string? Horario { get; set; }
+
+    [MaxLength(30)]
+    public string? WhatsApp { get; set; }
+
+    public bool HaceEnvios { get; set; }
+
+    [Range(-90, 90)]
+    public decimal? Latitud { get; set; }
+
+    [Range(-180, 180)]
+    public decimal? Longitud { get; set; }
+}
+
+public class PublicarProductosPedido
+{
+    [Required, MinLength(1), MaxLength(ServicioCatalogoTienda.MaximoPorVez)]
+    public List<int> Ids { get; set; } = new();
+
+    public bool Publicado { get; set; }
+}
+
+public class ImagenProductoPedido
+{
+    /// <summary>Base64 de la imagen (acepta el prefijo data:image/...;base64,).</summary>
+    [Required]
+    public string Imagen { get; set; } = "";
+
+    /// <summary>Dirección de la propuesta que el dueño descartó al subir la propia.</summary>
+    [MaxLength(500)]
+    public string? Rechazada { get; set; }
+}
+
+public class AceptarImagenPedido
+{
+    [Range(1, ServicioImagenesTienda.MaximoPorProducto)]
+    public int Orden { get; set; } = 1;
+}

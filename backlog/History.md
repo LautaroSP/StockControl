@@ -8,7 +8,7 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 
 ## Siguiente
 
-**#29 · 29 Tienda: URL pública y catálogo**
+**#37 · 50 Tienda: panel** (falta probarla en el navegador; después se cierra la 36 en su pantalla final)
 
 ## Tablero
 
@@ -49,22 +49,45 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 | 33 | 33 | [Guardar ticket sin vender](33-ticket-sin-venta.md) | sí | Pedido en espera del puesto de caja. No mueve stock ni entra en la caja. Cobrar lo borra en la misma transacción; la otra pestaña recibe aviso. Volver a guardar un pedido cargado lo reemplaza. Requiere migración `PedidosEspera` |
 | 34 | 34 | [Configurar ofertas](34-ofertas.md) | sí | Pantalla Ofertas del dueño. Descuento de 1 a 99 % o llevás N y pagás M, con fechas en día de Argentina. Cada oferta elige si el descuento de caja o al costo la deshabilitan, y si la caja puede no aplicarla. El detalle de la venta guarda la oferta. Requiere migraciones `Ofertas` y `OpcionesOferta` |
 | 35 | 35 | [Cuentas pendientes](35-cuentas-pendientes.md) | sí | Dejar a cuenta desde la caja y pantalla Cuentas. Cada pago es una venta de una línea `CUENTA-` con ganancia proporcional. Anular ese pago devuelve el saldo. Incobrable queda en la cuenta. Requiere migración `CuentasPendientes` |
-| 36 | 29 | [Tienda: URL pública y catálogo](29-tienda-online.md) | no | Última etapa. `/tienda/{alias}` única por local, pública, sin login. Mapa OpenStreetMap con la ubicación del local. Publicar productos, activar/pausar |
-| 37 | 36 | [Tienda: imágenes](36-tienda-imagenes.md) | no | Propuesta por código de barras (Open Food Facts) con Aceptar o Subir propia. Hasta 2 por producto, 400 × 400 px |
-| 38 | 37 | [Tienda: carrito y pedido](37-tienda-carrito-pedido.md) | no | Retiro en el local, stock reservado, precio congelado, consulta sin cuenta |
-| 39 | 41 | [Tienda: panel de pedidos y avisos](41-tienda-panel-pedidos.md) | no | Estados, entregado = venta, campanita, Web Push, wa.me |
-| 40 | 38 | [Tienda: Mercado Pago y gestión](38-tienda-mercado-pago.md) | no | Checkout Pro con la cuenta MP de la 21. Gestión: importe fijo en Configuración |
-| 41 | 39 | [Tienda: transferencia](39-tienda-transferencia.md) | no | A confirmar con plazo del dueño; gestión suma al abono |
-| 42 | 40 | [Tienda: envío por km](40-tienda-envio-km.md) | no | Precio por km, mínimo, radio, gratis desde |
-| 43 | 45 | [Vista de cliente (web)](45-vista-cliente.md) | sí | Botón arriba del carrito: pestaña aparte para el cliente, al instante por `BroadcastChannel`. Muestra QR de MP y «Gracias» al cobrar |
-| 44 | 46 | [Vista de cliente (escritorio)](46-vista-cliente-escritorio.md) | parcial | Lo mismo en WinForms: ventana en el segundo monitor, atada a `CarritoSesion`. Hecha y compila; falta probarla en pantalla |
-| 45 | 42 | [Sesión: cortar el token](42-sesion-revocar-token.md) | no | Versión de sesión en el usuario y en el JWT. Cambiar rol o clave corta los tokens viejos. Emisor y audiencia |
-| 46 | 43 | [SQL injection](43-sql-injection.md) | no | Inventario de SQL crudo, regla contra `*Raw` con datos, escapar comodines de `ILike`, usuario de base sin privilegios |
-| 47 | 44 | [Auditoría de seguridad](44-auditoria-seguridad.md) | no | Última antes de producción. Informe con gravedad; lo crítico se corrige ahí. Incluye RLS, validación de contratos, CSP, CORS, secretos y dependencias |
-| 48 | 47 | [Mejorar los tickets](47-mejorar-tickets.md) | no | Combos y ofertas en línea aparte con el ahorro; cantidad × precio coincide con el subtotal. Sin orden definido: se puede mover antes de la tienda |
+| 36 | 29 | [Tienda: URL pública y catálogo](29-tienda-online.md) | sí | `/tienda/{alias}` pública, alias en Configuración, publicar desde Productos, mapa OSM con Nominatim. Pausada y abono vencido tienen su página. Pie legal (términos, privacidad, arrepentimiento) diferido hasta tener textos: sin eso no se abre al público real. Requiere migración `Tienda` |
+| 37 | 50 | [Tienda: panel](50-tienda-panel.md) | parcial | Grupo Tienda en la barra (dueño y socio): Tienda online (estado, link, publicados y con imagen), Configuración (sale de Configuración del local), Imágenes de productos. Pedidos lo suma la 41. Rutas `/mi-tienda/...` lazy con `tiendaGuard`. Falta probar en el navegador, modo oscuro y celular |
+| 38 | 36 | [Tienda: imágenes](36-tienda-imagenes.md) | parcial | Propuesta por código de barras (Open Food Facts) con Aceptar o Subir propia. Hasta 2 por producto, 400 × 400 px, WebP, SkiaSharp. Se prueba ya en Tienda › Imágenes de productos (50). Falta probarla en el navegador. Requiere migración `ImagenesTienda` y el volumen `Imagenes__Ruta` |
+| 39 | 49 | [Categorías de productos](49-categorias.md) | no | Pantalla Categorías del dueño. Opcional en el producto (una o ninguna). Borrar deja los productos sin categoría. En la tienda, seleccionables con «Todas»; se pueden marcar varias. Reemplaza el filtro por grupo. Sin subcategorías |
+| 40 | 37 | [Tienda: carrito y pedido](37-tienda-carrito-pedido.md) | no | Retiro en el local, stock reservado, precio congelado, consulta sin cuenta |
+| 41 | 41 | [Tienda: panel de pedidos y avisos](41-tienda-panel-pedidos.md) | no | Estados, entregado = venta, campanita, Web Push, wa.me |
+| 42 | 38 | [Tienda: Mercado Pago y gestión](38-tienda-mercado-pago.md) | no | Checkout Pro con la cuenta MP de la 21. Gestión: importe fijo en Configuración |
+| 43 | 39 | [Tienda: transferencia](39-tienda-transferencia.md) | no | A confirmar con plazo del dueño; gestión suma al abono |
+| 44 | 51 | [Tienda: gestión fuera de MP](51-tienda-gestion-fuera-mp.md) | no | Monto en pesos (no %), el configurable de la 38, inicial $ 1.000, en transferencia o efectivo; casilla para cobrarlo al comprador (tooltip ?) o lo paga el dueño; suma al próximo abono |
+| 45 | 40 | [Tienda: envío por km](40-tienda-envio-km.md) | no | Precio por km, mínimo, radio, gratis desde |
+| 46 | 45 | [Vista de cliente (web)](45-vista-cliente.md) | sí | Botón arriba del carrito: pestaña aparte para el cliente, al instante por `BroadcastChannel`. Muestra QR de MP y «Gracias» al cobrar |
+| 47 | 46 | [Vista de cliente (escritorio)](46-vista-cliente-escritorio.md) | sí | Ventana normal en el segundo monitor (recuerda cuál), atada a `CarritoSesion` vía `CalcularTotal`. Lo nuevo arriba. Sin test: es WinForms |
+| 48 | 42 | [Sesión: cortar el token](42-sesion-revocar-token.md) | no | Versión de sesión en el usuario y en el JWT. Cambiar rol o clave corta los tokens viejos. Emisor y audiencia |
+| 49 | 43 | [SQL injection](43-sql-injection.md) | no | Inventario de SQL crudo, regla contra `*Raw` con datos, escapar comodines de `ILike`, usuario de base sin privilegios |
+| 50 | 44 | [Auditoría de seguridad](44-auditoria-seguridad.md) | no | Última antes de producción. Informe con gravedad; lo crítico se corrige ahí. Incluye RLS, validación de contratos, CSP, CORS, secretos y dependencias |
+| 51 | 47 | [Mejorar los tickets](47-mejorar-tickets.md) | parcial | Ahorros guardados por línea y ticket armado en `ServicioTicket`; diseño de impresión nuevo. Falta probar la impresión en POS-58, POS-80 y A4. Requiere migración `AhorrosVenta` |
+| 52 | 48 | [Legales](48-legales.md) | no | Términos del servicio, privacidad (Ley 25.326), arrepentimiento y baja (consumidor), términos de la tienda, aceptación con versión. Faltan los datos del titular. Antes de producción y de abrir la tienda al público |
 
 ## Log
 
+- 2026-10-27 · 50 Tienda: panel · parcial · Grupo Tienda en la barra, después de Reportes, para dueño y socio. `/mi-tienda` (resumen nuevo: estado, link con Copiar y Ver mi tienda, publicados y con imagen, aviso sin alias), `/mi-tienda/configuracion` (la sección que estaba en Configuración del local, sin imágenes) y `/mi-tienda/imagenes`. `tiendaGuard` en la ruta. Configuración del local deja un enlace a Tienda. `GET /configuracion/tienda` suma `conImagen`. Íconos tienda e imágenes. Sin test de dominio: no hay regla nueva. Falta probar en el navegador
+
+- 2026-10-26 · 51 Tienda: gestión fuera de MP · no · alta de tarjeta (monto en pesos, no %, configurable como en la 38 y con $ 1.000 inicial, por pedido en transferencia o efectivo; casilla «Incluir gasto de gestión» con tooltip (?): tildada se le suma al comprador, sin tildar la paga el dueño; la deuda se suma al próximo abono)
+
+- 2026-10-26 · 50 Tienda: panel · no · alta de tarjeta (grupo Tienda en la barra: Tienda online, Pedidos, Configuración, Imágenes de productos y después lo que venga; rutas `/mi-tienda/...`; va antes de cerrar la 36)
+- 2026-10-26 · 49 Categorías de productos · ajuste · La tienda permite marcar varias categorías (salen los productos de cualquiera). No va a haber subcategorías
+- 2026-10-26 · 49 Categorías de productos · no · alta de tarjeta (pantalla Categorías del dueño, opcional en el producto, filtro con seleccionables en la tienda que reemplaza al de grupo)
+- 2026-10-26 · 36 Tienda: imágenes · ajuste · Subir propia achica la foto en el navegador (canvas, 400 × 400, JPEG 85 %) antes de mandarla: acepta originales de hasta 20 MB y HEIC donde el navegador lo abre. El servidor mantiene el tope de 2 MB y vuelve a validar
+- 2026-10-26 · 36 Tienda: imágenes · parcial · `ServicioImagenesTienda` en el dominio (tope de 2, tipo real por bytes, 2 MB, 400 × 400 sin deformar ni agrandar, propuesta solo con código de barras, rechazadas, disponibilidad). `ClienteOpenFoodFacts` (foto frontal, solo el servidor de imágenes de OFF, sin redirecciones, tope de peso; si cae devuelve «sin respuesta»). `ProcesadorImagen` con SkiaSharp (MIT): valida, corrige el giro, achica y guarda en WebP. Archivos en un volumen (`Imagenes:Ruta`, fuera de git y de la base). Dueño: `/productos/{id}/imagenes` (ver, propuesta, aceptar, subir, quitar). Público: `/tienda/{alias}/imagenes/{id}` solo si el producto está publicado y la tienda abierta. Angular: apartado «Imágenes de la tienda» en Configuración; foto, miniaturas y atribución en la tienda. Requiere migración `ImagenesTienda`. Falta probarla en el navegador
+- 2026-10-26 · 48 Legales · no · alta de tarjeta (términos del servicio y de la tienda, privacidad, arrepentimiento, baja del abono, aceptación con versión; toda la web)
+- 2026-10-26 · 29 Tienda: URL pública y catálogo · sí · Probada por el usuario. Rutas de Angular pasan a carga bajo demanda (inicial de 617 kB a 322 kB). Productos: fecha y usuario de modificación en una columna y scroll propio de la tabla. Queda diferido el pie legal
+- 2026-10-26 · 29 Tienda: URL pública y catálogo · parcial · `Local` suma alias, estado, dirección, horario, WhatsApp, envíos y ubicación; `Producto` suma `Publicado`. `ServicioTienda` y `ServicioCatalogoTienda` con tests. Público: `GET /tienda/{alias}` y `/productos` (mismo 404, tope 60/min por IP, sin costo ni cantidad). Dueño: `/configuracion/tienda`, búsqueda en Nominatim (1 por segundo) y `PUT /productos/publicados`. Angular: ruta lazy `tienda/:alias`, sección Tienda en Configuración, columna Tienda en Productos, Leaflet lazy. Requiere migración `Tienda`. Falta probar en el navegador
+- 2026-10-26 · 29 Tienda: URL pública y catálogo · ajuste · Filtro por grupo de producto. Dirección, horario, WhatsApp y envíos se agregan al local. Términos, privacidad y arrepentimiento quedan para cuando haya textos legales
+- 2026-10-26 · 29 Tienda: URL pública y catálogo · ajuste · Precio de lista (ofertas con la 37). Abono vencido o pendiente: «Tienda temporalmente cerrada», sin catálogo
+- 2026-10-26 · 29 Tienda: URL pública y catálogo · ajuste · Pausada por el dueño: sin catálogo, «En este momento la tienda no se encuentra disponible, intentá en los horarios {Horario}»
+- 2026-10-26 · 47 Mejorar los tickets · parcial · La línea guarda `PrecioBase` y los ahorros de oferta, descuento y combo (con su nombre). `ServicioTicket` arma el ticket: oferta debajo de la línea, combos y descuento al final; ventas viejas como estaban. `/ventas/{id}` y la cuenta devuelven `ticket`. Informes y Cajas usan `sc-detalle-venta`. Ticket nuevo: encabezado con caja, separadores, importes alineados, total grande, medios aparte, pie con «Ticket no válido como factura». Requiere migración `AhorrosVenta`. Falta probar la impresión
+- 2026-10-26 · 47 Mejorar los tickets · ajuste · Suma el diseño de impresión: encabezado, separadores, importes encolumnados, total destacado, medios aparte, sin código de barras y al pie «Ticket no válido como factura»
+- 2026-10-26 · 47 Mejorar los tickets · ajuste · Análisis: se guarda precio de lista y ahorro de combo en la línea (migración `PreciosListaVenta`); el ticket lo arma `ServicioTicket` en el dominio. Oferta debajo de su línea; combos y descuento al final. Al costo muestra el precio cobrado, sin línea de ahorro
+- 2026-10-26 · 46 Vista de cliente (escritorio) · sí · Probada en pantalla por el usuario
 - 2026-10-25 · 45 Vista de cliente (web) · ajuste · Con «Cobrar al costo» muestra precio y subtotal cobrados. Lo último agregado queda arriba de la lista
 - 2026-10-25 · 46 Vista de cliente (escritorio) · ajuste · Fuente de las líneas un poco más chica. Lo último agregado queda arriba de la lista
 - 2026-10-25 · 46 Vista de cliente (escritorio) · ajuste · Siempre ventana normal (mover, achicar, cerrar), centrada en el monitor guardado o en el secundario. Con «Cobrar al costo» muestra precio y subtotal cobrados

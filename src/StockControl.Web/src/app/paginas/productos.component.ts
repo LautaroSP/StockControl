@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService, GrupoListaDto, ProductoDto } from '../servicios/api.service';
 import { SesionService } from '../servicios/sesion.service';
+import { DialogoService } from '../servicios/dialogo.service';
 
 @Component({
   selector: 'sc-productos',
@@ -38,9 +39,23 @@ import { SesionService } from '../servicios/sesion.service';
       @if (sesion.esDueno()) {
         <label class="check"><input type="checkbox" [(ngModel)]="agrupar" /> Agrupar</label>
       }
+      @if (sesion.puedeConfigurarLocal()) {
+        <select [ngModel]="tienda" (ngModelChange)="aplicarTienda($event)" aria-label="Filtrar por tienda">
+          <option value="">Tienda: todos</option>
+          <option value="si">Publicados</option>
+          <option value="no">No publicados</option>
+        </select>
+      }
       <span class="meta">{{ total }} en lista</span>
     </div>
-    <section class="panel">
+    @if (sesion.puedeConfigurarLocal()) {
+      <div class="row" style="margin-bottom:12px">
+        <button class="btn" type="button" [disabled]="publicablesVisibles().length === 0" (click)="publicarLista(true)">Publicar la lista en la tienda</button>
+        <button class="btn" type="button" [disabled]="visibles.length === 0" (click)="publicarLista(false)">Ocultar la lista de la tienda</button>
+        <span class="meta">Sector y genérico no se publican: no tienen precio fijo.</span>
+      </div>
+    }
+    <section class="panel tabla-scroll">
       <table class="data">
         <thead>
           <tr>
@@ -56,7 +71,9 @@ import { SesionService } from '../servicios/sesion.service';
               <th>Grupo</th>
             }
             <th>Última modificación</th>
-            <th>Usuario modificación</th>
+            @if (sesion.puedeConfigurarLocal()) {
+              <th>Tienda</th>
+            }
           </tr>
         </thead>
         <tbody>
@@ -89,8 +106,10 @@ import { SesionService } from '../servicios/sesion.service';
               @if (sesion.esDueno()) {
                 <td>{{ p.nombreGrupo || '—' }}</td>
               }
-              <td>{{ fechaHora(p.fechaModificacion) }}</td>
-              <td>{{ p.usuarioModificacion || '—' }}</td>
+              <td><ng-container [ngTemplateOutlet]="celdaModificacion" [ngTemplateOutletContext]="{ p: p }" /></td>
+              @if (sesion.puedeConfigurarLocal()) {
+                <td><ng-container [ngTemplateOutlet]="celdaTienda" [ngTemplateOutletContext]="{ p: p }" /></td>
+              }
             </tr>
           }
           }
@@ -102,8 +121,21 @@ import { SesionService } from '../servicios/sesion.service';
           @if (sesion.esDueno()) { <td class="num">{{ dinero(p.costo) }}</td> }
           <td class="num">{{ p.productoSector ? 'en caja' : dinero(p.precio) }}</td><td>{{ p.productoSector ? 'Sector' : 'Común' }}</td>
           @if (sesion.esDueno()) { <td>{{ p.nombreGrupo || '—' }}</td> }
-          <td>{{ fechaHora(p.fechaModificacion) }}</td><td>{{ p.usuarioModificacion || '—' }}</td>
+          <td><ng-container [ngTemplateOutlet]="celdaModificacion" [ngTemplateOutletContext]="{ p: p }" /></td>
+          @if (sesion.puedeConfigurarLocal()) {
+            <td><ng-container [ngTemplateOutlet]="celdaTienda" [ngTemplateOutletContext]="{ p: p }" /></td>
+          }
         </tr>
+      </ng-template>
+      <ng-template #celdaModificacion let-p="p">
+        {{ fechaHora(p.fechaModificacion) }}
+        <div class="meta">{{ p.usuarioModificacion || '—' }}</div>
+      </ng-template>
+      <ng-template #celdaTienda let-p="p">
+        <input type="checkbox" [checked]="p.publicado" [disabled]="!p.publicable && !p.publicado"
+               [attr.aria-label]="'Publicar ' + p.nombre + ' en la tienda'"
+               [title]="p.publicable ? 'Publicar en la tienda' : 'Sector y genérico no se publican'"
+               (click)="$event.stopPropagation()" (change)="publicar(p, $any($event.target).checked)" />
       </ng-template>
     </section>
     @if (sesion.esDueno()) {
@@ -195,6 +227,7 @@ export class ProductosComponent implements OnInit {
   tipo = '';
   grupo = '';
   stockBajo = false;
+  tienda = '';
   agrupar = false;
   umbralStockBajo = 5;
   puedeModificarPrecios = false;
@@ -221,7 +254,8 @@ export class ProductosComponent implements OnInit {
 
   constructor(
     private readonly api: ApiService,
-    readonly sesion: SesionService
+    readonly sesion: SesionService,
+    private readonly dialogo: DialogoService
   ) {}
 
   ngOnInit(): void {
@@ -271,7 +305,8 @@ export class ProductosComponent implements OnInit {
       sector,
       idGrupo: this.grupo && this.grupo !== 'sin' ? Number(this.grupo) : undefined,
       sinGrupo: this.grupo === 'sin',
-      stockBajo: this.stockBajo
+      stockBajo: this.stockBajo,
+      publicado: this.tienda === 'si' ? true : this.tienda === 'no' ? false : undefined
     }).subscribe({
       next: (r) => {
         this.productos = r.items;
@@ -297,6 +332,46 @@ export class ProductosComponent implements OnInit {
   aplicarGrupo(grupo: string): void {
     this.grupo = grupo;
     this.cargar();
+  }
+
+  aplicarTienda(tienda: string): void {
+    this.tienda = tienda;
+    this.cargar();
+  }
+
+  publicablesVisibles(): ProductoDto[] {
+    return this.visibles.filter((p) => p.publicable && !p.publicado);
+  }
+
+  publicar(p: ProductoDto, publicado: boolean): void {
+    this.api.publicarProductos([p.id], publicado).subscribe({
+      next: () => {
+        p.publicado = publicado;
+        this.error = '';
+        this.mostrar(publicado ? 'Publicado en la tienda' : 'Oculto en la tienda');
+      },
+      error: (err) => {
+        this.error = typeof err.error === 'string' ? err.error : 'No se pudo cambiar la publicación.';
+        this.cargar();
+      }
+    });
+  }
+
+  async publicarLista(publicado: boolean): Promise<void> {
+    const ids = (publicado ? this.publicablesVisibles() : this.visibles.filter((p) => p.publicado)).map((p) => p.id);
+    if (ids.length === 0) return;
+    const texto = publicado
+      ? `¿Publicar ${ids.length} productos de la lista en la tienda?`
+      : `¿Ocultar ${ids.length} productos de la lista de la tienda?`;
+    if (!await this.dialogo.confirmar(texto)) return;
+    this.api.publicarProductos(ids, publicado).subscribe({
+      next: (r) => {
+        this.error = '';
+        this.mostrar(`${r.actualizados} productos ${publicado ? 'publicados' : 'ocultos'}`);
+        this.cargar();
+      },
+      error: (err) => (this.error = typeof err.error === 'string' ? err.error : 'No se pudo cambiar la publicación.')
+    });
   }
 
   filtrar(): void {

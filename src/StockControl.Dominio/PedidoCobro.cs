@@ -9,7 +9,7 @@ public class ItemCarrito
     public decimal PrecioUnitario { get; set; }
 }
 
-public class LineaVenta
+public class LineaVenta : ILineaVendida
 {
     public int IdProducto { get; set; }
     public string Codigo { get; set; } = "";
@@ -19,6 +19,11 @@ public class LineaVenta
     public decimal? Costo { get; set; }
     public decimal SubTotal { get; set; }
     public string DescripcionOferta { get; set; } = "";
+    public decimal? PrecioBase { get; set; }
+    public decimal AhorroOferta { get; set; }
+    public decimal AhorroDescuento { get; set; }
+    public decimal AhorroCombo { get; set; }
+    public string NombreCombo { get; set; } = "";
 }
 
 public class PedidoCobro

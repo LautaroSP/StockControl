@@ -4,11 +4,12 @@ import { RouterLink } from '@angular/router';
 import { ApiService, CajaDetalleDto, CajaListaDto, GrupoUnificableDto, VentaDetalleDto, VentaListaDto } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
+import { DetalleVentaComponent } from './detalle-venta.component';
 
 @Component({
   selector: 'sc-cajas',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, DetalleVentaComponent],
   template: `
     <div class="topbar">
       <h1>Cajas cerradas</h1>
@@ -138,30 +139,7 @@ import { SesionService } from '../servicios/sesion.service';
         <div class="modal" style="max-width:520px">
           <h2 style="margin:0 0 8px;font-size:18px">Venta {{ hora(venta.fecha) }}</h2>
           <p class="meta">{{ venta.metodoPago }} · {{ dinero(venta.total) }}</p>
-          <table class="data">
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th class="num">Cant</th>
-                @if (sesion.esDueno()) {
-                  <th class="num">Costo</th>
-                }
-                <th class="num">Subt</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (i of venta.items; track i.idInformeVentaDetalle) {
-                <tr>
-                  <td>{{ i.nombre }}</td>
-                  <td class="num">{{ i.cantidad }}</td>
-                  @if (sesion.esDueno()) {
-                    <td class="num">{{ i.costo == null ? '—' : dinero(i.costo) }}</td>
-                  }
-                  <td class="num">{{ dinero(i.subTotal) }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
+          <sc-detalle-venta [venta]="venta" [verCosto]="sesion.esDueno()" />
           <div class="row" style="margin-top:12px">
             <button class="btn grow" type="button" (click)="venta = null">Cerrar</button>
           </div>

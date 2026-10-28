@@ -29,8 +29,10 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=stockcontrol;Username=stockcontrol;Password=stockcontrol
       DataProtection__Ruta: /claves
+      Imagenes__Ruta: /imagenes
     volumes:
       - claves_api:/claves
+      - imagenes_api:/imagenes
     depends_on:
       postgres:
         condition: service_healthy
@@ -69,5 +71,6 @@ services:
 volumes:
   stockcontrol_pg:
   claves_api:
+  imagenes_api:
   caddy_data:
   caddy_config:

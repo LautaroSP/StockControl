@@ -1,54 +1,47 @@
 import { Routes } from '@angular/router';
-import { adminGuard, cajaGuard, duenoGuard, localGuard, proveedoresGuard, sesionGuard } from './guards/sesion.guard';
-import { LoginComponent } from './paginas/login.component';
-import { LocalesComponent } from './paginas/locales.component';
-import { ElegirCajaComponent } from './paginas/elegir-caja.component';
-import { CajaComponent } from './paginas/caja.component';
-import { ProductosComponent } from './paginas/productos.component';
-import { EstadisticasComponent } from './paginas/estadisticas.component';
-import { CartelesComponent } from './paginas/carteles.component';
-import { InformesComponent } from './paginas/informes.component';
-import { CajasComponent } from './paginas/cajas.component';
-import { GruposComponent } from './paginas/grupos.component';
-import { ShellComponent } from './shell/shell.component';
-import { MediosPagoComponent } from './paginas/medios-pago.component';
-import { UsuariosComponent } from './paginas/usuarios.component';
-import { ConfiguracionComponent } from './paginas/configuracion.component';
-import { ProveedoresComponent } from './paginas/proveedores.component';
-import { ProveedorComponent } from './paginas/proveedor.component';
-import { CatalogoProveedorComponent } from './paginas/catalogo-proveedor.component';
+import { adminGuard, cajaGuard, duenoGuard, localGuard, proveedoresGuard, sesionGuard, tiendaGuard } from './guards/sesion.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', loadComponent: () => import('./paginas/landing.component').then((m) => m.LandingComponent) },
-  { path: 'login', component: LoginComponent },
+  { path: 'login', loadComponent: () => import('./paginas/login.component').then((m) => m.LoginComponent) },
   { path: 'registro', loadComponent: () => import('./paginas/registro.component').then((m) => m.RegistroComponent) },
   { path: 'confirmar', loadComponent: () => import('./paginas/confirmar.component').then((m) => m.ConfirmarComponent) },
   { path: 'contacto', loadComponent: () => import('./paginas/contacto.component').then(m => m.ContactoComponent) },
   { path: 'admin', loadComponent: () => import('./paginas/admin.component').then(m => m.AdminComponent), canActivate: [adminGuard] },
   { path: 'vista-cliente', loadComponent: () => import('./paginas/vista-cliente.component').then((m) => m.VistaClienteComponent) },
-  { path: 'locales', component: LocalesComponent, canActivate: [sesionGuard] },
-  { path: 'elegir-caja', component: ElegirCajaComponent, canActivate: [localGuard] },
+  { path: 'tienda/:alias', loadComponent: () => import('./paginas/tienda.component').then((m) => m.TiendaComponent) },
+  { path: 'locales', loadComponent: () => import('./paginas/locales.component').then((m) => m.LocalesComponent), canActivate: [sesionGuard] },
+  { path: 'elegir-caja', loadComponent: () => import('./paginas/elegir-caja.component').then((m) => m.ElegirCajaComponent), canActivate: [localGuard] },
   {
     path: '',
-    component: ShellComponent,
+    loadComponent: () => import('./shell/shell.component').then((m) => m.ShellComponent),
     canActivate: [cajaGuard],
     children: [
-      { path: 'caja', component: CajaComponent },
-      { path: 'productos', component: ProductosComponent },
-      { path: 'estadisticas', component: EstadisticasComponent, canActivate: [duenoGuard] },
-      { path: 'carteles', component: CartelesComponent, canActivate: [duenoGuard] },
+      { path: 'caja', loadComponent: () => import('./paginas/caja.component').then((m) => m.CajaComponent) },
+      { path: 'productos', loadComponent: () => import('./paginas/productos.component').then((m) => m.ProductosComponent) },
+      { path: 'estadisticas', loadComponent: () => import('./paginas/estadisticas.component').then((m) => m.EstadisticasComponent), canActivate: [duenoGuard] },
+      { path: 'carteles', loadComponent: () => import('./paginas/carteles.component').then((m) => m.CartelesComponent), canActivate: [duenoGuard] },
       { path: 'cuentas', loadComponent: () => import('./paginas/cuentas.component').then((m) => m.CuentasComponent) },
       { path: 'ofertas', loadComponent: () => import('./paginas/ofertas.component').then((m) => m.OfertasComponent), canActivate: [duenoGuard] },
       { path: 'combos', loadComponent: () => import('./paginas/combos.component').then((m) => m.CombosComponent), canActivate: [duenoGuard] },
-      { path: 'proveedores', component: ProveedoresComponent, canActivate: [proveedoresGuard] },
-      { path: 'proveedores/:id', component: ProveedorComponent, canActivate: [proveedoresGuard] },
-      { path: 'proveedores/:id/catalogo', component: CatalogoProveedorComponent, canActivate: [proveedoresGuard] },
-      { path: 'grupos', component: GruposComponent },
-      { path: 'informes', component: InformesComponent },
-      { path: 'cajas', component: CajasComponent },
-      { path: 'medios-pago', component: MediosPagoComponent },
-      { path: 'usuarios', component: UsuariosComponent },
-      { path: 'configuracion', component: ConfiguracionComponent },
+      { path: 'proveedores', loadComponent: () => import('./paginas/proveedores.component').then((m) => m.ProveedoresComponent), canActivate: [proveedoresGuard] },
+      { path: 'proveedores/:id', loadComponent: () => import('./paginas/proveedor.component').then((m) => m.ProveedorComponent), canActivate: [proveedoresGuard] },
+      { path: 'proveedores/:id/catalogo', loadComponent: () => import('./paginas/catalogo-proveedor.component').then((m) => m.CatalogoProveedorComponent), canActivate: [proveedoresGuard] },
+      { path: 'grupos', loadComponent: () => import('./paginas/grupos.component').then((m) => m.GruposComponent) },
+      { path: 'informes', loadComponent: () => import('./paginas/informes.component').then((m) => m.InformesComponent) },
+      { path: 'cajas', loadComponent: () => import('./paginas/cajas.component').then((m) => m.CajasComponent) },
+      { path: 'medios-pago', loadComponent: () => import('./paginas/medios-pago.component').then((m) => m.MediosPagoComponent) },
+      { path: 'usuarios', loadComponent: () => import('./paginas/usuarios.component').then((m) => m.UsuariosComponent) },
+      { path: 'configuracion', loadComponent: () => import('./paginas/configuracion.component').then((m) => m.ConfiguracionComponent) },
+      {
+        path: 'mi-tienda',
+        canActivate: [tiendaGuard],
+        children: [
+          { path: '', pathMatch: 'full', loadComponent: () => import('./paginas/tienda-resumen.component').then((m) => m.TiendaResumenComponent) },
+          { path: 'configuracion', loadComponent: () => import('./paginas/config-tienda.component').then((m) => m.ConfigTiendaComponent) },
+          { path: 'imagenes', loadComponent: () => import('./paginas/imagenes-tienda.component').then((m) => m.ImagenesTiendaComponent) }
+        ]
+      },
       {
         path: 'activar',
         loadComponent: () => import('./paginas/activar.component').then((m) => m.ActivarComponent),

@@ -4,17 +4,19 @@ import { Router } from '@angular/router';
 import {
   ApiService,
   CajaDetalleDto,
+  TicketDto,
   VentaDetalleDto,
   VentaListaDto
 } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
+import { DetalleVentaComponent } from './detalle-venta.component';
 import { TicketComponent } from './ticket.component';
 
 @Component({
   selector: 'sc-informes',
   standalone: true,
-  imports: [FormsModule, TicketComponent],
+  imports: [FormsModule, TicketComponent, DetalleVentaComponent],
   template: `
     <div class="topbar">
       <h1>Informes</h1>
@@ -125,30 +127,7 @@ import { TicketComponent } from './ticket.component';
            @if (detalle.pagos.length > 0) {
              <p class="meta">{{ pagosTexto(detalle) }}</p>
            }
-          <table class="data">
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th class="num">Cant</th>
-                @if (sesion.esDueno()) {
-                  <th class="num">Costo</th>
-                }
-                <th class="num">Subt</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (i of detalle.items; track i.idInformeVentaDetalle) {
-                <tr>
-                  <td>{{ i.nombre }}</td>
-                  <td class="num">{{ i.cantidad }}</td>
-                  @if (sesion.esDueno()) {
-                    <td class="num">{{ i.costo == null ? '—' : dinero(i.costo) }}</td>
-                  }
-                  <td class="num">{{ dinero(i.subTotal) }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
+          <sc-detalle-venta [venta]="detalle" [verCosto]="sesion.esDueno()" />
           <div class="row" style="margin-top:12px">
             <button class="btn" type="button" (click)="imprimir()">Reimprimir</button>
             <button class="btn" type="button" (click)="copiar()">Copiar al carrito</button>
@@ -164,7 +143,7 @@ import { TicketComponent } from './ticket.component';
     }
 
     @if (ticket) {
-      <sc-ticket [venta]="ticket" [nombreLocal]="nombreTicket" [formato]="formatoTicket" />
+      <sc-ticket [ticket]="ticket" [nombreLocal]="nombreTicket" [formato]="formatoTicket" />
     }
   `
 })
@@ -180,7 +159,7 @@ export class InformesComponent implements OnInit {
   sumaVentas = 0;
   pendientes = { tickets: 0, total: 0 };
   detalle: VentaDetalleDto | null = null;
-  ticket: VentaDetalleDto | null = null;
+  ticket: TicketDto | null = null;
   cierre: CajaDetalleDto | null = null;
   error = '';
   ventasAbiertas = true;
@@ -300,8 +279,8 @@ export class InformesComponent implements OnInit {
   }
 
   imprimir(): void {
-    if (!this.detalle) return;
-    this.ticket = this.detalle;
+    if (!this.detalle?.ticket) return;
+    this.ticket = this.detalle.ticket;
     setTimeout(() => {
       try {
         window.print();

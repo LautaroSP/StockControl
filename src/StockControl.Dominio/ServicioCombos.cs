@@ -2,8 +2,6 @@ namespace StockControl.Dominio;
 
 public static class ServicioCombos
 {
-    public const string Descripcion = "Combo";
-
     public static void Validar(OfertaCombo combo, IReadOnlyCollection<Producto> productosDelLocal)
     {
         if (string.IsNullOrWhiteSpace(combo.Nombre))
@@ -50,7 +48,7 @@ public static class ServicioCombos
         var valor = tomadas.Sum(t => t.Valor);
         var descuento = valor - completos * combo.PrecioTotal;
         if (descuento <= 0) return;
-        Repartir(tomadas, descuento, valor);
+        Repartir(tomadas, descuento, valor, combo.Nombre);
     }
 
     private static int Completos(OfertaCombo combo, List<LineaVenta> lineas) =>
@@ -73,7 +71,7 @@ public static class ServicioCombos
         return tomadas;
     }
 
-    private static void Repartir(List<(LineaVenta Linea, decimal Valor)> tomadas, decimal descuento, decimal valor)
+    private static void Repartir(List<(LineaVenta Linea, decimal Valor)> tomadas, decimal descuento, decimal valor, string nombre)
     {
         var restante = descuento;
         for (var i = 0; i < tomadas.Count; i++)
@@ -81,8 +79,11 @@ public static class ServicioCombos
             var parte = i == tomadas.Count - 1
                 ? restante
                 : Math.Round(descuento * tomadas[i].Valor / valor, 2, MidpointRounding.AwayFromZero);
-            tomadas[i].Linea.SubTotal = Math.Max(0, tomadas[i].Linea.SubTotal - parte);
-            tomadas[i].Linea.DescripcionOferta = Descripcion;
+            var linea = tomadas[i].Linea;
+            var nuevo = Math.Max(0, linea.SubTotal - parte);
+            linea.AhorroCombo += linea.SubTotal - nuevo;
+            linea.SubTotal = nuevo;
+            linea.NombreCombo = nombre;
             restante -= parte;
         }
     }

@@ -1,24 +1,29 @@
 namespace StockControl.Dominio;
 
+public sealed record AhorroTicket(string Descripcion, decimal Importe);
+
+public sealed record MedioTicket(string Descripcion, decimal Importe);
+
 public sealed class LineaTicket
 {
-    public required string Codigo { get; init; }
     public required string Nombre { get; init; }
     public decimal Cantidad { get; init; }
     public decimal Precio { get; init; }
     public decimal SubTotal { get; init; }
-    public string DescripcionOferta { get; init; } = "";
+    public AhorroTicket? Ahorro { get; init; }
+    /// <summary>Solo en ventas anteriores a los ahorros: la oferta que tenía la línea.</summary>
+    public string Nota { get; init; } = "";
 }
 
 public sealed class Ticket
 {
-    public required string NombreLocal { get; init; }
     public DateTimeOffset Fecha { get; init; }
+    public int? NroCaja { get; init; }
     public IReadOnlyList<LineaTicket> Lineas { get; init; } = [];
+    public IReadOnlyList<AhorroTicket> Ahorros { get; init; } = [];
     public decimal Total { get; init; }
-    public IReadOnlyList<string> Medios { get; init; } = [];
-    public decimal DescuentoPorcentaje { get; init; }
-    public bool AlCosto { get; init; }
+    public IReadOnlyList<MedioTicket> Medios { get; init; } = [];
+    public decimal Items { get; init; }
 }
 
 public static class ServicioTicket
@@ -38,53 +43,90 @@ public static class ServicioTicket
         catch (ErrorNegocio) { return "POS-80"; }
     }
 
+    public static Ticket DeVenta(InformeVenta venta) => Armar(
+        venta.Detalles,
+        venta.Total,
+        MediosDe(venta.Pagos, venta.MetodoPago, venta.Total),
+        venta.Descuento,
+        venta.Fecha,
+        venta.NroCaja);
+
+    public static Ticket DeCuenta(CuentaPendiente cuenta, string cliente) => Armar(
+        cuenta.Lineas,
+        cuenta.Importe,
+        [new MedioTicket($"A cuenta de {cliente}", cuenta.Importe)],
+        0,
+        cuenta.Fecha,
+        cuenta.NroCaja);
+
     public static Ticket Armar(
-        string nombreLocal,
-        DateTimeOffset fecha,
-        IEnumerable<LineaVenta> lineas,
+        IEnumerable<ILineaVendida> lineas,
         decimal total,
-        IEnumerable<string> medios,
+        IReadOnlyList<MedioTicket> medios,
         decimal descuentoPorcentaje,
-        bool alCosto)
+        DateTimeOffset fecha,
+        int? nroCaja)
     {
-        var lista = lineas.Select(l => new LineaTicket
-        {
-            Codigo = l.Codigo,
-            Nombre = string.IsNullOrWhiteSpace(l.Nombre) ? l.Codigo : l.Nombre,
-            Cantidad = l.Cantidad,
-            Precio = l.Precio,
-            SubTotal = l.SubTotal,
-            DescripcionOferta = l.DescripcionOferta
-        }).ToList();
+        var lista = lineas.ToList();
         if (lista.Count == 0)
             throw new ErrorNegocio("El ticket no tiene ítems.");
 
-        var mediosLista = medios
-            .Where(m => !string.IsNullOrWhiteSpace(m))
-            .Select(m => m.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
         return new Ticket
         {
-            NombreLocal = string.IsNullOrWhiteSpace(nombreLocal) ? "Local" : nombreLocal.Trim(),
             Fecha = fecha,
-            Lineas = lista,
+            NroCaja = nroCaja,
+            Lineas = lista.Select(ArmarLinea).ToList(),
+            Ahorros = [.. AhorrosDeCombos(lista), .. AhorroDeDescuento(lista, descuentoPorcentaje)],
             Total = total,
-            Medios = mediosLista,
-            DescuentoPorcentaje = descuentoPorcentaje,
-            AlCosto = alCosto
+            Medios = medios,
+            Items = lista.Sum(l => l.Cantidad)
         };
     }
 
-    public static IReadOnlyList<string> MediosDe(IEnumerable<PagoVenta> pagos, string metodoPago)
+    public static IReadOnlyList<MedioTicket> MediosDe(IEnumerable<PagoVenta> pagos, string metodoPago, decimal total)
     {
         var dePagos = pagos
             .Where(p => !string.IsNullOrWhiteSpace(p.DescripcionMetodoPago))
-            .Select(p => $"{p.DescripcionMetodoPago} {p.Importe:0.00}")
+            .Select(p => new MedioTicket(p.DescripcionMetodoPago.Trim(), p.Importe))
             .ToList();
         if (dePagos.Count > 0) return dePagos;
-        if (!string.IsNullOrWhiteSpace(metodoPago)) return [metodoPago.Trim()];
+        if (!string.IsNullOrWhiteSpace(metodoPago)) return [new MedioTicket(metodoPago.Trim(), total)];
         return [];
+    }
+
+    private static LineaTicket ArmarLinea(ILineaVendida l)
+    {
+        var nombre = string.IsNullOrWhiteSpace(l.Nombre) ? l.Codigo : l.Nombre;
+        if (l.PrecioBase is not decimal precioBase)
+            return new LineaTicket
+            {
+                Nombre = nombre,
+                Cantidad = l.Cantidad,
+                Precio = l.Precio,
+                SubTotal = l.SubTotal,
+                Nota = l.DescripcionOferta
+            };
+
+        return new LineaTicket
+        {
+            Nombre = nombre,
+            Cantidad = l.Cantidad,
+            Precio = precioBase,
+            SubTotal = Math.Round(precioBase * l.Cantidad, 2, MidpointRounding.AwayFromZero),
+            Ahorro = l.AhorroOferta != 0 ? new AhorroTicket($"Oferta {l.DescripcionOferta}".Trim(), l.AhorroOferta) : null
+        };
+    }
+
+    private static IEnumerable<AhorroTicket> AhorrosDeCombos(IEnumerable<ILineaVendida> lineas) =>
+        lineas
+            .Where(l => l.PrecioBase != null && l.AhorroCombo != 0)
+            .GroupBy(l => l.NombreCombo)
+            .Select(g => new AhorroTicket($"Combo {g.Key}".Trim(), g.Sum(l => l.AhorroCombo)));
+
+    private static IEnumerable<AhorroTicket> AhorroDeDescuento(IEnumerable<ILineaVendida> lineas, decimal porcentaje)
+    {
+        var importe = lineas.Where(l => l.PrecioBase != null).Sum(l => l.AhorroDescuento);
+        if (importe == 0) yield break;
+        yield return new AhorroTicket(porcentaje > 0 ? $"Descuento {porcentaje:0.##} %" : "Descuento", importe);
     }
 }

@@ -41,6 +41,15 @@ export const duenoGuard: CanActivateFn = () => {
   return true;
 };
 
+export const tiendaGuard: CanActivateFn = () => {
+  const sesion = inject(SesionService);
+  const router = inject(Router);
+  if (!sesion.hayToken()) return router.parseUrl('/login');
+  if (!sesion.idLocal()) return router.parseUrl('/locales');
+  if (!sesion.puedeConfigurarLocal()) return router.parseUrl('/caja');
+  return true;
+};
+
 export const proveedoresGuard: CanActivateFn = () => {
   const sesion = inject(SesionService);
   const router = inject(Router);

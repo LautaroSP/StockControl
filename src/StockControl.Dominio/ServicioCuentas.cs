@@ -49,7 +49,12 @@ public static class ServicioCuentas
                 Precio = l.Precio,
                 Costo = l.Costo,
                 SubTotal = l.SubTotal,
-                DescripcionOferta = l.DescripcionOferta
+                DescripcionOferta = l.DescripcionOferta,
+                PrecioBase = l.PrecioBase,
+                AhorroOferta = l.AhorroOferta,
+                AhorroDescuento = l.AhorroDescuento,
+                AhorroCombo = l.AhorroCombo,
+                NombreCombo = l.NombreCombo
             }).ToList()
         };
     }

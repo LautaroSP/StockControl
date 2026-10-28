@@ -45,6 +45,8 @@ public class AppDbContext : DbContext
     public DbSet<CuentaPendiente> CuentasPendientes => Set<CuentaPendiente>();
     public DbSet<LineaCuenta> LineasCuenta => Set<LineaCuenta>();
     public DbSet<PagoCuenta> PagosCuenta => Set<PagoCuenta>();
+    public DbSet<ImagenProducto> ImagenesProducto => Set<ImagenProducto>();
+    public DbSet<ImagenRechazada> ImagenesRechazadas => Set<ImagenRechazada>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -59,6 +61,14 @@ public class AppDbContext : DbContext
             e.Property(x => x.IdSuscripcionMp).HasMaxLength(64);
             e.HasIndex(x => x.IdSuscripcionMp).IsUnique().HasFilter("\"IdSuscripcionMp\" IS NOT NULL");
             e.Property(x => x.EstadoSuscripcion).HasMaxLength(20).HasDefaultValue("");
+            e.Property(x => x.AliasTienda).HasMaxLength(ServicioTienda.LargoMaximoAlias);
+            e.HasIndex(x => x.AliasTienda).IsUnique().HasFilter("\"AliasTienda\" IS NOT NULL");
+            e.Property(x => x.EstadoTienda).HasMaxLength(20).HasDefaultValue(ServicioTienda.Inactiva);
+            e.Property(x => x.Direccion).HasMaxLength(ServicioTienda.LargoMaximoDato).HasDefaultValue("");
+            e.Property(x => x.Horario).HasMaxLength(ServicioTienda.LargoMaximoDato).HasDefaultValue("");
+            e.Property(x => x.WhatsApp).HasMaxLength(20).HasDefaultValue("");
+            e.Property(x => x.Latitud).HasPrecision(9, 6);
+            e.Property(x => x.Longitud).HasPrecision(9, 6);
         });
 
         model.Entity<Usuario>(e =>
@@ -98,6 +108,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Precio).HasPrecision(14, 2);
             e.Property(x => x.ValorGanancia).HasPrecision(14, 2);
             e.Property(x => x.UsuarioModificacion).HasMaxLength(80);
+            e.HasIndex(x => new { x.IdLocal, x.Publicado });
             e.Ignore(x => x.EsGenerico);
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
@@ -184,6 +195,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.SubTotal).HasPrecision(14, 2);
             e.Property(x => x.Cantidad).HasPrecision(14, 3);
             e.Property(x => x.DescripcionOferta).HasMaxLength(20).HasDefaultValue("");
+            ConfigurarAhorros(e);
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
 
@@ -432,6 +444,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Costo).HasPrecision(14, 2);
             e.Property(x => x.SubTotal).HasPrecision(14, 2);
             e.Property(x => x.DescripcionOferta).HasMaxLength(20);
+            ConfigurarAhorros(e);
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
 
@@ -444,5 +457,40 @@ public class AppDbContext : DbContext
             e.HasIndex(x => x.IdInformeVenta);
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
+
+        model.Entity<ImagenProducto>(e =>
+        {
+            e.ToTable("ImagenesProducto");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Archivo).HasMaxLength(40);
+            e.Property(x => x.TipoContenido).HasMaxLength(20);
+            e.Property(x => x.Origen).HasMaxLength(20);
+            e.Property(x => x.Fuente).HasMaxLength(60);
+            e.Property(x => x.Enlace).HasMaxLength(200);
+            e.Property(x => x.Licencia).HasMaxLength(20);
+            e.HasIndex(x => new { x.IdLocal, x.IdProducto, x.Orden }).IsUnique();
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<ImagenRechazada>(e =>
+        {
+            e.ToTable("ImagenesRechazadas");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Url).HasMaxLength(500);
+            e.HasIndex(x => new { x.IdLocal, x.IdProducto });
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+    }
+
+    private static void ConfigurarAhorros<T>(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T> e)
+        where T : class, ILineaVendida
+    {
+        e.Property<decimal?>(nameof(ILineaVendida.PrecioBase)).HasPrecision(14, 2);
+        e.Property<decimal>(nameof(ILineaVendida.AhorroOferta)).HasPrecision(14, 2).HasDefaultValue(0m);
+        e.Property<decimal>(nameof(ILineaVendida.AhorroDescuento)).HasPrecision(14, 2).HasDefaultValue(0m);
+        e.Property<decimal>(nameof(ILineaVendida.AhorroCombo)).HasPrecision(14, 2).HasDefaultValue(0m);
+        e.Property<string>(nameof(ILineaVendida.NombreCombo)).HasMaxLength(60).HasDefaultValue("");
     }
 }

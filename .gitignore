@@ -56,3 +56,5 @@ src/StockControl.Web/dist/
 _ReSharper*/
 *.DotSettings.user
 *.ide
+# Imagenes de la tienda (volumen en disco, fuera de git)
+src/StockControl.Api/datos/

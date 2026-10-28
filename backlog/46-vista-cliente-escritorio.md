@@ -1,4 +1,4 @@
-# Vista de cliente del carrito (escritorio)
+﻿# Vista de cliente del carrito (escritorio)
 
 - **Roles:** quien opera la caja (la abre) · cliente (la mira)
 - **Tipo:** escritorio (WinForms en `StockControl/`)
@@ -21,13 +21,13 @@ La ventana se actualiza **al instante** cuando cambia el carrito (`CarritoSesion
 
 ## Criterios de aceptación
 
-- [ ] Botón **Vista de cliente** arriba del carrito en `StockMain`.
-- [ ] Con dos monitores, la ventana se abre en el segundo; recuerda en cuál la dejaste. Siempre se puede mover, achicar y cerrar.
-- [ ] Se actualiza al instante al agregar, cambiar cantidades, sacar, aplicar descuento y cambiar de carrito.
-- [ ] Carrito vacío: espera con el nombre del local. Al cobrar: «Gracias» y total, después espera.
-- [ ] Con «Cobrar al costo» muestra el precio y el subtotal cobrados; no muestra el tilde ni otros datos internos.
-- [ ] Cerrar la vista no afecta la caja; cerrar la caja cierra la vista.
-- [ ] Letra grande, legible a un metro y medio.
+- [x] Botón **Vista de cliente** arriba del carrito en `StockMain`.
+- [x] Con dos monitores, la ventana se abre en el segundo; recuerda en cuál la dejaste. Siempre se puede mover, achicar y cerrar.
+- [x] Se actualiza al instante al agregar, cambiar cantidades, sacar, aplicar descuento y cambiar de carrito.
+- [x] Carrito vacío: espera con el nombre del local. Al cobrar: «Gracias» y total, después espera.
+- [x] Con «Cobrar al costo» muestra el precio y el subtotal cobrados; no muestra el tilde ni otros datos internos.
+- [x] Cerrar la vista no afecta la caja; cerrar la caja cierra la vista.
+- [x] Letra grande, legible a un metro y medio.
 
 ## Fuera
 

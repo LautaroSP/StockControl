@@ -35,21 +35,7 @@ public static class RegistrarVenta
             DetalleAdjunto = true,
             NroCaja = nroCaja
         };
-        foreach (var l in resultado.Lineas)
-        {
-            venta.Detalles.Add(new InformeVentaDetalle
-            {
-                IdLocal = idLocal,
-                IdProducto = l.IdProducto == 0 ? null : l.IdProducto,
-                Codigo = l.Codigo,
-                Nombre = l.Nombre,
-                Cantidad = l.Cantidad,
-                Precio = l.Precio,
-                Costo = l.Costo,
-                SubTotal = l.SubTotal,
-                DescripcionOferta = l.DescripcionOferta
-            });
-        }
+        venta.Detalles.AddRange(resultado.Lineas.Select(l => InformeVentaDetalle.Desde(l, idLocal)));
         venta.Pagos.AddRange(pagos.Select(p => new PagoVenta
         {
             IdLocal = idLocal,

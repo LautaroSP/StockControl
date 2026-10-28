@@ -10,7 +10,7 @@ RUN dotnet publish src/StockControl.Api/StockControl.Api.csproj -c Release -o /a
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 COPY --from=build /app .
-RUN mkdir -p /claves && chown $APP_UID /claves
+RUN mkdir -p /claves /imagenes && chown $APP_UID /claves /imagenes
 USER $APP_UID
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080

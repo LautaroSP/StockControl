@@ -47,11 +47,13 @@ Se paga **$ 14.999 / mes por local** (Argentina). El dueño **no** da de alta lo
 | 23 | [Modo oscuro](23-modo-oscuro.md) | todos — UI |
 | 28 | [Landing](28-landing.md) | visitante — sitio público |
 | 29 | [Tienda: URL pública y catálogo](29-tienda-online.md) | dueño, comprador — `/tienda/{alias}` única por local, sin login |
+| 50 | [Tienda: panel](50-tienda-panel.md) | dueño, socio, empleado (solo pedidos) — grupo Tienda en la barra |
 | 36 | [Tienda: imágenes](36-tienda-imagenes.md) | dueño |
 | 37 | [Tienda: carrito y pedido](37-tienda-carrito-pedido.md) | comprador |
 | 41 | [Tienda: panel de pedidos y avisos](41-tienda-panel-pedidos.md) | dueño, socio, empleado |
 | 38 | [Tienda: Mercado Pago y gestión](38-tienda-mercado-pago.md) | comprador, dueño, admin |
 | 39 | [Tienda: transferencia](39-tienda-transferencia.md) | comprador, dueño |
+| 51 | [Tienda: gestión fuera de MP](51-tienda-gestion-fuera-mp.md) | dueño, comprador, admin — monto en pesos (inicial $ 1.000) por pedido en transferencia o efectivo, suma al abono |
 | 40 | [Tienda: envío por km](40-tienda-envio-km.md) | comprador, dueño |
 | 30 | [Mantenimiento y 404](30-mantenimiento-y-404.md) | visitante — Caddy si la API no responde; 404 de ruta en Angular |
 | 31 | [Iconos](31-iconos.md) | dueño, empleado — barra y Configuración; Mercado Pago con check |

@@ -1,15 +1,15 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService, ConfiguracionLocalDto, CuentaMercadoPagoDto, PlantillasCartelDto, TamanoCartel } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { IconoComponent } from '../icono.component';
 
 @Component({
   selector: 'sc-configuracion',
   standalone: true,
-  imports: [FormsModule, IconoComponent],
+  imports: [FormsModule, RouterLink, IconoComponent],
   template: `
     <div class="topbar">
       <h1>Configuración del local</h1>
@@ -105,6 +105,7 @@ import { IconoComponent } from '../icono.component';
       </div>
       @if (mensaje) { <p class="meta">{{ mensaje }}</p> }
     </section>
+    <p class="meta" style="margin-top:16px"><sc-icono nombre="tienda" /> La tienda online se configura en <a routerLink="/mi-tienda/configuracion">Tienda</a>.</p>
   `
 })
 export class ConfiguracionComponent implements OnInit {

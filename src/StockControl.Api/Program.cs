@@ -14,6 +14,7 @@ using StockControl.Api.Contratos;
 using StockControl.Api.Datos;
 using StockControl.Api.Importacion;
 using StockControl.Api.Pagos;
+using StockControl.Api.Tienda;
 using StockControl.Dominio;
 
 CargarEnvLocal();
@@ -52,6 +53,21 @@ builder.Services.AddHttpClient("resend", c =>
     c.BaseAddress = new Uri("https://api.resend.com/");
     c.Timeout = TimeSpan.FromSeconds(15);
 });
+builder.Services.AddHttpClient<ClienteNominatim>(c =>
+{
+    c.BaseAddress = new Uri("https://nominatim.openstreetmap.org/");
+    c.Timeout = TimeSpan.FromSeconds(10);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd(builder.Configuration["Nominatim:UserAgent"] ?? "StockControl/1.0 (tienda de locales)");
+    c.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+});
+builder.Services.AddHttpClient<ClienteOpenFoodFacts>(c =>
+{
+    c.BaseAddress = new Uri("https://world.openfoodfacts.org/");
+    c.Timeout = TimeSpan.FromSeconds(10);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd(builder.Configuration["OpenFoodFacts:UserAgent"] ?? "StockControl/1.0 (tienda de locales)");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddSingleton(new AlmacenImagenes(
+    builder.Configuration["Imagenes:Ruta"] ?? Path.Combine(builder.Environment.ContentRootPath, "datos", "imagenes")));
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
     {
@@ -83,6 +99,18 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("contacto", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 3, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    o.AddPolicy("tienda", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    o.AddPolicy("tienda-imagenes", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 600, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    o.AddPolicy("openfoodfacts", _ => RateLimitPartition.GetFixedWindowLimiter(
+        "openfoodfacts",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    o.AddPolicy("nominatim", _ => RateLimitPartition.GetFixedWindowLimiter(
+        "nominatim",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 1, Window = TimeSpan.FromSeconds(1), QueueLimit = 0 }));
 });
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
@@ -462,7 +490,7 @@ app.MapPost("/locales/{id:int}/entrar", async (int id, AppDbContext db, SesionAc
     return Results.Ok(new { token = jwt.Emitir(u, id) });
 }).RequireAuthorization().RequireRateLimiting("api");
 
-app.MapGet("/productos", async (AppDbContext db, SesionActual sesion, string? q, string? codigo, bool? sector, string? tipo, int? idGrupo, bool? sinGrupo, bool? stockBajo, int? idProveedor, int pagina = 1, int tamano = 50) =>
+app.MapGet("/productos", async (AppDbContext db, SesionActual sesion, string? q, string? codigo, bool? sector, string? tipo, int? idGrupo, bool? sinGrupo, bool? stockBajo, int? idProveedor, bool? publicado, int pagina = 1, int tamano = 50) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     tamano = Math.Clamp(tamano, 1, maxPagina);
@@ -480,6 +508,8 @@ app.MapGet("/productos", async (AppDbContext db, SesionActual sesion, string? q,
         consulta = consulta.Where(p => p.IdGrupoProducto == 0);
     if (idProveedor is > 0)
         consulta = consulta.Where(p => p.IdProveedor == idProveedor);
+    if (publicado is bool soloPublicados)
+        consulta = consulta.Where(p => p.Publicado == soloPublicados);
     var valorUmbral = (await db.Configuracion.FirstOrDefaultAsync(c => c.Clave == "UmbralStockBajo"))?.Valor;
     var umbral = decimal.TryParse(valorUmbral, out var umbralConfigurado) && umbralConfigurado >= 0 ? umbralConfigurado : 5;
     var permisoPrecio = (await db.Configuracion.FirstOrDefaultAsync(c => c.Clave == "EmpleadoPuedeModificarPrecios"))?.Valor == "1";
@@ -515,6 +545,8 @@ app.MapGet("/productos", async (AppDbContext db, SesionActual sesion, string? q,
             p.IdGrupoProducto,
             p.FechaModificacion,
             p.UsuarioModificacion,
+            p.Publicado,
+            publicable = ServicioCatalogoTienda.PuedePublicar(p),
             nombreGrupo = p.IdGrupoProducto == 0
                 ? null
                 : nombresGrupo.GetValueOrDefault(p.IdGrupoProducto)
@@ -574,6 +606,8 @@ app.MapPut("/productos/{id:int}", async (int id, ProductoPedido pedido, AppDbCon
     p.Costo = pedido.Costo;
     p.Precio = pedido.Precio;
     p.ProductoSector = pedido.ProductoSector;
+    if (!ServicioCatalogoTienda.PuedePublicar(p))
+        p.Publicado = false;
     p.FechaModificacion = DateTimeOffset.UtcNow;
     p.UsuarioModificacion = sesion.NombreUsuario ?? "sistema";
     try
@@ -923,6 +957,154 @@ app.MapPut("/configuracion/local", async (ConfiguracionLocalPedido pedido, AppDb
     await db.SaveChangesAsync();
     return Results.Ok(new { recalculados });
 }).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/configuracion/tienda", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
+    var local = await db.Locales.AsNoTracking().FirstOrDefaultAsync(l => l.IdLocal == sesion.IdLocal);
+    if (local == null) return Results.NotFound();
+    var publicados = await db.Productos.CountAsync(p => p.Publicado);
+    var conImagen = await db.Productos.CountAsync(p => p.Publicado && db.ImagenesProducto.Any(i => i.IdProducto == p.Id));
+    return Results.Ok(new
+    {
+        alias = local.AliasTienda ?? "",
+        estado = local.EstadoTienda,
+        vista = ServicioTienda.Vista(local, DateTimeOffset.UtcNow),
+        local.Direccion,
+        local.Horario,
+        whatsApp = local.WhatsApp.Length == 0 ? "" : ServicioAdmin.MostrarTelefono(local.WhatsApp),
+        local.HaceEnvios,
+        local.Latitud,
+        local.Longitud,
+        publicados,
+        conImagen
+    });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPut("/configuracion/tienda", async (TiendaPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
+    var local = await db.Locales.FirstOrDefaultAsync(l => l.IdLocal == sesion.IdLocal);
+    if (local == null) return Results.NotFound();
+    try
+    {
+        var alias = ServicioTienda.NormalizarAlias(pedido.Alias);
+        var tomado = alias != null && await db.Locales.AnyAsync(l => l.AliasTienda == alias && l.IdLocal != local.IdLocal);
+        ServicioTienda.AsignarAlias(local, alias, tomado);
+        ServicioTienda.AsignarDatos(local, pedido.Direccion, pedido.Horario, pedido.WhatsApp, pedido.HaceEnvios);
+        ServicioTienda.AsignarUbicacion(local, pedido.Latitud, pedido.Longitud);
+        ServicioTienda.CambiarEstado(local, pedido.Estado);
+        await db.SaveChangesAsync();
+        return Results.Ok(new { alias = local.AliasTienda ?? "", estado = local.EstadoTienda, vista = ServicioTienda.Vista(local, DateTimeOffset.UtcNow) });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+    catch (DbUpdateException)
+    {
+        return Results.BadRequest("Ese alias ya lo usa otra tienda. Elegí otro.");
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/configuracion/tienda/ubicacion", async (string? q, SesionActual sesion, ClienteNominatim nominatim, ILoggerFactory logs, CancellationToken cancelar) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
+    var direccion = (q ?? "").Trim();
+    if (direccion.Length < 4 || direccion.Length > ServicioTienda.LargoMaximoDato)
+        return Results.BadRequest("Escribí la dirección con calle, número y localidad.");
+    try
+    {
+        return Results.Ok(await nominatim.Buscar(direccion, cancelar));
+    }
+    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+    {
+        logs.CreateLogger("Nominatim").LogWarning(ex, "Falló la búsqueda de dirección");
+        return Results.Problem("No se pudo buscar la dirección. Probá de nuevo o mové el marcador a mano.", statusCode: StatusCodes.Status502BadGateway);
+    }
+}).RequireAuthorization().RequireRateLimiting("nominatim");
+
+app.MapPut("/productos/publicados", async (PublicarProductosPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
+    var ids = pedido.Ids.Distinct().ToList();
+    if (ids.Count == 0) return Results.BadRequest("Elegí al menos un producto.");
+    if (ids.Count > ServicioCatalogoTienda.MaximoPorVez)
+        return Results.BadRequest($"Máximo {ServicioCatalogoTienda.MaximoPorVez} productos por vez.");
+    var productos = await db.Productos.Where(p => ids.Contains(p.Id)).ToListAsync();
+    try
+    {
+        foreach (var producto in productos)
+            ServicioCatalogoTienda.Publicar(producto, pedido.Publicado);
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+    await db.SaveChangesAsync();
+    return Results.Ok(new { actualizados = productos.Count });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/tienda/{alias}", async (string alias, AppDbContext db, SesionActual sesion) =>
+{
+    var local = await LocalDeTienda(db, alias);
+    var vista = local == null ? null : ServicioTienda.Vista(local, DateTimeOffset.UtcNow);
+    if (local == null || vista == null) return Results.NotFound();
+    var catalogo = vista == ServicioTienda.VistaCatalogo;
+    var mapa = catalogo && ServicioTienda.MuestraMapa(local);
+    sesion.IdLocal = local.IdLocal;
+    var grupos = catalogo ? await GruposDeTienda(db, local.IdLocal) : new List<GrupoTienda>();
+    return Results.Ok(new
+    {
+        alias = local.AliasTienda,
+        nombre = local.Nombre,
+        vista,
+        horario = local.Horario,
+        direccion = catalogo ? local.Direccion : "",
+        whatsApp = catalogo ? local.WhatsApp : "",
+        haceEnvios = catalogo && local.HaceEnvios,
+        latitud = mapa ? local.Latitud : null,
+        longitud = mapa ? local.Longitud : null,
+        grupos
+    });
+}).RequireRateLimiting("tienda");
+
+app.MapGet("/tienda/{alias}/productos", async (string alias, string? q, int? idGrupo, AppDbContext db, SesionActual sesion, int pagina = 1) =>
+{
+    var local = await LocalDeTienda(db, alias);
+    if (local == null || ServicioTienda.Vista(local, DateTimeOffset.UtcNow) != ServicioTienda.VistaCatalogo)
+        return Results.NotFound();
+    sesion.IdLocal = local.IdLocal;
+    pagina = Math.Max(1, pagina);
+    const int tamano = ServicioCatalogoTienda.TamanoPagina;
+    var consulta = ServicioCatalogoTienda.Publicados(db.Productos.AsNoTracking(), local.IdLocal, q, idGrupo);
+    var total = await consulta.CountAsync();
+    var items = await consulta.Skip((pagina - 1) * tamano).Take(tamano).ToListAsync();
+    var ids = items.Select(p => p.Id).ToList();
+    var imagenes = await db.ImagenesProducto.AsNoTracking().Where(i => ids.Contains(i.IdProducto)).ToListAsync();
+    return Results.Ok(new { total, pagina, tamano, items = items.Select(p => ServicioCatalogoTienda.AProductoTienda(p, imagenes)) });
+}).RequireRateLimiting("tienda");
+
+app.MapGet("/tienda/{alias}/imagenes/{idImagen:int}", async (string alias, int idImagen, HttpContext http, AppDbContext db, SesionActual sesion, AlmacenImagenes almacen) =>
+{
+    var local = await LocalDeTienda(db, alias);
+    if (local == null) return Results.NotFound();
+    sesion.IdLocal = local.IdLocal;
+    var imagen = await db.ImagenesProducto.AsNoTracking().FirstOrDefaultAsync(i => i.Id == idImagen);
+    var producto = imagen == null ? null : await db.Productos.AsNoTracking().FirstOrDefaultAsync(p => p.Id == imagen.IdProducto);
+    if (imagen == null || producto == null || !ServicioImagenesTienda.Disponible(imagen, producto, local, DateTimeOffset.UtcNow))
+        return Results.NotFound();
+    var ruta = almacen.Ruta(imagen);
+    if (ruta == null) return Results.NotFound();
+    http.Response.Headers.CacheControl = "public, max-age=86400";
+    return Results.File(ruta, imagen.TipoContenido);
+}).RequireRateLimiting("tienda-imagenes");
+
+app.MapImagenesProducto();
 
 app.MapGet("/usuarios", async (AppDbContext db, SesionActual sesion) =>
 {
@@ -1928,21 +2110,7 @@ app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual 
             throw new ErrorNegocio("El medio de pago no existe o está inactivo.");
         venta.MetodoPago = string.Join(", ", pagosSolicitados.Select(p => medios[p.IdMetodoPago].Descripcion).Distinct());
         venta.MultipleMetodoDePago = pagosSolicitados.Select(p => p.IdMetodoPago).Distinct().Count() > 1;
-        foreach (var l in resultado.Lineas)
-        {
-            venta.Detalles.Add(new InformeVentaDetalle
-            {
-                IdLocal = sesion.IdLocal.Value,
-                IdProducto = l.IdProducto == 0 ? null : l.IdProducto,
-                Codigo = l.Codigo,
-                Nombre = l.Nombre,
-                Cantidad = l.Cantidad,
-                Precio = l.Precio,
-                Costo = l.Costo,
-                SubTotal = l.SubTotal,
-                DescripcionOferta = l.DescripcionOferta
-            });
-        }
+        venta.Detalles.AddRange(resultado.Lineas.Select(l => InformeVentaDetalle.Desde(l, sesion.IdLocal.Value)));
         venta.Pagos.AddRange(pagosSolicitados.Select(p => new PagoVenta
         {
             IdLocal = sesion.IdLocal.Value,
@@ -2646,7 +2814,8 @@ app.MapGet("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual sesi
             costo = verCosto ? d.Costo : null,
             d.SubTotal,
             d.DescripcionOferta
-        })
+        }),
+        ticket = venta.Detalles.Count > 0 ? ServicioTicket.DeVenta(venta) : null
     });
 }).RequireAuthorization().RequireRateLimiting("api");
 
@@ -3136,6 +3305,29 @@ app.MapPost("/cajas/cerrar", async (CerrarCajaPedido pedido, AppDbContext db, Se
 
 app.Run();
 
+/// <summary>Busca por alias sin filtro de local. Un alias imposible ni llega a la base.</summary>
+static async Task<Local?> LocalDeTienda(AppDbContext db, string alias)
+{
+    var valor = alias.Trim().ToLowerInvariant();
+    if (valor.Length < ServicioTienda.LargoMinimoAlias || valor.Length > ServicioTienda.LargoMaximoAlias)
+        return null;
+    return await db.Locales.AsNoTracking().FirstOrDefaultAsync(l => l.AliasTienda == valor);
+}
+
+static async Task<List<GrupoTienda>> GruposDeTienda(AppDbContext db, int idLocal)
+{
+    var ids = await ServicioCatalogoTienda.Publicados(db.Productos.AsNoTracking(), idLocal, null, null)
+        .Where(p => p.IdGrupoProducto > 0)
+        .Select(p => p.IdGrupoProducto)
+        .Distinct()
+        .ToListAsync();
+    return await db.GrupoProductos.AsNoTracking()
+        .Where(g => ids.Contains(g.IdGrupoProducto))
+        .OrderBy(g => g.NombreGrupo)
+        .Select(g => new GrupoTienda(g.IdGrupoProducto, g.NombreGrupo))
+        .ToListAsync();
+}
+
 static async Task<int> CopiarCatalogoAlLocal(AppDbContext db, int idDueno, int idLocalDestino, AltaLocalAdminPedido pedido, string usuario)
 {
     if (pedido.IdLocalOrigen <= 0) return 0;
@@ -3572,7 +3764,8 @@ static object VistaCuenta(CuentaPendiente cuenta, Cliente cliente) => new
     cuenta.FechaIncobrable,
     cuenta.UsuarioIncobrable,
     lineas = cuenta.Lineas.Select(l => new { l.Id, l.IdProducto, l.Codigo, l.Nombre, l.Cantidad, l.Precio, l.SubTotal, l.DescripcionOferta }),
-    pagos = cuenta.Pagos.OrderBy(p => p.Fecha).Select(p => new { p.Id, p.Fecha, p.Importe, p.IdInformeVenta })
+    pagos = cuenta.Pagos.OrderBy(p => p.Fecha).Select(p => new { p.Id, p.Fecha, p.Importe, p.IdInformeVenta }),
+    ticket = cuenta.Lineas.Count > 0 ? ServicioTicket.DeCuenta(cuenta, cliente.Nombre) : null
 };
 
 static async Task<string?> GuardarOferta(AppDbContext db, Oferta oferta, OfertaPedido pedido)

@@ -167,6 +167,29 @@ namespace StockControl.Api.Datos.Migraciones
                     b.ToTable("Cajas", (string)null);
                 });
 
+            modelBuilder.Entity("StockControl.Dominio.Categoria", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("IdLocal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdLocal");
+
+                    b.ToTable("Categorias", (string)null);
+                });
+
             modelBuilder.Entity("StockControl.Dominio.Configuracion", b =>
                 {
                     b.Property<int>("Id")
@@ -213,6 +236,9 @@ namespace StockControl.Api.Datos.Migraciones
                     b.Property<bool>("GananciaIndividual")
                         .HasColumnType("boolean");
 
+                    b.Property<int?>("IdCategoria")
+                        .HasColumnType("integer");
+
                     b.Property<int>("IdLocal")
                         .HasColumnType("integer");
 
@@ -225,6 +251,8 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasColumnType("numeric(14,2)");
 
                     b.HasKey("IdGrupoProducto");
+
+                    b.HasIndex("IdCategoria");
 
                     b.ToTable("GrupoProductos", (string)null);
                 });
@@ -1411,6 +1439,9 @@ namespace StockControl.Api.Datos.Migraciones
                     b.Property<bool>("GananciaIndividual")
                         .HasColumnType("boolean");
 
+                    b.Property<int?>("IdCategoria")
+                        .HasColumnType("integer");
+
                     b.Property<int>("IdGrupoProducto")
                         .HasColumnType("integer");
 
@@ -1444,6 +1475,8 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasColumnType("numeric(14,2)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IdCategoria");
 
                     b.HasIndex("IdLocal", "Codigo")
                         .IsUnique();
@@ -1574,6 +1607,22 @@ namespace StockControl.Api.Datos.Migraciones
                         .IsUnique();
 
                     b.ToTable("UsuarioLocales", (string)null);
+                });
+
+            modelBuilder.Entity("StockControl.Dominio.GrupoProductos", b =>
+                {
+                    b.HasOne("StockControl.Dominio.Categoria", null)
+                        .WithMany()
+                        .HasForeignKey("IdCategoria")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("StockControl.Dominio.Producto", b =>
+                {
+                    b.HasOne("StockControl.Dominio.Categoria", null)
+                        .WithMany()
+                        .HasForeignKey("IdCategoria")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("StockControl.Dominio.InformeVentaDetalle", b =>

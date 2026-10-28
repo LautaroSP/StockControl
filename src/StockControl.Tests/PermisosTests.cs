@@ -35,6 +35,14 @@ public class PermisosTests
     }
 
     [Fact]
+    public void Empleado_no_administra_categorias()
+    {
+        Assert.False(Permisos.PuedeAdministrarCategorias(Roles.Empleado));
+        Assert.True(Permisos.PuedeAdministrarCategorias(Roles.Dueno));
+        Assert.True(Permisos.PuedeAdministrarCategorias(Roles.Socio));
+    }
+
+    [Fact]
     public void Empleado_no_administra_medios_de_pago()
     {
         Assert.False(Permisos.PuedeAdministrarMetodosPago(Roles.Empleado));

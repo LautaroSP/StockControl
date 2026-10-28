@@ -4,8 +4,9 @@ namespace StockControl.Tests;
 
 public class ServicioCatalogoTiendaTests
 {
-    private static Producto Producto(int id, int local = 1, bool publicado = true, bool sector = false, string? codigo = null, string? nombre = null, int grupo = 0, decimal cantidad = 10) => new()
+    private static Producto Producto(int id, int local = 1, bool publicado = true, bool sector = false, string? codigo = null, string? nombre = null, int grupo = 0, decimal cantidad = 10, int? categoria = null) => new()
     {
+        IdCategoria = categoria,
         Id = id,
         IdLocal = local,
         Codigo = codigo ?? $"779{id}",
@@ -18,8 +19,18 @@ public class ServicioCatalogoTiendaTests
         Publicado = publicado
     };
 
-    private static List<int> Ids(IEnumerable<Producto> productos, int idLocal = 1, string? busqueda = null, int? idGrupo = null) =>
-        ServicioCatalogoTienda.Publicados(productos.AsQueryable(), idLocal, busqueda, idGrupo).Select(p => p.Id).ToList();
+    private static GrupoProductos Grupo(int id, int? categoria, int local = 1) =>
+        new() { IdGrupoProducto = id, IdLocal = local, NombreGrupo = $"Grupo {id}", IdCategoria = categoria };
+
+    private static Categoria Categoria(int id, string nombre, int local = 1) => new() { Id = id, IdLocal = local, Nombre = nombre };
+
+    private static List<int> Ids(IEnumerable<Producto> productos, int idLocal = 1, string? busqueda = null, int[]? categorias = null, IEnumerable<GrupoProductos>? grupos = null) =>
+        ServicioCatalogoTienda.Publicados(productos.AsQueryable(), (grupos ?? []).AsQueryable(), idLocal, busqueda, categorias)
+            .Select(p => p.Id).ToList();
+
+    private static List<string> Categorias(IEnumerable<Producto> productos, IEnumerable<Categoria> categorias, IEnumerable<GrupoProductos>? grupos = null) =>
+        ServicioCatalogoTienda.CategoriasConPublicados(productos.AsQueryable(), (grupos ?? []).AsQueryable(), categorias.AsQueryable(), 1)
+            .Select(c => c.Nombre).ToList();
 
     [Fact]
     public void Solo_salen_productos_publicados()
@@ -89,11 +100,92 @@ public class ServicioCatalogoTiendaTests
     }
 
     [Fact]
-    public void Filtra_por_grupo_de_producto()
+    public void Filtrar_por_varias_categorias_devuelve_los_de_cualquiera_de_ellas()
     {
-        var productos = new[] { Producto(1, grupo: 4), Producto(2, grupo: 5), Producto(3) };
+        var productos = new[] { Producto(1, categoria: 1), Producto(2, categoria: 2), Producto(3, categoria: 3), Producto(4) };
 
-        Assert.Equal([1], Ids(productos, idGrupo: 4));
+        Assert.Equal([1, 2], Ids(productos, categorias: [1, 2]));
+    }
+
+    [Fact]
+    public void Sin_filtro_salen_tambien_los_productos_sin_categoria()
+    {
+        var productos = new[] { Producto(1, categoria: 1), Producto(2) };
+
+        Assert.Equal([1, 2], Ids(productos));
+    }
+
+    [Fact]
+    public void El_filtro_por_categoria_no_trae_publicados_ocultos()
+    {
+        var productos = new[] { Producto(1, categoria: 1), Producto(2, categoria: 1, publicado: false) };
+
+        Assert.Equal([1], Ids(productos, categorias: [1]));
+    }
+
+    [Fact]
+    public void El_filtro_por_categoria_se_combina_con_la_busqueda()
+    {
+        var productos = new[] { Producto(1, categoria: 1, nombre: "Coca"), Producto(2, categoria: 1, nombre: "Pepsi"), Producto(3, categoria: 2, nombre: "Coca light") };
+
+        Assert.Equal([1], Ids(productos, busqueda: "coca", categorias: [1]));
+    }
+
+    [Fact]
+    public void Un_producto_sin_categoria_propia_filtra_por_la_de_su_grupo()
+    {
+        var productos = new[] { Producto(1, grupo: 4), Producto(2, grupo: 5) };
+        var grupos = new[] { Grupo(4, categoria: 1), Grupo(5, categoria: 2) };
+
+        Assert.Equal([1], Ids(productos, categorias: [1], grupos: grupos));
+    }
+
+    [Fact]
+    public void La_categoria_propia_domina_a_la_del_grupo_en_el_filtro()
+    {
+        var productos = new[] { Producto(1, grupo: 4, categoria: 2) };
+        var grupos = new[] { Grupo(4, categoria: 1) };
+
+        Assert.Empty(Ids(productos, categorias: [1], grupos: grupos));
+        Assert.Equal([1], Ids(productos, categorias: [2], grupos: grupos));
+    }
+
+    [Fact]
+    public void La_tienda_solo_lista_categorias_con_productos_publicados()
+    {
+        var productos = new[] { Producto(1, categoria: 1), Producto(2, categoria: 2, publicado: false) };
+        var categorias = new[] { Categoria(1, "Bebidas"), Categoria(2, "Limpieza"), Categoria(3, "Almacén") };
+
+        Assert.Equal(["Bebidas"], Categorias(productos, categorias));
+    }
+
+    [Fact]
+    public void La_tienda_lista_la_categoria_heredada_del_grupo()
+    {
+        var productos = new[] { Producto(1, grupo: 4) };
+        var grupos = new[] { Grupo(4, categoria: 2) };
+        var categorias = new[] { Categoria(1, "Bebidas"), Categoria(2, "Limpieza") };
+
+        Assert.Equal(["Limpieza"], Categorias(productos, categorias, grupos));
+    }
+
+    [Fact]
+    public void La_tienda_no_lista_categorias_de_otro_local()
+    {
+        var productos = new[] { Producto(1, categoria: 1) };
+        var categorias = new[] { Categoria(1, "Bebidas", local: 2) };
+
+        Assert.Empty(Categorias(productos, categorias));
+    }
+
+    [Fact]
+    public void El_producto_de_tienda_lleva_la_categoria_efectiva()
+    {
+        var heredada = ServicioCatalogoTienda.AProductoTienda(Producto(1, grupo: 4), Grupo(4, categoria: 3));
+        var propia = ServicioCatalogoTienda.AProductoTienda(Producto(2, grupo: 4, categoria: 7), Grupo(4, categoria: 3));
+
+        Assert.Equal(3, heredada.IdCategoria);
+        Assert.Equal(7, propia.IdCategoria);
     }
 
     [Fact]
@@ -107,8 +199,8 @@ public class ServicioCatalogoTiendaTests
     [Fact]
     public void Producto_de_tienda_dice_si_hay_stock_sin_la_cantidad()
     {
-        var conStock = ServicioCatalogoTienda.AProductoTienda(Producto(1, cantidad: 7));
-        var sinStock = ServicioCatalogoTienda.AProductoTienda(Producto(2, cantidad: 0));
+        var conStock = ServicioCatalogoTienda.AProductoTienda(Producto(1, cantidad: 7), null);
+        var sinStock = ServicioCatalogoTienda.AProductoTienda(Producto(2, cantidad: 0), null);
 
         Assert.True(conStock.HayStock);
         Assert.False(sinStock.HayStock);

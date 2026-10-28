@@ -25,6 +25,10 @@ public class ProductoPedido
     public decimal Precio { get; set; }
     public bool ProductoSector { get; set; }
     public int? IdGrupoProducto { get; set; }
+
+    /// <summary>null no la toca; 0 la saca (hereda la del grupo).</summary>
+    [Range(0, int.MaxValue)]
+    public int? IdCategoria { get; set; }
 }
 
 public class GrupoPedido
@@ -36,6 +40,16 @@ public class GrupoPedido
     public decimal PrecioGrupo { get; set; }
     public decimal Ganancia { get; set; }
     public bool GananciaIndividual { get; set; }
+
+    /// <summary>null no la toca; 0 la saca.</summary>
+    [Range(0, int.MaxValue)]
+    public int? IdCategoria { get; set; }
+}
+
+public class CategoriaPedido
+{
+    [Required, MaxLength(40)]
+    public string Nombre { get; set; } = "";
 }
 
 public class MiembrosGrupoPedido

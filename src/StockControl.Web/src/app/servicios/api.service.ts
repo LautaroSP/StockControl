@@ -13,6 +13,11 @@ export interface ProductoDto {
   productoSector: boolean;
   idGrupoProducto?: number;
   nombreGrupo?: string | null;
+  /** Categoría propia. Al guardar: 0 la saca, sin valor no la toca. */
+  idCategoria?: number | null;
+  /** Efectiva: la propia o la del grupo. */
+  nombreCategoria?: string | null;
+  categoriaDelGrupo?: boolean;
   fechaModificacion?: string | null;
   usuarioModificacion?: string | null;
   puedeModificarPrecio?: boolean;
@@ -51,7 +56,7 @@ export interface TiendaPublicaDto {
   haceEnvios: boolean;
   latitud: number | null;
   longitud: number | null;
-  grupos: { id: number; nombre: string }[];
+  categorias: { id: number; nombre: string }[];
 }
 
 export interface ImagenTiendaDto {
@@ -67,7 +72,7 @@ export interface ProductoTiendaDto {
   codigo: string;
   nombre: string;
   precio: number;
-  idGrupo: number;
+  idCategoria: number | null;
   hayStock: boolean;
   imagenes: ImagenTiendaDto[];
 }
@@ -523,7 +528,8 @@ export class ApiService {
       costo: p.costo ?? 0,
       precio: p.precio ?? 0,
       productoSector: p.productoSector ?? false,
-      idGrupoProducto: p.idGrupoProducto ?? 0
+      idGrupoProducto: p.idGrupoProducto ?? 0,
+      idCategoria: p.idCategoria ?? undefined
     });
   }
 
@@ -535,7 +541,8 @@ export class ApiService {
       costo: p.costo ?? 0,
       precio: p.precio ?? 0,
       productoSector: p.productoSector ?? false,
-      idGrupoProducto: p.idGrupoProducto ?? 0
+      idGrupoProducto: p.idGrupoProducto ?? 0,
+      idCategoria: p.idCategoria ?? undefined
     });
   }
 
@@ -863,10 +870,10 @@ export class ApiService {
     return this.http.get<TiendaPublicaDto>(`${this.base}/tienda/${encodeURIComponent(alias)}`);
   }
 
-  productosTienda(alias: string, opts: { q?: string; idGrupo?: number; pagina?: number }) {
+  productosTienda(alias: string, opts: { q?: string; categorias?: number[]; pagina?: number }) {
     let params = new HttpParams().set('pagina', String(opts.pagina ?? 1));
     if (opts.q) params = params.set('q', opts.q);
-    if (opts.idGrupo) params = params.set('idGrupo', String(opts.idGrupo));
+    if (opts.categorias?.length) params = params.set('categorias', opts.categorias.join(','));
     return this.http.get<{ total: number; pagina: number; tamano: number; items: ProductoTiendaDto[] }>(
       `${this.base}/tienda/${encodeURIComponent(alias)}/productos`,
       { params }
@@ -893,12 +900,28 @@ export class ApiService {
     return this.http.get<GrupoDetalleDto>(`${this.base}/grupos/${id}`);
   }
 
-  crearGrupo(body: { nombreGrupo: string; costo: number; precioGrupo: number; ganancia?: number; gananciaIndividual?: boolean }) {
+  crearGrupo(body: { nombreGrupo: string; costo: number; precioGrupo: number; ganancia?: number; gananciaIndividual?: boolean; idCategoria?: number }) {
     return this.http.post<GrupoListaDto>(`${this.base}/grupos`, body);
   }
 
-  editarGrupo(id: number, body: { nombreGrupo: string; costo: number; precioGrupo: number; ganancia?: number; gananciaIndividual?: boolean }) {
+  editarGrupo(id: number, body: { nombreGrupo: string; costo: number; precioGrupo: number; ganancia?: number; gananciaIndividual?: boolean; idCategoria?: number }) {
     return this.http.put<GrupoListaDto>(`${this.base}/grupos/${id}`, body);
+  }
+
+  categorias() {
+    return this.http.get<CategoriaDto[]>(`${this.base}/categorias`);
+  }
+
+  crearCategoria(nombre: string) {
+    return this.http.post<CategoriaDto>(`${this.base}/categorias`, { nombre });
+  }
+
+  editarCategoria(id: number, nombre: string) {
+    return this.http.put<{ id: number; nombre: string }>(`${this.base}/categorias/${id}`, { nombre });
+  }
+
+  eliminarCategoria(id: number) {
+    return this.http.delete(`${this.base}/categorias/${id}`);
   }
 
   eliminarGrupo(id: number) {
@@ -1120,11 +1143,19 @@ export interface RevisionCatalogoDto {
   invalidas: FilaInvalidaDto[];
 }
 
+export interface CategoriaDto {
+  id: number;
+  nombre: string;
+  cantidadProductos: number;
+  cantidadGrupos: number;
+}
+
 export interface GrupoListaDto {
   idGrupoProducto: number;
   nombreGrupo: string;
   costo: number;
   precioGrupo: number;
+  idCategoria: number | null;
   cantidad: number;
 }
 
@@ -1133,6 +1164,7 @@ export interface GrupoDetalleDto {
   nombreGrupo: string;
   costo: number;
   precioGrupo: number;
+  idCategoria: number | null;
   miembros: { id: number; codigo: string; nombre: string; costo: number; precio: number }[];
 }
 

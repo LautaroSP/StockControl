@@ -21,6 +21,12 @@ import { Component, Input } from '@angular/core';
           <path d="M12 4l8 4-8 4-8-4z" />
           <path d="M4 12l8 4 8-4M4 16l8 4 8-4" />
         }
+        @case ('categorias') {
+          <rect x="4" y="4" width="7" height="7" rx="1.5" />
+          <rect x="13" y="4" width="7" height="7" rx="1.5" />
+          <rect x="4" y="13" width="7" height="7" rx="1.5" />
+          <rect x="13" y="13" width="7" height="7" rx="1.5" />
+        }
         @case ('medios') {
           <rect x="3" y="6" width="18" height="12" rx="2" />
           <path d="M3 10h18" />

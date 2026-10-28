@@ -9,4 +9,5 @@ public class GrupoProductos
     public decimal Costo { get; set; }
     public decimal Ganancia { get; set; }
     public bool GananciaIndividual { get; set; }
+    public int? IdCategoria { get; set; }
 }

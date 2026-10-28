@@ -1,7 +1,7 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { ApiService, GrupoDetalleDto, GrupoListaDto, ProductoDto } from '../servicios/api.service';
+import { ApiService, CategoriaDto, GrupoDetalleDto, GrupoListaDto, ProductoDto } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
 
@@ -65,6 +65,16 @@ import { SesionService } from '../servicios/sesion.service';
             <label class="field grow">Costo <input class="wide" type="number" [(ngModel)]="form.costo" /></label>
             <label class="field grow">Precio <input class="wide" type="number" [(ngModel)]="form.precioGrupo" /></label>
           </div>
+          <label class="field" style="margin-top:8px">
+            Categoría
+            <select class="wide" [(ngModel)]="form.idCategoria">
+              <option [ngValue]="0">Sin categoría</option>
+              @for (c of categorias; track c.id) {
+                <option [ngValue]="c.id">{{ c.nombre }}</option>
+              }
+            </select>
+          </label>
+          <p class="hint">Los productos del grupo la heredan, salvo los que tengan una categoría propia.</p>
           @if (elegido) {
             <p class="meta">{{ elegido.nombreGrupo }} — al guardar, se actualiza el precio de todos.</p>
             <div class="row" style="margin:8px 0;gap:12px;align-items:center">
@@ -130,12 +140,13 @@ import { SesionService } from '../servicios/sesion.service';
 export class GruposComponent implements OnInit {
   @ViewChild('detalle') detalle?: ElementRef<HTMLElement>;
   grupos: GrupoListaDto[] = [];
+  categorias: CategoriaDto[] = [];
   elegido: GrupoDetalleDto | null = null;
   productos: ProductoDto[] = [];
   idsMiembros = new Set<number>();
   soloSeleccionados = false;
   formAbierto = false;
-  form = { nombreGrupo: '', costo: 0, precioGrupo: 0 };
+  form = { nombreGrupo: '', costo: 0, precioGrupo: 0, idCategoria: 0 };
   qGrupo = '';
   qProd = '';
   error = '';
@@ -154,6 +165,7 @@ export class GruposComponent implements OnInit {
       return;
     }
     this.cargar();
+    this.api.categorias().subscribe({ next: (r) => (this.categorias = r) });
   }
 
   dinero(n: number): string {
@@ -185,7 +197,7 @@ export class GruposComponent implements OnInit {
     this.elegido = null;
     this.idsMiembros = new Set();
     this.productos = [];
-    this.form = { nombreGrupo: '', costo: 0, precioGrupo: 0 };
+    this.form = { nombreGrupo: '', costo: 0, precioGrupo: 0, idCategoria: 0 };
     this.formAbierto = true;
     this.irArriba();
   }
@@ -194,7 +206,7 @@ export class GruposComponent implements OnInit {
     this.api.grupo(id).subscribe({
       next: (d) => {
         this.elegido = d;
-        this.form = { nombreGrupo: d.nombreGrupo, costo: d.costo, precioGrupo: d.precioGrupo };
+        this.form = { nombreGrupo: d.nombreGrupo, costo: d.costo, precioGrupo: d.precioGrupo, idCategoria: d.idCategoria ?? 0 };
         this.idsMiembros = new Set(d.miembros.map((m) => m.id));
         this.formAbierto = true;
         this.qProd = '';
@@ -265,7 +277,8 @@ export class GruposComponent implements OnInit {
     const body = {
       nombreGrupo: this.form.nombreGrupo.trim(),
       costo: Number(this.form.costo) || 0,
-      precioGrupo: Number(this.form.precioGrupo) || 0
+      precioGrupo: Number(this.form.precioGrupo) || 0,
+      idCategoria: this.form.idCategoria
     };
     if (!this.elegido) {
       this.api.crearGrupo(body).subscribe({

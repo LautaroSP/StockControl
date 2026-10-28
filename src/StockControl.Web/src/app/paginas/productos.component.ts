@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ApiService, GrupoListaDto, ProductoDto } from '../servicios/api.service';
+import { ApiService, CategoriaDto, GrupoListaDto, ProductoDto } from '../servicios/api.service';
 import { SesionService } from '../servicios/sesion.service';
 import { DialogoService } from '../servicios/dialogo.service';
 
@@ -69,6 +69,7 @@ import { DialogoService } from '../servicios/dialogo.service';
             <th>Tipo</th>
             @if (sesion.esDueno()) {
               <th>Grupo</th>
+              <th>Categoría</th>
             }
             <th>Última modificación</th>
             @if (sesion.puedeConfigurarLocal()) {
@@ -79,7 +80,7 @@ import { DialogoService } from '../servicios/dialogo.service';
         <tbody>
           @if (agrupar && sesion.esDueno()) {
             @for (seccion of secciones; track seccion.nombre) {
-              <tr><th colspan="9"><button class="colapsar" type="button" (click)="alternarSeccion(seccion.nombre)"><span class="flecha" [class.abierta]="!seccionesCerradas.has(seccion.nombre)">▸</span>{{ seccion.nombre }} ({{ seccion.productos.length }})</button></th></tr>
+              <tr><th colspan="10"><button class="colapsar" type="button" (click)="alternarSeccion(seccion.nombre)"><span class="flecha" [class.abierta]="!seccionesCerradas.has(seccion.nombre)">▸</span>{{ seccion.nombre }} ({{ seccion.productos.length }})</button></th></tr>
               @if (!seccionesCerradas.has(seccion.nombre)) {
                 @for (p of seccion.productos; track p.id) {
                   <ng-container [ngTemplateOutlet]="filaProducto" [ngTemplateOutletContext]="{ p: p }" />
@@ -105,6 +106,7 @@ import { DialogoService } from '../servicios/dialogo.service';
               <td>{{ p.productoSector ? 'Sector' : 'Común' }}</td>
               @if (sesion.esDueno()) {
                 <td>{{ p.nombreGrupo || '—' }}</td>
+                <td><ng-container [ngTemplateOutlet]="celdaCategoria" [ngTemplateOutletContext]="{ p: p }" /></td>
               }
               <td><ng-container [ngTemplateOutlet]="celdaModificacion" [ngTemplateOutletContext]="{ p: p }" /></td>
               @if (sesion.puedeConfigurarLocal()) {
@@ -120,12 +122,19 @@ import { DialogoService } from '../servicios/dialogo.service';
           <td>{{ p.codigo }}</td><td>{{ p.nombre }}</td><td class="num">{{ p.productoSector ? '—' : p.cantidad }}</td>
           @if (sesion.esDueno()) { <td class="num">{{ dinero(p.costo) }}</td> }
           <td class="num">{{ p.productoSector ? 'en caja' : dinero(p.precio) }}</td><td>{{ p.productoSector ? 'Sector' : 'Común' }}</td>
-          @if (sesion.esDueno()) { <td>{{ p.nombreGrupo || '—' }}</td> }
+          @if (sesion.esDueno()) {
+            <td>{{ p.nombreGrupo || '—' }}</td>
+            <td><ng-container [ngTemplateOutlet]="celdaCategoria" [ngTemplateOutletContext]="{ p: p }" /></td>
+          }
           <td><ng-container [ngTemplateOutlet]="celdaModificacion" [ngTemplateOutletContext]="{ p: p }" /></td>
           @if (sesion.puedeConfigurarLocal()) {
             <td><ng-container [ngTemplateOutlet]="celdaTienda" [ngTemplateOutletContext]="{ p: p }" /></td>
           }
         </tr>
+      </ng-template>
+      <ng-template #celdaCategoria let-p="p">
+        {{ p.nombreCategoria || '—' }}
+        @if (p.categoriaDelGrupo) { <span class="meta">(grupo)</span> }
       </ng-template>
       <ng-template #celdaModificacion let-p="p">
         {{ fechaHora(p.fechaModificacion) }}
@@ -164,6 +173,15 @@ import { DialogoService } from '../servicios/dialogo.service';
               <button class="btn" type="button" [disabled]="!(form.idGrupoProducto)" (click)="sacarGrupo()">Sacar grupo</button>
             </div>
           }
+          <label class="field" style="margin-top:8px">
+            Categoría
+            <select class="wide" [(ngModel)]="form.idCategoria">
+              <option [ngValue]="0">{{ opcionSinCategoria }}</option>
+              @for (c of categorias; track c.id) {
+                <option [ngValue]="c.id">{{ c.nombre }}</option>
+              }
+            </select>
+          </label>
         } @else {
           <label class="field">Precio de venta <input class="wide" type="number" min="0" [(ngModel)]="form.precio" /></label>
         }
@@ -220,6 +238,7 @@ export class ProductosComponent implements OnInit {
   productos: ProductoDto[] = [];
   visibles: ProductoDto[] = [];
   grupos: GrupoListaDto[] = [];
+  categorias: CategoriaDto[] = [];
   gruposFiltro: { idGrupoProducto: number; nombreGrupo: string }[] = [];
   total = 0;
   elegido: ProductoDto | null = null;
@@ -249,7 +268,8 @@ export class ProductosComponent implements OnInit {
     precio: 0,
     productoSector: false,
     idGrupoProducto: 0,
-    nombreGrupo: null
+    nombreGrupo: null,
+    idCategoria: 0
   };
 
   constructor(
@@ -268,8 +288,16 @@ export class ProductosComponent implements OnInit {
           if (this.formAbierto) this.aplicarPrecioCalculado();
         }
       });
+      this.api.categorias().subscribe({ next: (r) => (this.categorias = r) });
+      this.api.grupos().subscribe({ next: (r) => (this.grupos = r) });
     }
     this.cargar();
+  }
+
+  get opcionSinCategoria(): string {
+    const grupo = this.grupos.find((g) => g.idGrupoProducto === this.form.idGrupoProducto);
+    const categoria = grupo?.idCategoria ? this.categorias.find((c) => c.id === grupo.idCategoria) : undefined;
+    return categoria ? `La del grupo (${categoria.nombre})` : 'Sin categoría';
   }
 
   get secciones(): { nombre: string; productos: ProductoDto[] }[] {
@@ -388,7 +416,8 @@ export class ProductosComponent implements OnInit {
       precio: 0,
       productoSector: false,
       idGrupoProducto: 0,
-      nombreGrupo: null
+      nombreGrupo: null,
+      idCategoria: 0
     };
     this.formAbierto = true;
   }
@@ -419,7 +448,7 @@ export class ProductosComponent implements OnInit {
   editar(p: ProductoDto): void {
     if (!this.sesion.esDueno() && (!this.puedeModificarPrecios || p.productoSector)) return;
     this.editando = p;
-    this.form = { ...p };
+    this.form = { ...p, idCategoria: p.idCategoria ?? 0 };
     this.formAbierto = true;
   }
 

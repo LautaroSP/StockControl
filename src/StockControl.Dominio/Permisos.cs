@@ -29,6 +29,9 @@ public static class Permisos
     public static bool PuedeAdministrarGrupos(string rol) =>
         EsDuenoOperativo(rol);
 
+    public static bool PuedeAdministrarCategorias(string rol) =>
+        EsDuenoOperativo(rol);
+
     public static bool PuedeConfigurarCajas(string rol) =>
         rol is Roles.Dueno or Roles.Socio;
 

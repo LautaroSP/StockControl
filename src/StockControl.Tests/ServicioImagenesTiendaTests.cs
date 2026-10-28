@@ -273,7 +273,7 @@ public class ServicioImagenesTiendaTests
     {
         var imagenes = new[] { Imagen(2, id: 20), Imagen(1, id: 10), Imagen(1, id: 99, producto: 7) };
 
-        var producto = ServicioCatalogoTienda.AProductoTienda(Producto(), imagenes);
+        var producto = ServicioCatalogoTienda.AProductoTienda(Producto(), null, imagenes);
 
         Assert.Equal([10, 20], producto.Imagenes.Select(i => i.Id));
     }
@@ -281,6 +281,6 @@ public class ServicioImagenesTiendaTests
     [Fact]
     public void Sin_imagenes_el_producto_de_la_tienda_queda_con_la_lista_vacia()
     {
-        Assert.Empty(ServicioCatalogoTienda.AProductoTienda(Producto()).Imagenes);
+        Assert.Empty(ServicioCatalogoTienda.AProductoTienda(Producto(), null).Imagenes);
     }
 }

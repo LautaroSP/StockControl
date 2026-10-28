@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<UsuarioLocal> UsuarioLocales => Set<UsuarioLocal>();
     public DbSet<Producto> Productos => Set<Producto>();
     public DbSet<GrupoProductos> GrupoProductos => Set<GrupoProductos>();
+    public DbSet<Categoria> Categorias => Set<Categoria>();
     public DbSet<MetodoPago> MetodosPago => Set<MetodoPago>();
     public DbSet<PagoVenta> PagosVenta => Set<PagoVenta>();
     public DbSet<InformeVenta> InformeVenta => Set<InformeVenta>();
@@ -109,6 +110,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.ValorGanancia).HasPrecision(14, 2);
             e.Property(x => x.UsuarioModificacion).HasMaxLength(80);
             e.HasIndex(x => new { x.IdLocal, x.Publicado });
+            e.HasOne<Categoria>().WithMany().HasForeignKey(x => x.IdCategoria).OnDelete(DeleteBehavior.SetNull);
             e.Ignore(x => x.EsGenerico);
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
@@ -121,6 +123,17 @@ public class AppDbContext : DbContext
             e.Property(x => x.PrecioGrupo).HasPrecision(14, 2);
             e.Property(x => x.Costo).HasPrecision(14, 2);
             e.Property(x => x.Ganancia).HasPrecision(14, 4);
+            e.HasOne<Categoria>().WithMany().HasForeignKey(x => x.IdCategoria).OnDelete(DeleteBehavior.SetNull);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<Categoria>(e =>
+        {
+            e.ToTable("Categorias");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Nombre).HasMaxLength(ServicioCategorias.LargoMaximoNombre);
+            e.HasIndex(x => x.IdLocal);
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
 

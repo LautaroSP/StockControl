@@ -50,17 +50,19 @@ import { NoEncontradaComponent } from './no-encontrada.component';
           <section class="toolbar tienda-filtros">
             <input class="grow" type="search" placeholder="Buscar por nombre o código" maxlength="80" aria-label="Buscar productos"
                    [(ngModel)]="busqueda" (ngModelChange)="buscarEnUnRato()" (keydown.enter)="buscar()" />
-            @if (t.grupos.length > 0) {
-              <select [(ngModel)]="idGrupo" (ngModelChange)="buscar()" aria-label="Filtrar por grupo">
-                <option [ngValue]="0">Todos los grupos</option>
-                @for (g of t.grupos; track g.id) { <option [ngValue]="g.id">{{ g.nombre }}</option> }
-              </select>
-            }
           </section>
+          @if (t.categorias.length > 0) {
+            <div class="tienda-categorias" role="group" aria-label="Filtrar por categoría">
+              <button class="chip" type="button" [attr.aria-pressed]="categorias.size === 0" (click)="todas()">Todas</button>
+              @for (c of t.categorias; track c.id) {
+                <button class="chip" type="button" [attr.aria-pressed]="categorias.has(c.id)" (click)="alternarCategoria(c.id)">{{ c.nombre }}</button>
+              }
+            </div>
+          }
 
           @if (error) { <p class="error">{{ error }}</p> }
           @if (productos.length === 0 && !cargando) {
-            <p class="meta">{{ busqueda || idGrupo ? 'No hay productos con esa búsqueda.' : 'Todavía no hay productos publicados.' }}</p>
+            <p class="meta">{{ busqueda || categorias.size ? 'No hay productos con esa búsqueda.' : 'Todavía no hay productos publicados.' }}</p>
           }
           <ul class="tienda-productos">
             @for (p of productos; track p.id) {
@@ -104,7 +106,7 @@ export class TiendaComponent implements OnInit, OnDestroy {
   productos: ProductoTiendaDto[] = [];
   fotoElegida: Record<number, number> = {};
   busqueda = '';
-  idGrupo = 0;
+  categorias = new Set<number>();
   pagina = 1;
   paginas = 1;
   cargando = false;
@@ -149,6 +151,20 @@ export class TiendaComponent implements OnInit, OnDestroy {
     this.cargar();
   }
 
+  todas(): void {
+    if (this.categorias.size === 0) return;
+    this.categorias = new Set();
+    this.buscar();
+  }
+
+  alternarCategoria(id: number): void {
+    const elegidas = new Set(this.categorias);
+    if (elegidas.has(id)) elegidas.delete(id);
+    else elegidas.add(id);
+    this.categorias = elegidas;
+    this.buscar();
+  }
+
   irA(pagina: number): void {
     this.pagina = pagina;
     this.cargar();
@@ -182,7 +198,7 @@ export class TiendaComponent implements OnInit, OnDestroy {
 
   private cargar(): void {
     this.cargando = true;
-    this.api.productosTienda(this.alias, { q: this.busqueda.trim(), idGrupo: this.idGrupo, pagina: this.pagina }).subscribe({
+    this.api.productosTienda(this.alias, { q: this.busqueda.trim(), categorias: [...this.categorias], pagina: this.pagina }).subscribe({
       next: (r) => {
         this.productos = r.items;
         this.paginas = Math.max(1, Math.ceil(r.total / r.tamano));

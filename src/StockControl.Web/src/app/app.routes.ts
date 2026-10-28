@@ -28,6 +28,7 @@ export const routes: Routes = [
       { path: 'proveedores/:id', loadComponent: () => import('./paginas/proveedor.component').then((m) => m.ProveedorComponent), canActivate: [proveedoresGuard] },
       { path: 'proveedores/:id/catalogo', loadComponent: () => import('./paginas/catalogo-proveedor.component').then((m) => m.CatalogoProveedorComponent), canActivate: [proveedoresGuard] },
       { path: 'grupos', loadComponent: () => import('./paginas/grupos.component').then((m) => m.GruposComponent) },
+      { path: 'categorias', loadComponent: () => import('./paginas/categorias.component').then((m) => m.CategoriasComponent), canActivate: [duenoGuard] },
       { path: 'informes', loadComponent: () => import('./paginas/informes.component').then((m) => m.InformesComponent) },
       { path: 'cajas', loadComponent: () => import('./paginas/cajas.component').then((m) => m.CajasComponent) },
       { path: 'medios-pago', loadComponent: () => import('./paginas/medios-pago.component').then((m) => m.MediosPagoComponent) },

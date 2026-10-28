@@ -55,6 +55,7 @@ function leerGrupos(): Record<Grupo, boolean> {
           }
           @if (sesion.esDueno()) {
             <a routerLink="/grupos" routerLinkActive="active"><sc-icono nombre="grupos" /> Grupos</a>
+            <a routerLink="/categorias" routerLinkActive="active"><sc-icono nombre="categorias" /> Categorías</a>
             <a routerLink="/ofertas" routerLinkActive="active"><sc-icono nombre="precios" /> Ofertas</a>
             <a routerLink="/combos" routerLinkActive="active"><sc-icono nombre="precios" /> Combos</a>
           }

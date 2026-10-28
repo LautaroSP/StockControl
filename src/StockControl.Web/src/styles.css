@@ -891,6 +891,20 @@ html.tema-suave .reel-track {
 .tienda-datos p { margin: 0 0 8px; }
 .tienda-mapa { padding: 10px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .tienda-filtros { margin-bottom: 14px; }
+.tienda-categorias { display: flex; flex-wrap: wrap; gap: 8px; margin: -4px 0 14px; }
+.chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--btn-hover-line); }
+.chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.chip[aria-pressed="true"] { background: var(--forest-mid); border-color: var(--forest-mid); color: var(--sidebar-text); }
 .tienda-productos {
   list-style: none;
   margin: 0;

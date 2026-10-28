@@ -1242,8 +1242,8 @@ namespace StockControl.Api.Datos.Migraciones
 
                     b.Property<string>("Archivo")
                         .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("Enlace")
                         .IsRequired()

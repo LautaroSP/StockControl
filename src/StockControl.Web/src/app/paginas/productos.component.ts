@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ApiService, CategoriaDto, GrupoListaDto, ProductoDto } from '../servicios/api.service';
+import { ApiService, CategoriaDto, FiltroProductos, GrupoListaDto, ProductoDto } from '../servicios/api.service';
 import { SesionService } from '../servicios/sesion.service';
 import { DialogoService } from '../servicios/dialogo.service';
 
@@ -50,7 +50,7 @@ import { DialogoService } from '../servicios/dialogo.service';
     </div>
     @if (sesion.puedeConfigurarLocal()) {
       <div class="row" style="margin-bottom:12px">
-        <button class="btn" type="button" [disabled]="publicablesVisibles().length === 0" (click)="publicarLista(true)">Publicar la lista en la tienda</button>
+        <button class="btn" type="button" [disabled]="publicablesVisibles().length === 0 && !hayMasQueLaPantalla()" (click)="publicarLista(true)">Publicar la lista en la tienda</button>
         <button class="btn" type="button" [disabled]="visibles.length === 0" (click)="publicarLista(false)">Ocultar la lista de la tienda</button>
         <span class="meta">Sector y genérico no se publican: no tienen precio fijo.</span>
       </div>
@@ -327,15 +327,18 @@ export class ProductosComponent implements OnInit {
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
 
-  cargar(): void {
-    const sector = this.tipo === 'sector' ? true : this.tipo === 'comun' ? false : undefined;
-    this.api.productos(this.q, {
-      sector,
+  private filtro(): FiltroProductos {
+    return {
+      sector: this.tipo === 'sector' ? true : this.tipo === 'comun' ? false : undefined,
       idGrupo: this.grupo && this.grupo !== 'sin' ? Number(this.grupo) : undefined,
       sinGrupo: this.grupo === 'sin',
       stockBajo: this.stockBajo,
       publicado: this.tienda === 'si' ? true : this.tienda === 'no' ? false : undefined
-    }).subscribe({
+    };
+  }
+
+  cargar(): void {
+    this.api.productos(this.q, this.filtro()).subscribe({
       next: (r) => {
         this.productos = r.items;
         this.visibles = r.items;
@@ -385,14 +388,36 @@ export class ProductosComponent implements OnInit {
     });
   }
 
+  hayMasQueLaPantalla(): boolean {
+    return this.total > this.visibles.length;
+  }
+
   async publicarLista(publicado: boolean): Promise<void> {
     const ids = (publicado ? this.publicablesVisibles() : this.visibles.filter((p) => p.publicado)).map((p) => p.id);
-    if (ids.length === 0) return;
-    const texto = publicado
-      ? `¿Publicar ${ids.length} productos de la lista en la tienda?`
-      : `¿Ocultar ${ids.length} productos de la lista de la tienda?`;
-    if (!await this.dialogo.confirmar(texto)) return;
-    this.api.publicarProductos(ids, publicado).subscribe({
+    const verbo = publicado ? 'publicar' : 'ocultar';
+    let todaLaLista = false;
+    if (this.hayMasQueLaPantalla()) {
+      const eleccion = await this.dialogo.elegir(
+        `La lista tiene ${this.total} productos y en pantalla se ven ${this.visibles.length}. ¿Querés ${verbo} toda la lista? Si no, se ${publicado ? 'publican' : 'ocultan'} solo los de la pantalla.`,
+        'Toda la lista',
+        'Solo la pantalla');
+      if (eleccion === null) return;
+      todaLaLista = eleccion === 'aceptar';
+    } else {
+      if (ids.length === 0) return;
+      const texto = publicado
+        ? `¿Publicar ${ids.length} productos de la lista en la tienda?`
+        : `¿Ocultar ${ids.length} productos de la lista de la tienda?`;
+      if (!await this.dialogo.confirmar(texto)) return;
+    }
+    if (!todaLaLista && ids.length === 0) {
+      this.mostrar(publicado ? 'No hay productos para publicar en pantalla' : 'No hay productos para ocultar en pantalla');
+      return;
+    }
+    const pedido = todaLaLista
+      ? this.api.publicarListaProductos(publicado, this.q, this.filtro())
+      : this.api.publicarProductos(ids, publicado);
+    pedido.subscribe({
       next: (r) => {
         this.error = '';
         this.mostrar(`${r.actualizados} productos ${publicado ? 'publicados' : 'ocultos'}`);

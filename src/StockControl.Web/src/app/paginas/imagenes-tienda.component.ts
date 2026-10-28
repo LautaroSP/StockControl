@@ -42,7 +42,7 @@ async function achicar(archivo: File): Promise<string> {
         @for (p of productos; track p.id) {
           <li>
             <div class="row">
-              <span class="grow"><strong>{{ p.nombre }}</strong> <span class="meta">{{ p.codigo }}</span></span>
+              <span class="grow"><strong>{{ p.nombre }}</strong><span class="meta imagenes-codigo">{{ p.codigo }}</span></span>
               <button class="btn" type="button" (click)="abrir(p.id)">{{ abierto === p.id ? 'Cerrar' : 'Imágenes' }}</button>
             </div>
             @if (abierto === p.id) {

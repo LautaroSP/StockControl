@@ -493,38 +493,14 @@ app.MapPost("/locales/{id:int}/entrar", async (int id, AppDbContext db, SesionAc
     return Results.Ok(new { token = jwt.Emitir(u, id) });
 }).RequireAuthorization().RequireRateLimiting("api");
 
-app.MapGet("/productos", async (AppDbContext db, SesionActual sesion, string? q, string? codigo, bool? sector, string? tipo, int? idGrupo, bool? sinGrupo, bool? stockBajo, int? idProveedor, bool? publicado, int pagina = 1, int tamano = 50) =>
+app.MapGet("/productos", async (AppDbContext db, SesionActual sesion, [AsParameters] FiltroProductos filtro, int pagina = 1, int tamano = 50) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     tamano = Math.Clamp(tamano, 1, maxPagina);
     pagina = Math.Max(1, pagina);
-    var consulta = db.Productos.AsQueryable();
-    var soloSector = sector == true || string.Equals(tipo, "sector", StringComparison.OrdinalIgnoreCase);
-    var soloComun = sector == false || string.Equals(tipo, "comun", StringComparison.OrdinalIgnoreCase);
-    if (soloSector)
-        consulta = consulta.Where(p => p.ProductoSector);
-    else if (soloComun)
-        consulta = consulta.Where(p => !p.ProductoSector);
-    if (idGrupo is > 0)
-        consulta = consulta.Where(p => p.IdGrupoProducto == idGrupo);
-    else if (sinGrupo == true)
-        consulta = consulta.Where(p => p.IdGrupoProducto == 0);
-    if (idProveedor is > 0)
-        consulta = consulta.Where(p => p.IdProveedor == idProveedor);
-    if (publicado is bool soloPublicados)
-        consulta = consulta.Where(p => p.Publicado == soloPublicados);
-    var valorUmbral = (await db.Configuracion.FirstOrDefaultAsync(c => c.Clave == "UmbralStockBajo"))?.Valor;
-    var umbral = decimal.TryParse(valorUmbral, out var umbralConfigurado) && umbralConfigurado >= 0 ? umbralConfigurado : 5;
+    var umbral = await UmbralStockBajo(db);
     var permisoPrecio = (await db.Configuracion.FirstOrDefaultAsync(c => c.Clave == "EmpleadoPuedeModificarPrecios"))?.Valor == "1";
-    if (stockBajo == true)
-    {
-        consulta = consulta.Where(p => !p.ProductoSector && p.Cantidad <= umbral);
-    }
-    if (!string.IsNullOrWhiteSpace(codigo))
-        consulta = consulta.Where(p => p.Codigo == codigo);
-    else if (!string.IsNullOrWhiteSpace(q))
-        consulta = consulta.Where(p => EF.Functions.ILike(p.Nombre, $"%{q}%") || EF.Functions.ILike(p.Codigo, $"%{q}%"));
-    consulta = consulta.OrderBy(p => p.Nombre);
+    var consulta = FiltrarProductos(db.Productos, filtro, umbral).OrderBy(p => p.Nombre);
     var total = await consulta.CountAsync();
     var items = await consulta.Skip((pagina - 1) * tamano).Take(tamano).ToListAsync();
     var grupos = await db.GrupoProductos.AsNoTracking().ToDictionaryAsync(g => g.IdGrupoProducto);
@@ -1151,6 +1127,18 @@ app.MapPut("/productos/publicados", async (PublicarProductosPedido pedido, AppDb
     }
     await db.SaveChangesAsync();
     return Results.Ok(new { actualizados = productos.Count });
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPut("/productos/publicados/lista", async ([AsParameters] FiltroProductos filtro, PublicarListaPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
+    var consulta = FiltrarProductos(db.Productos, filtro, await UmbralStockBajo(db))
+        .Where(p => p.Publicado != pedido.Publicado);
+    if (pedido.Publicado)
+        consulta = ServicioCatalogoTienda.Publicables(consulta);
+    var actualizados = await consulta.ExecuteUpdateAsync(s => s.SetProperty(p => p.Publicado, pedido.Publicado));
+    return Results.Ok(new { actualizados });
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapGet("/tienda/{alias}", async (string alias, AppDbContext db, SesionActual sesion) =>
@@ -3423,6 +3411,35 @@ app.MapPost("/cajas/cerrar", async (CerrarCajaPedido pedido, AppDbContext db, Se
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.Run();
+
+static async Task<decimal> UmbralStockBajo(AppDbContext db)
+{
+    var valor = (await db.Configuracion.FirstOrDefaultAsync(c => c.Clave == "UmbralStockBajo"))?.Valor;
+    return decimal.TryParse(valor, out var umbral) && umbral >= 0 ? umbral : 5;
+}
+
+static IQueryable<Producto> FiltrarProductos(IQueryable<Producto> consulta, FiltroProductos f, decimal umbral)
+{
+    if (f.Sector == true || string.Equals(f.Tipo, "sector", StringComparison.OrdinalIgnoreCase))
+        consulta = consulta.Where(p => p.ProductoSector);
+    else if (f.Sector == false || string.Equals(f.Tipo, "comun", StringComparison.OrdinalIgnoreCase))
+        consulta = consulta.Where(p => !p.ProductoSector);
+    if (f.IdGrupo is > 0)
+        consulta = consulta.Where(p => p.IdGrupoProducto == f.IdGrupo);
+    else if (f.SinGrupo == true)
+        consulta = consulta.Where(p => p.IdGrupoProducto == 0);
+    if (f.IdProveedor is > 0)
+        consulta = consulta.Where(p => p.IdProveedor == f.IdProveedor);
+    if (f.Publicado is bool soloPublicados)
+        consulta = consulta.Where(p => p.Publicado == soloPublicados);
+    if (f.StockBajo == true)
+        consulta = consulta.Where(p => !p.ProductoSector && p.Cantidad <= umbral);
+    if (!string.IsNullOrWhiteSpace(f.Codigo))
+        consulta = consulta.Where(p => p.Codigo == f.Codigo);
+    else if (!string.IsNullOrWhiteSpace(f.Q))
+        consulta = consulta.Where(p => EF.Functions.ILike(p.Nombre, $"%{f.Q}%") || EF.Functions.ILike(p.Codigo, $"%{f.Q}%"));
+    return consulta;
+}
 
 static List<int> IdsDeLista(string? lista, int maximo) =>
     (lista ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

@@ -41,6 +41,16 @@ public class ServicioCatalogoTiendaTests
     }
 
     [Fact]
+    public void Publicar_toda_la_lista_deja_afuera_sector_y_generico()
+    {
+        var productos = new[] { Producto(1), Producto(2, sector: true), Producto(3, codigo: "GENERIC-3"), Producto(4, codigo: "generic-4") };
+
+        var ids = ServicioCatalogoTienda.Publicables(productos.AsQueryable()).Select(p => p.Id).ToList();
+
+        Assert.Equal([1], ids);
+    }
+
+    [Fact]
     public void Un_local_no_ve_productos_de_otro()
     {
         var productos = new[] { Producto(1, local: 1), Producto(2, local: 2) };

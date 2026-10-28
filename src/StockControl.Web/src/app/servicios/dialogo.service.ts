@@ -9,12 +9,27 @@ export class DialogoService {
   oculto = false;
   textoAceptar = 'Aceptar';
   textoCancelar = 'Cancelar';
+  textoOtro = '';
   private pendiente: ((valor: string | null) => void) | null = null;
 
   confirmar(mensaje: string, aceptar = 'Aceptar', cancelar = 'Cancelar'): Promise<boolean> {
     this.textoAceptar = aceptar;
     this.textoCancelar = cancelar;
     return this.abrir(mensaje, false, '', false).then((valor) => valor !== null);
+  }
+
+  /** Dos opciones más Cancelar (o Escape, que devuelve null). */
+  elegir(mensaje: string, aceptar: string, otro: string, cancelar = 'Cancelar'): Promise<'aceptar' | 'otro' | null> {
+    this.textoAceptar = aceptar;
+    this.textoCancelar = cancelar;
+    const respuesta = this.abrir(mensaje, false, '', false);
+    this.textoOtro = otro;
+    return respuesta.then((valor) => (valor === null ? null : valor === 'otro' ? 'otro' : 'aceptar'));
+  }
+
+  otro(): void {
+    if (!this.pendiente) return;
+    this.cerrar('otro');
   }
 
   pedir(mensaje: string, inicial = '', oculto = false): Promise<string | null> {
@@ -37,6 +52,7 @@ export class DialogoService {
 
   private abrir(mensaje: string, conCampo: boolean, inicial: string, oculto: boolean): Promise<string | null> {
     this.mensaje = mensaje;
+    this.textoOtro = '';
     if (conCampo) {
       this.textoAceptar = 'Aceptar';
       this.textoCancelar = 'Cancelar';

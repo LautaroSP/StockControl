@@ -77,6 +77,16 @@ export interface ProductoTiendaDto {
   imagenes: ImagenTiendaDto[];
 }
 
+export interface FiltroProductos {
+  sector?: boolean;
+  codigo?: string;
+  idGrupo?: number;
+  sinGrupo?: boolean;
+  stockBajo?: boolean;
+  idProveedor?: number;
+  publicado?: boolean;
+}
+
 export interface ItemCarritoTienda {
   idProducto: number;
   cantidad: number;
@@ -505,8 +515,18 @@ export class ApiService {
     return this.http.post<{ token: string }>(`${this.base}/locales/${id}/entrar`, {});
   }
 
-  productos(q = '', opts?: { sector?: boolean; codigo?: string; idGrupo?: number; sinGrupo?: boolean; stockBajo?: boolean; idProveedor?: number; publicado?: boolean }) {
-    let params = new HttpParams().set('tamano', 100);
+  productos(q = '', opts?: FiltroProductos) {
+    const params = this.filtroProductos(q, opts).set('tamano', 100);
+    return this.http.get<{ total: number; umbralStockBajo: number; puedeModificarPrecio: boolean; items: ProductoDto[] }>(`${this.base}/productos`, { params });
+  }
+
+  /** Publica u oculta todos los productos que cumplen los filtros, no solo la página cargada. */
+  publicarListaProductos(publicado: boolean, q = '', opts?: FiltroProductos) {
+    return this.http.put<{ actualizados: number }>(`${this.base}/productos/publicados/lista`, { publicado }, { params: this.filtroProductos(q, opts) });
+  }
+
+  private filtroProductos(q: string, opts?: FiltroProductos): HttpParams {
+    let params = new HttpParams();
     if (opts?.publicado !== undefined) params = params.set('publicado', String(opts.publicado));
     if (opts?.idProveedor) params = params.set('idProveedor', String(opts.idProveedor));
     if (q) params = params.set('q', q);
@@ -516,7 +536,7 @@ export class ApiService {
     if (opts?.idGrupo) params = params.set('idGrupo', String(opts.idGrupo));
     if (opts?.sinGrupo) params = params.set('sinGrupo', 'true');
     if (opts?.stockBajo) params = params.set('stockBajo', 'true');
-    return this.http.get<{ total: number; umbralStockBajo: number; puedeModificarPrecio: boolean; items: ProductoDto[] }>(`${this.base}/productos`, { params });
+    return params;
   }
 
   usuarios() {

@@ -9,6 +9,8 @@ public static class ServicioImagenesTienda
     public const int LadoMaximo = 400;
     public const int MaximoBytes = 2 * 1024 * 1024;
     public const int MaximoPixeles = 25_000_000;
+    /// <summary>El nombre hoy mide 69 (SHA-256 en hexadecimal + ".webp"); la columna deja margen.</summary>
+    public const int LargoMaximoArchivo = 100;
 
     public const string OrigenPropia = "propia";
     public const string OrigenOpenFoodFacts = "openfoodfacts";

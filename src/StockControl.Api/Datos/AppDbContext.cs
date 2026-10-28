@@ -478,7 +478,7 @@ public class AppDbContext : DbContext
             e.ToTable("ImagenesProducto");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).UseIdentityByDefaultColumn();
-            e.Property(x => x.Archivo).HasMaxLength(40);
+            e.Property(x => x.Archivo).HasMaxLength(ServicioImagenesTienda.LargoMaximoArchivo);
             e.Property(x => x.TipoContenido).HasMaxLength(20);
             e.Property(x => x.Origen).HasMaxLength(20);
             e.Property(x => x.Fuente).HasMaxLength(60);

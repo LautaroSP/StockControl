@@ -540,6 +540,33 @@ public class PublicarProductosPedido
     public bool Publicado { get; set; }
 }
 
+/// <summary>Filtros de la lista de Productos, por query string.</summary>
+public class FiltroProductos
+{
+    [MaxLength(100)]
+    public string? Q { get; set; }
+
+    [MaxLength(80)]
+    public string? Codigo { get; set; }
+
+    public bool? Sector { get; set; }
+
+    [MaxLength(20)]
+    public string? Tipo { get; set; }
+
+    public int? IdGrupo { get; set; }
+    public bool? SinGrupo { get; set; }
+    public bool? StockBajo { get; set; }
+    public int? IdProveedor { get; set; }
+    public bool? Publicado { get; set; }
+}
+
+/// <summary>Publica u oculta todo lo que cumple los filtros, no solo la página que se ve.</summary>
+public class PublicarListaPedido
+{
+    public bool Publicado { get; set; }
+}
+
 public class ImagenProductoPedido
 {
     /// <summary>Base64 de la imagen (acepta el prefijo data:image/...;base64,).</summary>

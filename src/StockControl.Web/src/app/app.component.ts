@@ -18,6 +18,9 @@ import { TemaService } from './servicios/tema.service';
           }
           <div class="row dialogo-acciones">
             <button class="btn" type="button" (click)="dialogo.cancelar()">{{ dialogo.textoCancelar }}</button>
+            @if (dialogo.textoOtro) {
+              <button class="btn" type="button" (click)="dialogo.otro()">{{ dialogo.textoOtro }}</button>
+            }
             <button class="btn btn-primary" type="button" (click)="dialogo.aceptar()" [attr.autofocus]="dialogo.conCampo ? null : ''">{{ dialogo.textoAceptar }}</button>
           </div>
         </div>

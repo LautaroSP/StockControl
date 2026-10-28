@@ -9,6 +9,10 @@ public static class ServicioCatalogoTienda
 
     public static bool PuedePublicar(Producto producto) => !producto.ProductoSector && !producto.EsGenerico;
 
+    /// <summary>La regla de <see cref="PuedePublicar"/> traducible a SQL.</summary>
+    public static IQueryable<Producto> Publicables(IQueryable<Producto> productos) =>
+        productos.Where(p => !p.ProductoSector && !p.Codigo.ToUpper().StartsWith("GENERIC-"));
+
     public static void Publicar(Producto producto, bool publicado)
     {
         if (publicado && !PuedePublicar(producto))
@@ -48,11 +52,7 @@ public static class ServicioCatalogoTienda
 
     static IQueryable<Producto> Filtrar(IQueryable<Producto> productos, int idLocal, string? busqueda)
     {
-        var consulta = productos.Where(p =>
-            p.IdLocal == idLocal
-            && p.Publicado
-            && !p.ProductoSector
-            && !p.Codigo.ToUpper().StartsWith("GENERIC-"));
+        var consulta = Publicables(productos).Where(p => p.IdLocal == idLocal && p.Publicado);
         var texto = (busqueda ?? "").Trim().ToLowerInvariant();
         if (texto.Length > LargoMaximoBusqueda)
             texto = texto[..LargoMaximoBusqueda];

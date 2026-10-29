@@ -38,11 +38,11 @@ export const routes: Routes = [
       { path: 'configuracion', loadComponent: () => import('./paginas/configuracion.component').then((m) => m.ConfiguracionComponent) },
       {
         path: 'mi-tienda',
-        canActivate: [tiendaGuard],
         children: [
-          { path: '', pathMatch: 'full', loadComponent: () => import('./paginas/tienda-resumen.component').then((m) => m.TiendaResumenComponent) },
-          { path: 'configuracion', loadComponent: () => import('./paginas/config-tienda.component').then((m) => m.ConfigTiendaComponent) },
-          { path: 'imagenes', loadComponent: () => import('./paginas/imagenes-tienda.component').then((m) => m.ImagenesTiendaComponent) }
+          { path: '', pathMatch: 'full', loadComponent: () => import('./paginas/tienda-resumen.component').then((m) => m.TiendaResumenComponent), canActivate: [tiendaGuard] },
+          { path: 'pedidos', loadComponent: () => import('./paginas/panel-pedidos.component').then((m) => m.PanelPedidosComponent) },
+          { path: 'configuracion', loadComponent: () => import('./paginas/config-tienda.component').then((m) => m.ConfigTiendaComponent), canActivate: [tiendaGuard] },
+          { path: 'imagenes', loadComponent: () => import('./paginas/imagenes-tienda.component').then((m) => m.ImagenesTiendaComponent), canActivate: [tiendaGuard] }
         ]
       },
       {

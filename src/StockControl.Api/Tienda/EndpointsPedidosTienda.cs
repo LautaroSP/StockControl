@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StockControl.Api.Avisos;
 using StockControl.Api.Contratos;
 using StockControl.Api.Datos;
 using StockControl.Dominio;
@@ -44,7 +45,7 @@ public static class EndpointsPedidosTienda
         }
     }
 
-    private static async Task<IResult> Crear(string alias, PedidoTiendaPedido pedido, AppDbContext db, SesionActual sesion)
+    private static async Task<IResult> Crear(string alias, PedidoTiendaPedido pedido, AppDbContext db, SesionActual sesion, ColaPush cola)
     {
         if (ServicioContacto.EsCebo(pedido.Sitio)) return Results.Ok();
         var local = await LocalesTienda.PorAlias(db, alias);
@@ -64,7 +65,10 @@ public static class EndpointsPedidosTienda
                 items, await Productos(db, items), await ReservasTienda.DelLocal(db, local.IdLocal), await StockRigido(db));
             db.PedidosTienda.Add(creado.Pedido);
             await db.SaveChangesAsync();
+            var push = await AvisosPedidos.Agregar(db, creado.Pedido, ServicioAvisos.PedidoNuevo);
+            await db.SaveChangesAsync();
             await tx.CommitAsync();
+            cola.Encolar(push);
             return Results.Ok(new { numero = creado.Pedido.Numero, estado = creado.Pedido.Estado, codigo = creado.Codigo });
         }
         catch (ErrorNegocio ex)
@@ -94,19 +98,25 @@ public static class EndpointsPedidosTienda
         });
     }
 
-    private static async Task<IResult> Cancelar(string alias, string codigo, AppDbContext db, SesionActual sesion)
+    private static async Task<IResult> Cancelar(string alias, string codigo, AppDbContext db, SesionActual sesion, ColaPush cola)
     {
         var (local, pedido) = await PedidoDelCodigo(alias, codigo, db, sesion, rastrear: true);
         if (local == null || pedido == null) return Results.NotFound();
         try
         {
             ServicioPedidosTienda.Cancelar(pedido, DateTimeOffset.UtcNow);
+            var push = await AvisosPedidos.Agregar(db, pedido, ServicioAvisos.PedidoCancelado);
             await db.SaveChangesAsync();
+            cola.Encolar(push);
             return Results.Ok(new { estado = pedido.Estado });
         }
         catch (ErrorNegocio ex)
         {
             return Results.BadRequest(ex.Message);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Results.BadRequest("El local ya está preparando el pedido. Escribile para cancelarlo.");
         }
     }
 

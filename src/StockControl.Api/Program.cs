@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using StockControl.Api.Auth;
+using StockControl.Api.Avisos;
 using StockControl.Api.Contratos;
 using StockControl.Api.Datos;
 using StockControl.Api.Importacion;
@@ -20,6 +21,14 @@ using StockControl.Dominio;
 CargarEnvLocal();
 
 var importar = args.Length >= 2 && args[0] == "import";
+
+if (args.Length >= 1 && args[0] == "vapid")
+{
+    var (publica, privada) = ClavesVapid.Generar();
+    Console.WriteLine($"WebPush__ClavePublica={publica}");
+    Console.WriteLine($"WebPush__ClavePrivada={privada}");
+    return;
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,6 +75,10 @@ builder.Services.AddHttpClient<ClienteOpenFoodFacts>(c =>
     c.Timeout = TimeSpan.FromSeconds(10);
     c.DefaultRequestHeaders.UserAgent.ParseAdd(builder.Configuration["OpenFoodFacts:UserAgent"] ?? "StockControl/1.0 (tienda de locales)");
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddHttpClient(EnviadorPush.Cliente, c => c.Timeout = TimeSpan.FromSeconds(10))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddSingleton<ColaPush>();
+builder.Services.AddHostedService<EnviadorPush>();
 builder.Services.AddSingleton(new AlmacenImagenes(
     builder.Configuration["Imagenes:Ruta"] ?? Path.Combine(builder.Environment.ContentRootPath, "datos", "imagenes")));
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -1017,6 +1030,7 @@ app.MapPut("/configuracion/local", async (ConfiguracionLocalPedido pedido, AppDb
     GuardarConfiguracion(db, local.IdLocal, "UmbralStockBajo", pedido.UmbralStockBajo);
     GuardarConfiguracion(db, local.IdLocal, "EmpleadoPuedeModificarPrecios", pedido.EmpleadoPuedeModificarPrecios);
     GuardarConfiguracion(db, local.IdLocal, "EmpleadoPuedeFiar", pedido.EmpleadoPuedeFiar);
+    GuardarConfiguracion(db, local.IdLocal, PermisoPedidosTienda.Clave, pedido.EmpleadoVePedidosTienda);
     GuardarConfiguracion(db, local.IdLocal, "FormatoTicket", formato);
     GuardarConfiguracion(db, local.IdLocal, "ImprimirTicketAlCobrar", pedido.ImprimirTicketAlCobrar);
     GuardarConfiguracion(db, local.IdLocal, "CantidadCajas", pedido.CantidadCajas);
@@ -1209,6 +1223,8 @@ app.MapGet("/tienda/{alias}/imagenes/{idImagen:int}", async (string alias, int i
 
 app.MapImagenesProducto();
 app.MapPedidosTienda();
+app.MapPanelPedidos();
+app.MapAvisos();
 
 app.MapGet("/usuarios", async (AppDbContext db, SesionActual sesion) =>
 {
@@ -3548,6 +3564,7 @@ static async Task<ConfiguracionLocalPedido> LeerConfiguracionLocal(AppDbContext 
         ["UmbralStockBajo"] = "5",
         ["EmpleadoPuedeModificarPrecios"] = "0",
         ["EmpleadoPuedeFiar"] = "0",
+        [PermisoPedidosTienda.Clave] = "0",
         ["FormatoTicket"] = "POS-80",
         ["ImprimirTicketAlCobrar"] = "1",
         ["CantidadCajas"] = "1"
@@ -3570,6 +3587,7 @@ static async Task<ConfiguracionLocalPedido> LeerConfiguracionLocal(AppDbContext 
         UmbralStockBajo = DecimalConfig(valores["UmbralStockBajo"], 5),
         EmpleadoPuedeModificarPrecios = BoolConfig(valores["EmpleadoPuedeModificarPrecios"]),
         EmpleadoPuedeFiar = BoolConfig(valores["EmpleadoPuedeFiar"]),
+        EmpleadoVePedidosTienda = BoolConfig(valores[PermisoPedidosTienda.Clave]),
         FormatoTicket = ServicioTicket.FormatoODefault(valores["FormatoTicket"]),
         ImprimirTicketAlCobrar = BoolConfig(valores["ImprimirTicketAlCobrar"]),
         CantidadCajas = IntConfig(valores["CantidadCajas"], 1)

@@ -98,9 +98,69 @@ export interface CotizacionTiendaDto {
   total: number;
 }
 
+export type EstadoPedidoTienda = 'nuevo' | 'preparando' | 'listo' | 'entregado' | 'cancelado';
+
+export interface PedidoPanelListaDto {
+  id: number;
+  numero: number;
+  estado: EstadoPedidoTienda;
+  creado: string;
+  nombre: string;
+  total: number;
+  productos: number;
+}
+
+export interface PedidoPanelDto {
+  id: number;
+  numero: number;
+  estado: EstadoPedidoTienda;
+  creado: string;
+  actualizado: string | null;
+  cancelado: string | null;
+  entregado: string | null;
+  idInformeVenta: number | null;
+  nombre: string;
+  telefono: string;
+  telefonoVisible: string;
+  email: string;
+  subtotal: number;
+  total: number;
+  siguientes: EstadoPedidoTienda[];
+  lineas: { id: number; codigo: string; nombre: string; cantidad: number; precioUnitario: number; subTotal: number }[];
+}
+
+export interface AvisoDto {
+  id: number;
+  tipo: string;
+  texto: string;
+  idPedidoTienda: number;
+  creado: string;
+  leido: boolean;
+}
+
+export interface ContadorAvisosDto {
+  puedeVerPedidos: boolean;
+  noLeidos: number;
+  ultimo: number;
+  sonido: boolean;
+}
+
+export interface PreferenciasAvisoDto {
+  sonido: boolean;
+  pushNuevos: boolean;
+  pushCancelados: boolean;
+  clavePush: string | null;
+}
+
+export interface SuscripcionPushDto {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
 export interface PedidoTiendaDto {
   numero: number;
-  estado: 'nuevo' | 'cancelado';
+  estado: EstadoPedidoTienda;
   puedeCancelar: boolean;
   creado: string;
   nombre: string;
@@ -239,6 +299,7 @@ export interface ConfiguracionLocalDto {
   umbralStockBajo: number;
   empleadoPuedeModificarPrecios: boolean;
   empleadoPuedeFiar: boolean;
+  empleadoVePedidosTienda: boolean;
   formatoTicket: string;
   imprimirTicketAlCobrar: boolean;
   cantidadCajas: number;
@@ -937,6 +998,59 @@ export class ApiService {
 
   cancelarPedidoTienda(alias: string, codigo: string) {
     return this.http.post<{ estado: string }>(`${this.base}/tienda/${encodeURIComponent(alias)}/pedidos/${encodeURIComponent(codigo)}/cancelar`, {});
+  }
+
+  pedidosPanel(estado: string, pagina: number) {
+    const params = new HttpParams().set('estado', estado).set('pagina', String(pagina));
+    return this.http.get<{ total: number; pagina: number; tamano: number; items: PedidoPanelListaDto[] }>(`${this.base}/pedidos-tienda`, { params });
+  }
+
+  pedidoPanel(id: number) {
+    return this.http.get<PedidoPanelDto>(`${this.base}/pedidos-tienda/${id}`);
+  }
+
+  avanzarPedidoPanel(id: number, estado: EstadoPedidoTienda) {
+    return this.http.post<PedidoPanelDto>(`${this.base}/pedidos-tienda/${id}/estado`, { estado });
+  }
+
+  entregarPedidoPanel(id: number, idMetodoPago: number) {
+    return this.http.post<PedidoPanelDto>(`${this.base}/pedidos-tienda/${id}/entregar`, { idMetodoPago });
+  }
+
+  cancelarPedidoPanel(id: number) {
+    return this.http.post<PedidoPanelDto>(`${this.base}/pedidos-tienda/${id}/cancelar`, {});
+  }
+
+  contadorAvisos() {
+    return this.http.get<ContadorAvisosDto>(`${this.base}/avisos/contador`);
+  }
+
+  avisos() {
+    return this.http.get<AvisoDto[]>(`${this.base}/avisos`);
+  }
+
+  marcarAvisoLeido(id: number) {
+    return this.http.post<void>(`${this.base}/avisos/${id}/leido`, {});
+  }
+
+  marcarAvisosLeidos() {
+    return this.http.post<void>(`${this.base}/avisos/leidos`, {});
+  }
+
+  preferenciasAviso() {
+    return this.http.get<PreferenciasAvisoDto>(`${this.base}/avisos/preferencias`);
+  }
+
+  guardarPreferenciasAviso(p: { sonido: boolean; pushNuevos: boolean; pushCancelados: boolean }) {
+    return this.http.put<void>(`${this.base}/avisos/preferencias`, p);
+  }
+
+  suscribirPush(s: SuscripcionPushDto) {
+    return this.http.post<void>(`${this.base}/avisos/push`, s);
+  }
+
+  desuscribirPush(s: SuscripcionPushDto) {
+    return this.http.post<void>(`${this.base}/avisos/push/baja`, s);
   }
 
   cerrarCaja(fecha?: string, desglose: 'medio' | 'usuario' = 'medio', todas = false) {

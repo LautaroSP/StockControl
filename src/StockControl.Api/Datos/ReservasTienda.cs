@@ -9,7 +9,7 @@ public static class ReservasTienda
         ServicioPedidosTienda.Reservado(await db.PedidosTienda.IgnoreQueryFilters()
             .AsNoTracking()
             .Include(p => p.Lineas)
-            .Where(p => p.IdLocal == idLocal && p.Estado == ServicioPedidosTienda.Nuevo)
+            .Where(p => p.IdLocal == idLocal && ServicioPedidosTienda.Activos.Contains(p.Estado))
             .ToListAsync());
 
     /// <summary>Serializa las reservas del local hasta el fin de la transacción.</summary>

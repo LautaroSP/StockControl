@@ -18,7 +18,20 @@ public record PedidoCreado(PedidoTienda Pedido, string Codigo);
 public static class ServicioPedidosTienda
 {
     public const string Nuevo = "nuevo";
+    public const string Preparando = "preparando";
+    public const string Listo = "listo";
+    public const string Entregado = "entregado";
     public const string Cancelado = "cancelado";
+
+    /// <summary>Estados que reservan stock: el pedido sigue abierto.</summary>
+    public static readonly string[] Activos = [Nuevo, Preparando, Listo];
+
+    private static readonly Dictionary<string, string[]> Transiciones = new()
+    {
+        [Nuevo] = [Preparando, Listo, Entregado, Cancelado],
+        [Preparando] = [Listo, Entregado, Cancelado],
+        [Listo] = [Entregado, Cancelado]
+    };
 
     public const int MaximoLineas = 50;
     public const int MaximoCantidad = 99;
@@ -87,22 +100,54 @@ public static class ServicioPedidosTienda
             throw new ErrorNegocio("La tienda no está recibiendo pedidos en este momento.");
     }
 
-    /// <summary>Solo un pedido nuevo se cancela. Cancelado deja de contar como reservado.</summary>
+    /// <summary>El comprador cancela solo un pedido nuevo. Cancelado deja de contar como reservado.</summary>
     public static void Cancelar(PedidoTienda pedido, DateTimeOffset ahora)
     {
         if (pedido.Estado == Cancelado)
             throw new ErrorNegocio("El pedido ya está cancelado.");
         if (pedido.Estado != Nuevo)
             throw new ErrorNegocio("El pedido ya no se puede cancelar.");
-        pedido.Estado = Cancelado;
-        pedido.Cancelado = ahora;
+        CancelarDelLocal(pedido, ahora);
     }
 
     public static bool PuedeCancelar(PedidoTienda pedido) => pedido.Estado == Nuevo;
 
-    /// <summary>Unidades que los pedidos nuevos tienen apartadas, por producto.</summary>
+    /// <summary>El local cancela mientras el pedido siga abierto.</summary>
+    public static void CancelarDelLocal(PedidoTienda pedido, DateTimeOffset ahora)
+    {
+        CambiarEstado(pedido, Cancelado, ahora);
+        pedido.Cancelado = ahora;
+    }
+
+    /// <summary>Preparando o Listo. Entregar y cancelar tienen su propio paso.</summary>
+    public static void Avanzar(PedidoTienda pedido, string? estado, DateTimeOffset ahora)
+    {
+        if (estado is not (Preparando or Listo))
+            throw new ErrorNegocio("Ese estado no existe.");
+        CambiarEstado(pedido, estado, ahora);
+    }
+
+    public static IReadOnlyList<string> Siguientes(string estado) =>
+        Transiciones.TryGetValue(estado, out var siguientes) ? siguientes : [];
+
+    public static bool EsActivo(string estado) => Activos.Contains(estado);
+
+    internal static void CambiarEstado(PedidoTienda pedido, string estado, DateTimeOffset ahora)
+    {
+        if (!Siguientes(pedido.Estado).Contains(estado))
+            throw new ErrorNegocio(pedido.Estado switch
+            {
+                Cancelado => "El pedido ya está cancelado.",
+                Entregado => "El pedido ya se entregó.",
+                _ => "El pedido no puede pasar a ese estado."
+            });
+        pedido.Estado = estado;
+        pedido.Actualizado = ahora;
+    }
+
+    /// <summary>Unidades que los pedidos abiertos tienen apartadas, por producto.</summary>
     public static Dictionary<int, decimal> Reservado(IEnumerable<PedidoTienda> pedidos) =>
-        pedidos.Where(p => p.Estado == Nuevo)
+        pedidos.Where(p => EsActivo(p.Estado))
             .SelectMany(p => p.Lineas)
             .GroupBy(l => l.IdProducto)
             .ToDictionary(g => g.Key, g => g.Sum(l => l.Cantidad));

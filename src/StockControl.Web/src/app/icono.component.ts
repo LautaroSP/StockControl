@@ -96,6 +96,14 @@ import { Component, Input } from '@angular/core';
           <circle cx="9" cy="10" r="1.5" />
           <path d="m4 17 5-4.5 3.5 3 2.5-2 5 3.5" />
         }
+        @case ('campana') {
+          <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z" />
+          <path d="M10 20.5a2 2 0 0 0 4 0" />
+        }
+        @case ('pedidos') {
+          <path d="M6 7h12l-1 13H7z" />
+          <path d="M9 7a3 3 0 0 1 6 0M9.5 12h5" />
+        }
         @case ('check') {
           <circle cx="12" cy="12" r="9" />
           <path d="M8 12.5 10.5 15 16 9.5" />

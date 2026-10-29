@@ -1,11 +1,14 @@
 import { DatePipe } from '@angular/common';
-import { Component, DestroyRef, OnInit } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, OnInit } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { ApiService } from '../servicios/api.service';
+import { AvisosService } from '../servicios/avisos.service';
 import { DialogoService } from '../servicios/dialogo.service';
+import { PushService } from '../servicios/push.service';
 import { SesionService } from '../servicios/sesion.service';
+import { CampanitaComponent } from '../campanita.component';
 import { IconoComponent } from '../icono.component';
 import { TemaComponent } from '../tema.component';
 
@@ -32,7 +35,7 @@ function leerGrupos(): Record<Grupo, boolean> {
 @Component({
   selector: 'sc-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, DatePipe, IconoComponent, TemaComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, DatePipe, IconoComponent, TemaComponent, CampanitaComponent],
   template: `
     <div class="app">
       <aside class="sidebar" [class.abierto]="menuAbierto">
@@ -44,6 +47,9 @@ function leerGrupos(): Record<Grupo, boolean> {
             <span>Caja {{ sesion.nroCaja() }}</span>
           }
         </div>
+        @if (avisos.puedeVerPedidos()) {
+          <sc-campanita />
+        }
         <button class="menu-btn" type="button" (click)="menuAbierto = !menuAbierto" [attr.aria-expanded]="menuAbierto" aria-label="Menú">
           <span></span><span></span><span></span>
         </button>
@@ -73,15 +79,24 @@ function leerGrupos(): Record<Grupo, boolean> {
             </div>
           }
 
-          @if (sesion.puedeConfigurarLocal()) {
+          @if (sesion.puedeConfigurarLocal() || avisos.puedeVerPedidos()) {
             <button class="nav-grupo" type="button" [attr.aria-expanded]="abierto('tienda')" (click)="alternar('tienda', $event)">
               Tienda <span class="flecha">▸</span>
             </button>
             @if (abierto('tienda')) {
               <div class="nav-sub">
-                <a routerLink="/mi-tienda" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"><sc-icono nombre="tienda" /> Tienda online</a>
-                <a routerLink="/mi-tienda/configuracion" routerLinkActive="active"><sc-icono nombre="configuracion" /> Configuración</a>
-                <a routerLink="/mi-tienda/imagenes" routerLinkActive="active"><sc-icono nombre="imagenes" /> Imágenes de productos</a>
+                @if (sesion.puedeConfigurarLocal()) {
+                  <a routerLink="/mi-tienda" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"><sc-icono nombre="tienda" /> Tienda online</a>
+                }
+                @if (avisos.puedeVerPedidos()) {
+                  <a routerLink="/mi-tienda/pedidos" routerLinkActive="active"><sc-icono nombre="pedidos" /> Pedidos
+                    @if (avisos.noLeidos()) { <span class="badge badge-aviso">{{ avisos.noLeidos() }}</span> }
+                  </a>
+                }
+                @if (sesion.puedeConfigurarLocal()) {
+                  <a routerLink="/mi-tienda/configuracion" routerLinkActive="active"><sc-icono nombre="configuracion" /> Configuración</a>
+                  <a routerLink="/mi-tienda/imagenes" routerLinkActive="active"><sc-icono nombre="imagenes" /> Imágenes de productos</a>
+                }
               </div>
             }
           }
@@ -178,14 +193,16 @@ function leerGrupos(): Record<Grupo, boolean> {
     </div>
   `
 })
-export class ShellComponent implements OnInit {
+export class ShellComponent implements OnInit, OnDestroy {
   menuAbierto = false;
   puedeFiar = false;
   private grupos: Record<Grupo, boolean> = leerGrupos();
 
   constructor(
     readonly sesion: SesionService,
+    readonly avisos: AvisosService,
     private readonly api: ApiService,
+    private readonly push: PushService,
     private readonly router: Router,
     private readonly dialogo: DialogoService,
     private readonly destruir: DestroyRef
@@ -194,10 +211,16 @@ export class ShellComponent implements OnInit {
   ngOnInit(): void {
     this.api.abonoActual().subscribe({ next: (a) => this.sesion.abono.set(a) });
     this.api.permisosCuentas().subscribe({ next: (p) => (this.puedeFiar = p.puedeFiar) });
+    this.avisos.iniciar();
+    this.push.escucharClics();
     this.abrirGrupoDe(this.router.url);
     this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd), takeUntilDestroyed(this.destruir))
       .subscribe((e) => this.abrirGrupoDe((e as NavigationEnd).urlAfterRedirects));
+  }
+
+  ngOnDestroy(): void {
+    this.avisos.detener();
   }
 
   abierto(grupo: Grupo): boolean {

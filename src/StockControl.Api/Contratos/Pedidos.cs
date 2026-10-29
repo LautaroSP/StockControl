@@ -313,6 +313,8 @@ public class ConfiguracionLocalPedido
 
     public bool EmpleadoPuedeFiar { get; set; }
 
+    public bool EmpleadoVePedidosTienda { get; set; }
+
     [Required, MaxLength(10)]
     public string FormatoTicket { get; set; } = "POS-80";
 
@@ -608,6 +610,36 @@ public class PedidoTiendaPedido
     /// <summary>Campo oculto contra bots: una persona lo deja vacío.</summary>
     [MaxLength(200)]
     public string? Sitio { get; set; }
+}
+
+public class EstadoPedidoTiendaPedido
+{
+    [Required, MaxLength(20)]
+    public string Estado { get; set; } = "";
+}
+
+public class EntregarPedidoTiendaPedido
+{
+    public int IdMetodoPago { get; set; }
+}
+
+public class PreferenciasAvisoPedido
+{
+    public bool Sonido { get; set; }
+    public bool PushNuevos { get; set; }
+    public bool PushCancelados { get; set; }
+}
+
+public class SuscripcionPushPedido
+{
+    [Required, MaxLength(ServicioPush.LargoMaximoEndpoint)]
+    public string Endpoint { get; set; } = "";
+
+    [Required, MaxLength(100)]
+    public string P256dh { get; set; } = "";
+
+    [Required, MaxLength(30)]
+    public string Auth { get; set; } = "";
 }
 
 public class ItemPedidoTiendaPedido

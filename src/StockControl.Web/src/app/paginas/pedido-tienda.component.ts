@@ -7,6 +7,9 @@ import { NoEncontradaComponent } from './no-encontrada.component';
 
 const ESTADOS: Record<PedidoTiendaDto['estado'], string> = {
   nuevo: 'Nuevo · a coordinar con el local',
+  preparando: 'El local lo está preparando',
+  listo: 'Listo para retirar',
+  entregado: 'Entregado',
   cancelado: 'Cancelado'
 };
 
@@ -105,7 +108,8 @@ export class PedidoTiendaComponent implements OnInit, OnDestroy {
   }
 
   whatsApp(p: PedidoTiendaDto): string {
-    const texto = `Hola, hice el pedido N° ${p.numero} en la tienda (${p.lineas.length} productos, total ${this.precio(p.total)}). Link: ${location.href}`;
+    const productos = p.lineas.map((l) => `${l.cantidad} × ${l.nombre}`).join('\n');
+    const texto = `Hola, soy ${p.nombre}. Hice el pedido N° ${p.numero} en la tienda:\n${productos}\nTotal ${this.precio(p.total)}\n${location.href}`;
     return `https://wa.me/${p.local.whatsApp}?text=${encodeURIComponent(texto)}`;
   }
 

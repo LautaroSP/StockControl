@@ -14,7 +14,10 @@ public class PedidoTienda
     public decimal Subtotal { get; set; }
     public decimal Total { get; set; }
     public DateTimeOffset Creado { get; set; }
+    public DateTimeOffset? Actualizado { get; set; }
     public DateTimeOffset? Cancelado { get; set; }
+    public DateTimeOffset? Entregado { get; set; }
+    public int? IdInformeVenta { get; set; }
     public List<LineaPedidoTienda> Lineas { get; set; } = new();
 }
 

@@ -50,6 +50,9 @@ public class AppDbContext : DbContext
     public DbSet<ImagenRechazada> ImagenesRechazadas => Set<ImagenRechazada>();
     public DbSet<PedidoTienda> PedidosTienda => Set<PedidoTienda>();
     public DbSet<LineaPedidoTienda> LineasPedidoTienda => Set<LineaPedidoTienda>();
+    public DbSet<Aviso> Avisos => Set<Aviso>();
+    public DbSet<PreferenciaAviso> PreferenciasAviso => Set<PreferenciaAviso>();
+    public DbSet<SuscripcionPush> SuscripcionesPush => Set<SuscripcionPush>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -504,7 +507,7 @@ public class AppDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).UseIdentityByDefaultColumn();
             e.Property(x => x.HashCodigo).HasMaxLength(64);
-            e.Property(x => x.Estado).HasMaxLength(20);
+            e.Property(x => x.Estado).HasMaxLength(20).IsConcurrencyToken();
             e.Property(x => x.Nombre).HasMaxLength(ServicioPedidosTienda.LargoMaximoNombre);
             e.Property(x => x.Telefono).HasMaxLength(20);
             e.Property(x => x.Email).HasMaxLength(ServicioPedidosTienda.LargoMaximoEmail);
@@ -527,6 +530,39 @@ public class AppDbContext : DbContext
             e.Property(x => x.Cantidad).HasPrecision(14, 3);
             e.Property(x => x.PrecioUnitario).HasPrecision(14, 2);
             e.Property(x => x.SubTotal).HasPrecision(14, 2);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<Aviso>(e =>
+        {
+            e.ToTable("Avisos");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Tipo).HasMaxLength(20);
+            e.Property(x => x.Texto).HasMaxLength(200);
+            e.HasIndex(x => new { x.IdLocal, x.IdUsuario, x.Id });
+            e.HasOne<PedidoTienda>().WithMany().HasForeignKey(x => x.IdPedidoTienda).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<PreferenciaAviso>(e =>
+        {
+            e.ToTable("PreferenciasAviso");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.HasIndex(x => new { x.IdLocal, x.IdUsuario }).IsUnique();
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<SuscripcionPush>(e =>
+        {
+            e.ToTable("SuscripcionesPush");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Endpoint).HasMaxLength(ServicioPush.LargoMaximoEndpoint);
+            e.Property(x => x.P256dh).HasMaxLength(200);
+            e.Property(x => x.Auth).HasMaxLength(100);
+            e.HasIndex(x => new { x.IdLocal, x.IdUsuario, x.Endpoint }).IsUnique();
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
     }

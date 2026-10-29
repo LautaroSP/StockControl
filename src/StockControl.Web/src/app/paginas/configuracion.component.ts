@@ -38,6 +38,7 @@ import { IconoComponent } from '../icono.component';
       <h2><sc-icono nombre="empleados" /> Empleados</h2>
       <label class="check"><input type="checkbox" [(ngModel)]="form.empleadoPuedeModificarPrecios" /> El empleado puede modificar precios de lista</label>
       <label class="check"><input type="checkbox" [(ngModel)]="form.empleadoPuedeFiar" /> El empleado puede fiar</label>
+      <label class="check"><input type="checkbox" [(ngModel)]="form.empleadoVePedidosTienda" /> El empleado ve y entrega los pedidos de la tienda</label>
 
       <h2><sc-icono nombre="tickets" /> Tickets</h2>
       <label class="field">Formato
@@ -111,7 +112,7 @@ import { IconoComponent } from '../icono.component';
 export class ConfiguracionComponent implements OnInit {
   form: ConfiguracionLocalDto & { recalcularPrecios: boolean } = {
     nombreLocal: '', factorGanancia: 1, factorGananciaSector: 1, factorGananciaGenerico: 1, iva: 1.21, stockRigido: false, umbralStockBajo: 5,
-    empleadoPuedeModificarPrecios: false, empleadoPuedeFiar: false, formatoTicket: 'POS-80', imprimirTicketAlCobrar: true,
+    empleadoPuedeModificarPrecios: false, empleadoPuedeFiar: false, empleadoVePedidosTienda: false, formatoTicket: 'POS-80', imprimirTicketAlCobrar: true,
     cantidadCajas: 1, recalcularPrecios: false
   };
   original = { factorGanancia: 1, iva: 1.21 };

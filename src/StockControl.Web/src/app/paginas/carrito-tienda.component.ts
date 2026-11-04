@@ -1,15 +1,16 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { ApiService, CotizacionTiendaDto, TiendaPublicaDto } from '../servicios/api.service';
+import { ApiService, CotizacionTiendaDto, LugarEncontradoDto, MedioPagoTienda, TiendaPublicaDto } from '../servicios/api.service';
 import { CarritoTiendaService, MAXIMO_POR_PRODUCTO } from '../servicios/carrito-tienda.service';
+import { MapaComponent, Ubicacion } from '../mapa.component';
 import { TemaComponent } from '../tema.component';
 import { NoEncontradaComponent } from './no-encontrada.component';
 
 @Component({
   selector: 'sc-carrito-tienda',
   standalone: true,
-  imports: [FormsModule, RouterLink, TemaComponent, NoEncontradaComponent],
+  imports: [FormsModule, RouterLink, TemaComponent, NoEncontradaComponent, MapaComponent],
   template: `
     @if (noEncontrada) {
       <sc-no-encontrada />
@@ -52,7 +53,16 @@ import { NoEncontradaComponent } from './no-encontrada.component';
                 </li>
               }
               <li class="carrito-total"><span>Subtotal</span><span>{{ precio(cotizacion.total) }}</span></li>
-              <li class="carrito-total"><strong>Total</strong><strong>{{ precio(cotizacion.total) }}</strong></li>
+              @if (modalidad === 'envio' && cotizacion.envio.disponible) {
+                <li class="carrito-total">
+                  <span>Envío <span class="meta">{{ origen(cotizacion.envio.origen) }}</span></span>
+                  <span>{{ precio(cotizacion.envio.importe) }}</span>
+                </li>
+              }
+              @if (gestion > 0) {
+                <li class="carrito-total"><span>Gestión</span><span>{{ precio(gestion) }}</span></li>
+              }
+              <li class="carrito-total"><strong>Total</strong><strong>{{ precio(total) }}</strong></li>
             </ul>
 
             <form class="panel pad carrito-datos" (ngSubmit)="confirmar()">
@@ -73,18 +83,78 @@ import { NoEncontradaComponent } from './no-encontrada.component';
                 <label for="carrito-sitio">Sitio web</label>
                 <input id="carrito-sitio" name="sitio" tabindex="-1" autocomplete="off" [(ngModel)]="sitio" />
               </div>
-              <p><strong>Retiro en el local.</strong>
-                @if (t.direccion) { {{ t.direccion }}. }
-                @if (t.horario) { Horario: {{ t.horario }}. }
-              </p>
-              <p class="meta">El pago se coordina con el local y se paga al retirar.</p>
+              @if (t.haceEnvios) {
+                <fieldset class="carrito-medios">
+                  <legend>¿Cómo lo recibís?</legend>
+                  <label class="check"><input type="radio" name="entrega" value="retiro" [ngModel]="modalidad" (ngModelChange)="elegirEntrega($event)" /> Retiro en el local</label>
+                  <label class="check"><input type="radio" name="entrega" value="envio" [ngModel]="modalidad" (ngModelChange)="elegirEntrega($event)" /> Envío</label>
+                </fieldset>
+              }
+              @if (modalidad === 'envio') {
+                <div class="field">
+                  <label for="carrito-direccion">Dirección de entrega</label>
+                  <input id="carrito-direccion" name="direccion" maxlength="200" [(ngModel)]="direccion" />
+                </div>
+                <div class="row">
+                  <input class="grow" type="search" maxlength="200" placeholder="Calle, número y localidad" aria-label="Buscar dirección"
+                         name="busqueda" [(ngModel)]="busqueda" (keydown.enter)="$event.preventDefault(); buscar()" />
+                  <button class="btn" type="button" [disabled]="buscando" (click)="buscar()">{{ buscando ? 'Buscando...' : 'Buscar' }}</button>
+                </div>
+                @if (lugares.length > 0) {
+                  <ul class="lista-lugares">
+                    @for (l of lugares; track $index) {
+                      <li><button class="btn" type="button" (click)="elegir(l)">{{ l.nombre }}</button></li>
+                    }
+                  </ul>
+                }
+                @if (punto) {
+                  <sc-mapa [latitud]="punto.latitud" [longitud]="punto.longitud" [editable]="true" etiqueta="Dirección de entrega" (movido)="marcar($event)" />
+                  <p class="hint">Mové el marcador para ajustar. El envío se vuelve a calcular al soltarlo.</p>
+                } @else if (t.latitud !== null && t.longitud !== null) {
+                  <button class="btn" type="button" (click)="marcar({ latitud: t.latitud, longitud: t.longitud })">Marcar en el mapa</button>
+                }
+                @if (!cotizacion.envio.disponible && punto) {
+                  <p class="error">{{ cotizacion.envio.motivo }}</p>
+                }
+                @if (cotizacion.envio.disponible && cotizacion.envio.distanciaKm !== null) {
+                  <p class="meta">{{ cotizacion.envio.distanciaKm }} km {{ origen(cotizacion.envio.origen) }}.</p>
+                }
+              } @else {
+                <p><strong>Retiro en el local.</strong>
+                  @if (t.direccion) { {{ t.direccion }}. }
+                  @if (t.horario) { Horario: {{ t.horario }}. }
+                </p>
+              }
+              @if (cotizacion.mercadoPago || cotizacion.transferencia) {
+                <fieldset class="carrito-medios">
+                  <legend>¿Cómo pagás?</legend>
+                  @if (cotizacion.mercadoPago) {
+                    <label class="check"><input type="radio" name="medio" value="mercadopago" [(ngModel)]="medioPago" /> Ahora con Mercado Pago</label>
+                  }
+                  @if (cotizacion.transferencia) {
+                    <label class="check"><input type="radio" name="medio" value="transferencia" [(ngModel)]="medioPago" /> Transferencia bancaria</label>
+                  }
+                  <label class="check"><input type="radio" name="medio" value="coordinar" [(ngModel)]="medioPago" /> {{ modalidad === 'envio' ? 'Al recibir, a coordinar con el local' : 'Al retirar, a coordinar con el local' }}</label>
+                </fieldset>
+              }
+              @switch (medioPago) {
+                @case ('mercadopago') { <p class="meta">Te llevamos a Mercado Pago. Tenés 30 minutos para pagar; si no, el pedido se cancela solo.</p> }
+                @case ('transferencia') { <p class="meta">Al confirmar ves el CBU o alias del local. El local confirma cuando le llega la transferencia.</p> }
+                @default { <p class="meta">{{ modalidad === 'envio' ? 'El pago se coordina con el local y se paga al recibir.' : 'El pago se coordina con el local y se paga al retirar.' }}</p> }
+              }
               @if (error) { <p class="error">{{ error }}</p> }
-              <button class="btn btn-charge" type="submit" [disabled]="enviando || !puedeConfirmar">{{ enviando ? 'Enviando…' : 'Confirmar pedido' }}</button>
+              <button class="btn btn-charge" type="submit" [disabled]="enviando || !puedeConfirmar">
+                {{ enviando ? 'Enviando…' : medioPago === 'mercadopago' ? 'Pagar ' + precio(total) : 'Confirmar pedido' }}
+              </button>
             </form>
           }
         }
       </div>
     }
+  `,
+  styles: `
+    .lista-lugares { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; }
+    .lista-lugares .btn { text-align: left; width: 100%; }
   `
 })
 export class CarritoTiendaComponent implements OnInit, OnDestroy {
@@ -100,6 +170,12 @@ export class CarritoTiendaComponent implements OnInit, OnDestroy {
   email = '';
   sitio = '';
   alias = '';
+  modalidad: 'retiro' | 'envio' = 'retiro';
+  direccion = '';
+  busqueda = '';
+  lugares: LugarEncontradoDto[] = [];
+  punto: Ubicacion | null = null;
+  buscando = false;
   readonly maximo = MAXIMO_POR_PRODUCTO;
   private readonly tituloAnterior = document.title;
 
@@ -110,8 +186,32 @@ export class CarritoTiendaComponent implements OnInit, OnDestroy {
     private readonly carrito: CarritoTiendaService
   ) {}
 
+  medioPago: MedioPagoTienda = 'coordinar';
+
   get puedeConfirmar(): boolean {
-    return !!this.cotizacion && this.cotizacion.lineas.length > 0 && this.cotizacion.lineas.every((l) => l.maximo === null);
+    if (!this.cotizacion || this.cotizacion.lineas.length === 0 || this.cotizacion.lineas.some((l) => l.maximo !== null))
+      return false;
+    if (this.modalidad === 'envio')
+      return !!this.cotizacion.envio?.disponible && this.direccion.trim().length >= 4 && !!this.punto;
+    return true;
+  }
+
+  get envioImporte(): number {
+    return this.modalidad === 'envio' && this.cotizacion?.envio?.disponible ? this.cotizacion.envio.importe : 0;
+  }
+
+  get gestion(): number {
+    return this.pagoPrevio?.gestion ?? 0;
+  }
+
+  get total(): number {
+    return (this.pagoPrevio?.total ?? this.cotizacion?.total ?? 0) + this.envioImporte;
+  }
+
+  private get pagoPrevio(): { gestion: number; total: number } | null {
+    if (this.medioPago === 'mercadopago') return this.cotizacion?.mercadoPago ?? null;
+    if (this.medioPago === 'transferencia') return this.cotizacion?.transferencia ?? null;
+    return null;
   }
 
   ngOnInit(): void {
@@ -147,7 +247,12 @@ export class CarritoTiendaComponent implements OnInit, OnDestroy {
       telefono: this.telefono.trim(),
       email: this.email.trim(),
       items: this.carrito.items(this.alias),
-      sitio: this.sitio
+      medioPago: this.medioPago,
+      sitio: this.sitio,
+      modalidad: this.modalidad,
+      direccionEnvio: this.modalidad === 'envio' ? this.direccion.trim() : '',
+      latitud: this.modalidad === 'envio' ? this.punto?.latitud ?? null : null,
+      longitud: this.modalidad === 'envio' ? this.punto?.longitud ?? null : null
     }).subscribe({
       next: (r) => {
         if (!r?.codigo) {
@@ -155,7 +260,8 @@ export class CarritoTiendaComponent implements OnInit, OnDestroy {
           return;
         }
         this.carrito.vaciar(this.alias);
-        this.router.navigate(['/tienda', this.alias, 'pedido', r.codigo]);
+        if (r.urlPago) location.assign(r.urlPago);
+        else this.router.navigate(['/tienda', this.alias, 'pedido', r.codigo]);
       },
       error: (e) => {
         this.enviando = false;
@@ -169,6 +275,46 @@ export class CarritoTiendaComponent implements OnInit, OnDestroy {
     return `$ ${Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
+  origen(valor: string | null): string {
+    return valor === 'recorrido' ? 'por recorrido' : 'en línea recta';
+  }
+
+  elegirEntrega(valor: 'retiro' | 'envio'): void {
+    this.modalidad = valor;
+    this.cotizar();
+  }
+
+  buscar(): void {
+    const q = this.busqueda.trim();
+    if (q.length < 4) {
+      this.error = 'Escribí la dirección con calle, número y localidad.';
+      return;
+    }
+    this.buscando = true;
+    this.api.buscarUbicacionTienda(this.alias, q).subscribe({
+      next: (r) => {
+        this.buscando = false;
+        this.lugares = r;
+        this.error = r.length === 0 ? 'No encontramos esa dirección. Probá con la localidad o marcá en el mapa.' : '';
+      },
+      error: (e) => {
+        this.buscando = false;
+        this.error = e.status === 429 ? 'Esperá un segundo entre búsquedas.' : 'No se pudo buscar la dirección.';
+      }
+    });
+  }
+
+  elegir(lugar: LugarEncontradoDto): void {
+    this.direccion = lugar.nombre.slice(0, 200);
+    this.lugares = [];
+    this.marcar(lugar);
+  }
+
+  marcar(lugar: Ubicacion): void {
+    this.punto = { latitud: lugar.latitud, longitud: lugar.longitud };
+    this.cotizar();
+  }
+
   private cotizar(): void {
     const items = this.carrito.items(this.alias);
     if (items.length === 0) {
@@ -176,12 +322,13 @@ export class CarritoTiendaComponent implements OnInit, OnDestroy {
       return;
     }
     this.cargando = true;
-    this.api.cotizarCarritoTienda(this.alias, items).subscribe({
+    this.api.cotizarCarritoTienda(this.alias, items, this.modalidad === 'envio' ? this.punto : null).subscribe({
       next: (c) => {
         this.cargando = false;
         this.quitados = c.noDisponibles.length > 0;
         c.noDisponibles.forEach((id) => this.carrito.sacar(this.alias, id));
         this.cotizacion = c;
+        if (!this.pagoPrevio) this.medioPago = 'coordinar';
       },
       error: (e) => {
         this.cargando = false;

@@ -956,6 +956,7 @@ html.tema-suave .reel-track {
 .carrito-datos { max-width: 520px; }
 .carrito-datos h2 { margin-top: 0; }
 .carrito-cebo { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.carrito-medios { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 12px 0; display: grid; gap: 6px; }
 .pedido-tienda { margin-top: 14px; max-width: 640px; }
 .pedido-tienda h2 { margin-top: 0; }
 

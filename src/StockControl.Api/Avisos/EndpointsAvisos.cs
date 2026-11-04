@@ -97,9 +97,9 @@ public static class EndpointsAvisos
         try
         {
             var nueva = ServicioPush.Crear(idLocal, idUsuario, pedido.Endpoint, pedido.P256dh, pedido.Auth, DateTimeOffset.UtcNow);
-            await db.SuscripcionesPush.IgnoreQueryFilters()
+            await AlcanceDatos.MientrasTodo(db, () => db.SuscripcionesPush.IgnoreQueryFilters()
                 .Where(s => s.Endpoint == nueva.Endpoint && s.IdUsuario != idUsuario)
-                .ExecuteDeleteAsync();
+                .ExecuteDeleteAsync());
             var propias = await db.SuscripcionesPush.Where(s => s.IdUsuario == idUsuario).OrderBy(s => s.Creado).ToListAsync();
             db.SuscripcionesPush.RemoveRange(propias.Where(s => s.Endpoint == nueva.Endpoint));
             db.SuscripcionesPush.RemoveRange(propias.Where(s => s.Endpoint != nueva.Endpoint).SkipLast(ServicioPush.MaximoPorUsuario - 1));

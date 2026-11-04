@@ -44,4 +44,31 @@ public static class ServicioUsuarios
             .Select(u => u.Id)
             .ToList();
     }
+
+    public static bool SesionVigente(int? versionToken, int versionUsuario) =>
+        versionToken == versionUsuario;
+
+    public static void CortarSesion(Usuario usuario) => usuario.VersionSesion++;
+
+    public static void CambiarRol(Usuario usuario, string rol)
+    {
+        if (usuario.Rol == rol) return;
+        usuario.Rol = rol;
+        CortarSesion(usuario);
+    }
+
+    public static void ClaveCambiada(Usuario usuario) => CortarSesion(usuario);
+
+    public static void Desactivar(Usuario usuario)
+    {
+        if (!usuario.Activo) return;
+        usuario.Activo = false;
+        CortarSesion(usuario);
+    }
+
+    public static bool SacoAlgunLocal(IEnumerable<int> anteriores, IEnumerable<int> nuevos)
+    {
+        var quedan = nuevos.ToHashSet();
+        return anteriores.Any(id => !quedan.Contains(id));
+    }
 }

@@ -40,7 +40,7 @@ const ESTADOS: Record<EstadoPedidoTienda, { texto: string; clase: string }> = {
     @if (detalle; as d) {
       <section class="panel pad detalle-pedido">
         <div class="row">
-          <h2 class="grow">Pedido N° {{ d.numero }} <span [class]="estado(d.estado).clase">{{ estado(d.estado).texto }}</span></h2>
+          <h2 class="grow">Pedido N° {{ d.numero }} <span [class]="estado(d.estado).clase">{{ d.modalidad === 'envio' && d.estado === 'listo' ? 'Listo para enviar' : estado(d.estado).texto }}</span></h2>
           <button class="btn" type="button" (click)="detalle = null">Cerrar</button>
         </div>
         <p class="meta">
@@ -52,6 +52,14 @@ const ESTADOS: Record<EstadoPedidoTienda, { texto: string; clase: string }> = {
           <strong>{{ d.nombre }}</strong> · {{ d.telefonoVisible }} ·
           <a [href]="'mailto:' + d.email">{{ d.email }}</a>
         </p>
+        @if (d.modalidad === 'envio') {
+          <p><strong>Envío a {{ d.direccionEnvio }}.</strong>
+            @if (d.distanciaKm !== null) { {{ d.distanciaKm }} km {{ origen(d.origenDistancia) }}. }
+            Envío {{ dinero(d.envio) }}.
+          </p>
+        } @else {
+          <p><strong>Retiro en el local.</strong></p>
+        }
         <div class="tabla-scroll">
           <table class="data">
             <thead><tr><th>Producto</th><th class="num">Cant</th><th class="num">Precio</th><th class="num">Subt</th></tr></thead>
@@ -67,22 +75,71 @@ const ESTADOS: Record<EstadoPedidoTienda, { texto: string; clase: string }> = {
             </tbody>
           </table>
         </div>
-        <p><strong>Total {{ dinero(d.total) }}</strong> <span class="meta">· retira en el local, paga al retirar</span></p>
+        @switch (d.estadoPago) {
+          @case ('pagado') {
+            <p>
+              <strong>Total {{ dinero(d.total) }} · {{ esTransferencia(d) ? 'transferencia confirmada' : 'pagado con Mercado Pago' }}</strong>
+              @if (d.gestion > 0) {
+                <span class="meta">· gestión {{ dinero(d.gestion) }} {{ d.gestionACargoComprador ? 'a cargo del comprador' : 'incluida' }},
+                  {{ esTransferencia(d) ? 'se suma al próximo abono' : 'la separa Mercado Pago' }}</span>
+              }
+            </p>
+          }
+          @case ('pendiente') {
+            <p><strong>Total {{ dinero(d.total) }}</strong>
+              @if (d.estado === 'cancelado') {
+                <span class="meta">· {{ esTransferencia(d) ? 'la transferencia no se confirmó a tiempo' : 'no se pagó a tiempo' }}</span>
+              } @else if (esTransferencia(d)) {
+                <span class="meta">· a confirmar transferencia. Confirmala cuando veas la plata en la cuenta; no lo prepares todavía.
+                  @if (d.vencePago) { Vence el {{ fecha(d.vencePago) }}. }</span>
+              } @else {
+                <span class="meta">· esperando el pago de Mercado Pago. No lo prepares todavía.</span>
+              }
+            </p>
+          }
+          @case ('reembolsado') {
+            <p><strong>Total {{ dinero(d.total) }}</strong>
+              <span class="meta">· {{ esTransferencia(d) ? 'el local devolvió la transferencia' : 'el pago se devolvió por Mercado Pago' }}</span>
+            </p>
+          }
+          @default {
+            <p><strong>Total {{ dinero(d.total) }}</strong>
+              <span class="meta">· {{ d.modalidad === 'envio' ? 'se envía a la dirección, paga al recibir' : 'retira en el local, paga al retirar' }}</span>
+            </p>
+          }
+        }
         <div class="row acciones-pedido">
+          @if (d.esperaPago && esTransferencia(d) && d.estado === 'nuevo' && puedeConfirmar()) {
+            <button class="btn btn-primary" type="button" [disabled]="trabajando" (click)="confirmarTransferencia(d)">Confirmar transferencia</button>
+          }
           @if (d.siguientes.includes('preparando')) {
             <button class="btn" type="button" [disabled]="trabajando" (click)="avanzar(d, 'preparando')">Preparando</button>
           }
           @if (d.siguientes.includes('listo')) {
-            <button class="btn" type="button" [disabled]="trabajando" (click)="avanzar(d, 'listo')">Listo para retirar</button>
+            <button class="btn" type="button" [disabled]="trabajando" (click)="avanzar(d, 'listo')">{{ d.modalidad === 'envio' ? 'Listo para enviar' : 'Listo para retirar' }}</button>
           }
           @if (d.siguientes.includes('entregado')) {
-            <select [(ngModel)]="idMedio" aria-label="Medio de pago">
-              @for (m of medios; track m.id) { <option [ngValue]="m.id">{{ m.descripcion }}</option> }
-            </select>
-            <button class="btn btn-primary" type="button" [disabled]="trabajando || !idMedio" (click)="entregar(d)">Entregar y cobrar</button>
+            @if (d.estadoPago === 'pagado' && !esTransferencia(d)) {
+              <button class="btn btn-primary" type="button" [disabled]="trabajando" (click)="entregar(d)">Entregar</button>
+            } @else {
+              <select [(ngModel)]="idMedio" aria-label="Medio de pago">
+                @for (m of medios; track m.id) { <option [ngValue]="m.id">{{ m.descripcion }}</option> }
+              </select>
+              <button class="btn btn-primary" type="button" [disabled]="trabajando || !idMedio" (click)="entregar(d)">
+                {{ d.estadoPago === 'pagado' ? 'Entregar' : 'Entregar y cobrar' }}
+              </button>
+            }
           }
           @if (d.siguientes.includes('cancelado')) {
-            <button class="btn btn-danger" type="button" [disabled]="trabajando" (click)="cancelar(d)">Cancelar</button>
+            @if (d.estadoPago === 'pagado' && esTransferencia(d)) {
+              @if (puedeConfirmar()) {
+                <button class="btn btn-danger" type="button" [disabled]="trabajando" (click)="devolverTransferencia(d)">Cancelar (ya devolví la transferencia)</button>
+              }
+            } @else if (d.estadoPago === 'pagado') {
+              <button class="btn btn-danger" type="button" [disabled]="trabajando" (click)="reembolsar(d)">Cancelar y devolver el pago</button>
+            } @else {
+              <button class="btn btn-danger" type="button" [disabled]="trabajando" (click)="cancelar(d)">Cancelar</button>
+            }
           }
           <a class="btn" [href]="whatsApp(d)" target="_blank" rel="noopener noreferrer">Escribir al comprador</a>
         </div>
@@ -100,7 +157,14 @@ const ESTADOS: Record<EstadoPedidoTienda, { texto: string; clase: string }> = {
               <td>{{ p.nombre }}</td>
               <td class="num">{{ p.productos }}</td>
               <td class="num">{{ dinero(p.total) }}</td>
-              <td><span [class]="estado(p.estado).clase">{{ estado(p.estado).texto }}</span></td>
+              <td>
+                <span [class]="estado(p.estado).clase">{{ p.modalidad === 'envio' && p.estado === 'listo' ? 'Listo para enviar' : estado(p.estado).texto }}</span>
+                @if (p.modalidad === 'envio') { <span class="badge">Envío</span> }
+                @if (p.estadoPago === 'pendiente' && p.estado === 'nuevo') {
+                  <span class="badge badge-vencido">{{ p.medioPago === 'transferencia' ? 'A confirmar transferencia' : 'Esperando pago' }}</span>
+                }
+                @if (p.estadoPago === 'pagado') { <span class="badge">Pagado</span> }
+              </td>
               <td class="num"><button class="btn" type="button">Ver</button></td>
             </tr>
           } @empty {
@@ -181,9 +245,32 @@ export class PanelPedidosComponent implements OnInit {
     this.mensaje = '';
     this.error = '';
     this.api.pedidoPanel(id).subscribe({
-      next: (d) => (this.detalle = d),
+      next: (d) => {
+        this.detalle = d;
+        if (this.esTransferencia(d)) this.idMedio = this.medios.find((m) => /transf/i.test(m.descripcion))?.id ?? this.idMedio;
+      },
       error: () => (this.error = 'No se pudo abrir el pedido.')
     });
+  }
+
+  esTransferencia(d: PedidoPanelDto): boolean {
+    return d.medioPago === 'transferencia';
+  }
+
+  puedeConfirmar(): boolean {
+    return this.sesion.puedeConfigurarLocal();
+  }
+
+  async confirmarTransferencia(d: PedidoPanelDto): Promise<void> {
+    const texto = `¿Ya ves los ${this.dinero(d.total)} del pedido N° ${d.numero} en la cuenta? Al confirmar, el pedido queda pagado.`;
+    if (!(await this.dialogo.confirmar(texto, 'Confirmar transferencia', 'Volver'))) return;
+    this.ejecutar(this.api.confirmarTransferenciaPanel(d.id), `Pedido N° ${d.numero}: transferencia confirmada. Ya lo podés preparar.`);
+  }
+
+  async devolverTransferencia(d: PedidoPanelDto): Promise<void> {
+    const texto = `¿Cancelar el pedido N° ${d.numero}? Devolvele antes los ${this.dinero(d.total)} al comprador: el sistema no mueve la plata.`;
+    if (!(await this.dialogo.confirmar(texto, 'Ya la devolví, cancelar', 'Volver'))) return;
+    this.ejecutar(this.api.devolverTransferenciaPanel(d.id), `Pedido N° ${d.numero} cancelado. Se libera el stock reservado.`);
   }
 
   avanzar(d: PedidoPanelDto, estado: EstadoPedidoTienda): void {
@@ -194,6 +281,12 @@ export class PanelPedidosComponent implements OnInit {
     this.ejecutar(this.api.entregarPedidoPanel(d.id, this.idMedio), `Pedido N° ${d.numero} entregado. La venta entró en la caja.`);
   }
 
+  async reembolsar(d: PedidoPanelDto): Promise<void> {
+    const texto = `¿Cancelar el pedido N° ${d.numero} y devolver ${this.dinero(d.total)} por Mercado Pago? La cuenta del local necesita saldo para la devolución.`;
+    if (!(await this.dialogo.confirmar(texto, 'Cancelar y devolver', 'Volver'))) return;
+    this.ejecutar(this.api.reembolsarPedidoPanel(d.id), `Pedido N° ${d.numero} cancelado. Mercado Pago devuelve el pago al comprador.`);
+  }
+
   async cancelar(d: PedidoPanelDto): Promise<void> {
     if (!(await this.dialogo.confirmar(`¿Cancelar el pedido N° ${d.numero}? Se libera el stock reservado.`, 'Cancelar pedido', 'Volver'))) return;
     this.ejecutar(this.api.cancelarPedidoPanel(d.id), `Pedido N° ${d.numero} cancelado.`);
@@ -202,9 +295,15 @@ export class PanelPedidosComponent implements OnInit {
   whatsApp(d: PedidoPanelDto): string {
     const local = this.sesion.nombreLocal();
     const texto = d.estado === 'listo'
-      ? `Hola ${d.nombre}, tu pedido N° ${d.numero} de ${local} ya está listo para retirar.`
+      ? d.modalidad === 'envio'
+        ? `Hola ${d.nombre}, tu pedido N° ${d.numero} de ${local} ya está listo. Te lo enviamos a ${d.direccionEnvio}.`
+        : `Hola ${d.nombre}, tu pedido N° ${d.numero} de ${local} ya está listo para retirar.`
       : `Hola ${d.nombre}, te escribimos de ${local} por tu pedido N° ${d.numero}.`;
     return `https://wa.me/${d.telefono}?text=${encodeURIComponent(texto)}`;
+  }
+
+  origen(valor: string): string {
+    return valor === 'recorrido' ? 'por recorrido' : 'en línea recta';
   }
 
   estado(estado: EstadoPedidoTienda): { texto: string; clase: string } {

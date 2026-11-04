@@ -42,7 +42,15 @@ public class ClienteMercadoPago
         {
             items = new[]
             {
-                new { title = $"StockControl · {nombreLocal} · 1 mes", quantity = 1, unit_price = abono.Importe, currency_id = "ARS" }
+                new
+                {
+                    title = abono.Origen == Abono.OrigenGestion
+                        ? $"StockControl · {nombreLocal} · gestión de la tienda"
+                        : $"StockControl · {nombreLocal} · 1 mes",
+                    quantity = 1,
+                    unit_price = abono.Importe,
+                    currency_id = "ARS"
+                }
             },
             external_reference = ReferenciaAbono(abono.Id),
             notification_url = $"{Url("App:UrlApi")}/mercadopago/webhook",

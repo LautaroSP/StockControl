@@ -49,6 +49,7 @@ public class AppDbContext : DbContext
     public DbSet<ImagenProducto> ImagenesProducto => Set<ImagenProducto>();
     public DbSet<ImagenRechazada> ImagenesRechazadas => Set<ImagenRechazada>();
     public DbSet<PedidoTienda> PedidosTienda => Set<PedidoTienda>();
+    public DbSet<GestionTienda> GestionesTienda => Set<GestionTienda>();
     public DbSet<LineaPedidoTienda> LineasPedidoTienda => Set<LineaPedidoTienda>();
     public DbSet<Aviso> Avisos => Set<Aviso>();
     public DbSet<PreferenciaAviso> PreferenciasAviso => Set<PreferenciaAviso>();
@@ -75,6 +76,14 @@ public class AppDbContext : DbContext
             e.Property(x => x.WhatsApp).HasMaxLength(20).HasDefaultValue("");
             e.Property(x => x.Latitud).HasPrecision(9, 6);
             e.Property(x => x.Longitud).HasPrecision(9, 6);
+            e.Property(x => x.PrecioEnvioKm).HasPrecision(14, 2);
+            e.Property(x => x.EnvioMinimo).HasPrecision(14, 2);
+            e.Property(x => x.RadioEnvioKm).HasPrecision(6, 2);
+            e.Property(x => x.EnvioGratisDesde).HasPrecision(14, 2);
+            e.Property(x => x.EnvioGratisSiempre).HasDefaultValue(false);
+            e.Property(x => x.CbuTienda).HasMaxLength(ServicioTransferenciaTienda.LargoCbu).HasDefaultValue("");
+            e.Property(x => x.AliasCbuTienda).HasMaxLength(ServicioTransferenciaTienda.LargoMaximoAlias).HasDefaultValue("");
+            e.Property(x => x.TitularTienda).HasMaxLength(ServicioTransferenciaTienda.LargoMaximoTitular).HasDefaultValue("");
         });
 
         model.Entity<Usuario>(e =>
@@ -92,6 +101,8 @@ public class AppDbContext : DbContext
             e.HasIndex(x => x.TokenConfirmacion).IsUnique().HasFilter("\"TokenConfirmacion\" IS NOT NULL");
             e.Property(x => x.Rol).HasMaxLength(20);
             e.Property(x => x.Activo).HasDefaultValue(true);
+            e.Property(x => x.IntentosFallidos).HasDefaultValue(0);
+            e.Property(x => x.VersionSesion).HasDefaultValue(1);
         });
 
         model.Entity<UsuarioLocal>(e =>
@@ -513,10 +524,39 @@ public class AppDbContext : DbContext
             e.Property(x => x.Email).HasMaxLength(ServicioPedidosTienda.LargoMaximoEmail);
             e.Property(x => x.Subtotal).HasPrecision(14, 2);
             e.Property(x => x.Total).HasPrecision(14, 2);
+            e.Property(x => x.Modalidad).HasMaxLength(20).HasDefaultValue(ServicioEnvioTienda.Retiro);
+            e.Property(x => x.DireccionEnvio).HasMaxLength(ServicioTienda.LargoMaximoDato).HasDefaultValue("");
+            e.Property(x => x.LatitudEnvio).HasPrecision(9, 6);
+            e.Property(x => x.LongitudEnvio).HasPrecision(9, 6);
+            e.Property(x => x.DistanciaKm).HasPrecision(10, 2);
+            e.Property(x => x.Envio).HasPrecision(14, 2);
+            e.Property(x => x.OrigenDistancia).HasMaxLength(20).HasDefaultValue("");
+            e.Property(x => x.MedioPago).HasMaxLength(20).HasDefaultValue(ServicioPagoPedidoTienda.Coordinar);
+            e.Property(x => x.EstadoPago).HasMaxLength(20).HasDefaultValue(ServicioPagoPedidoTienda.SinPago).IsConcurrencyToken();
+            e.Property(x => x.Gestion).HasPrecision(14, 2);
+            e.Property(x => x.UrlPagoMp).HasMaxLength(500).HasDefaultValue("");
+            e.Property(x => x.IdPagoMp).HasMaxLength(64);
+            e.HasIndex(x => x.IdPagoMp).IsUnique().HasFilter("\"IdPagoMp\" IS NOT NULL");
+            e.HasIndex(x => new { x.EstadoPago, x.VencePago });
             e.HasIndex(x => new { x.IdLocal, x.Numero }).IsUnique();
             e.HasIndex(x => x.HashCodigo).IsUnique();
             e.HasIndex(x => new { x.IdLocal, x.Estado });
             e.HasMany(x => x.Lineas).WithOne().HasForeignKey(l => l.IdPedidoTienda).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<GestionTienda>(e =>
+        {
+            e.ToTable("GestionesTienda");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Importe).HasPrecision(14, 2);
+            e.Property(x => x.Medio).HasMaxLength(20);
+            e.Property(x => x.Estado).HasMaxLength(20);
+            e.HasIndex(x => x.IdPedido).IsUnique();
+            e.HasIndex(x => new { x.IdLocal, x.Estado });
+            e.HasOne<PedidoTienda>().WithMany().HasForeignKey(x => x.IdPedido).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Abono>().WithMany().HasForeignKey(x => x.IdAbono).OnDelete(DeleteBehavior.Restrict);
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
 

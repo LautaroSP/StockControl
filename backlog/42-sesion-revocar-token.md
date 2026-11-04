@@ -11,14 +11,14 @@ Cada usuario guarda una **versión de sesión**. El token la lleva. Cuando cambi
 
 ## Criterios de aceptación
 
-- [ ] El usuario guarda una versión de sesión y el JWT la incluye.
-- [ ] `MiddlewareSesion` compara la versión del token con la de la base. Si no coincide, responde 401 y el front vuelve al login.
-- [ ] Sube la versión al cambiar el rol, al cambiar o resetear la clave, al desactivar al usuario y al sacarlo de un local.
-- [ ] Dueño y admin tienen «Cerrar sesiones» en la ficha del usuario: sube la versión sin cambiar nada más.
-- [ ] «Salir» en el front sigue cerrando solo esa pestaña o navegador.
-- [ ] El token valida emisor y audiencia (`ValidateIssuer` y `ValidateAudience` en `true`), con valores en configuración.
-- [ ] El API no arranca si `Jwt:Clave` tiene menos de 32 caracteres.
-- [ ] Test xUnit del dominio: un token con versión vieja se rechaza; cambiar el rol o la clave sube la versión.
+- [x] El usuario guarda una versión de sesión y el JWT la incluye.
+- [x] `MiddlewareSesion` compara la versión del token con la de la base. Si no coincide, responde 401 y el front vuelve al login.
+- [x] Sube la versión al cambiar el rol, al cambiar o resetear la clave, al desactivar al usuario y al sacarlo de un local.
+- [x] Dueño y admin tienen «Cerrar sesiones» en la ficha del usuario: sube la versión sin cambiar nada más.
+- [x] «Salir» en el front sigue cerrando solo esa pestaña o navegador.
+- [x] El token valida emisor y audiencia (`ValidateIssuer` y `ValidateAudience` en `true`), con valores en configuración.
+- [x] El API no arranca si `Jwt:Clave` tiene menos de 32 caracteres.
+- [x] Test xUnit del dominio: un token con versión vieja se rechaza; cambiar el rol o la clave sube la versión.
 
 ## Fuera
 

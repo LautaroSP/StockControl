@@ -85,6 +85,26 @@ const MAX_CONSULTAS = 40;
         </section>
       </div>
 
+      @if (a.gestionPendiente > 0) {
+        <section class="panel pad" style="margin-top:14px">
+          <h2>Gestión de la tienda</h2>
+          <p>{{ a.gestionPedidos }} {{ a.gestionPedidos === 1 ? 'pedido' : 'pedidos' }} · $ {{ pesos(a.gestionPendiente) }}</p>
+          <p class="meta">Es un pago aparte del mes y no cambia el vencimiento.
+            @if (a.gestionLimite) {
+              Si no la pagás antes del {{ a.gestionLimite | date: 'dd/MM' }} a las {{ a.gestionLimite | date: 'HH:mm' }}, se cierra la tienda online. La caja sigue abierta.
+            }
+          </p>
+          <button class="btn btn-primary" type="button" (click)="pagarGestion()" [disabled]="ocupado()">Pagar gestión de {{ a.gestionPedidos }} {{ a.gestionPedidos === 1 ? 'pedido' : 'pedidos' }}</button>
+          @if (qrGestion()) {
+            <div class="activar-qr">
+              <img [src]="qrGestion()" alt="QR para pagar la gestión con Mercado Pago" width="220" height="220" />
+              <p class="meta">Escaneá con el celular o pagá desde esta compu.</p>
+              <a class="btn btn-primary" [href]="urlGestion()" target="_blank" rel="noopener">Abrir Mercado Pago</a>
+            </div>
+          }
+        </section>
+      }
+
       @if (error()) {
         <p class="error">{{ error() }}</p>
       }
@@ -99,6 +119,8 @@ export class ActivarComponent implements OnInit, OnDestroy {
   readonly abono = signal<AbonoDto | null>(null);
   readonly qr = signal('');
   readonly urlPago = signal('');
+  readonly qrGestion = signal('');
+  readonly urlGestion = signal('');
   readonly aviso = signal('');
   readonly error = signal('');
   readonly ocupado = signal(false);
@@ -120,7 +142,7 @@ export class ActivarComponent implements OnInit, OnDestroy {
       next: (a) => {
         this.mostrar(a);
         this.mailPagador = a.email;
-        if (volvioDeMp || a.pagoPendiente || a.debito === 'pendiente') this.esperar(a);
+        if (volvioDeMp || a.pagoPendiente || a.pagoGestionPendiente || a.debito === 'pendiente') this.esperar(a);
       },
       error: () => this.error.set('No se pudo cargar el abono.')
     });
@@ -135,6 +157,21 @@ export class ActivarComponent implements OnInit, OnDestroy {
     this.iniciar(this.api.pagarAbono(), async (url) => {
       this.urlPago.set(url);
       this.qr.set(await toDataURL(url, { width: 220, margin: 2 }));
+    });
+  }
+
+  pagarGestion(): void {
+    this.error.set('');
+    this.ocupado.set(true);
+    this.api.pagarGestion().subscribe({
+      next: async (r) => {
+        this.ocupado.set(false);
+        this.urlGestion.set(r.urlPago);
+        this.qrGestion.set(await toDataURL(r.urlPago, { width: 220, margin: 2 }));
+        const a = this.abono();
+        if (a) this.esperar(a);
+      },
+      error: (err) => this.fallo(err)
     });
   }
 
@@ -175,7 +212,7 @@ export class ActivarComponent implements OnInit, OnDestroy {
   }
 
   pesos(n: number): string {
-    return Math.trunc(n).toLocaleString('es-AR');
+    return Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 });
   }
 
   private iniciar(pedido: ReturnType<ApiService['pagarAbono']>, abrir: (url: string) => Promise<void>): void {
@@ -204,6 +241,10 @@ export class ActivarComponent implements OnInit, OnDestroy {
       this.api.abonoActual().subscribe((a) => {
         if (a.vence !== inicial.vence) {
           this.aviso.set(`Pago acreditado. Vence el ${new Date(a.vence!).toLocaleString('es-AR')}.`);
+        } else if (a.gestionPendiente < inicial.gestionPendiente) {
+          this.aviso.set('Gestión acreditada.');
+          this.qrGestion.set('');
+          this.urlGestion.set('');
         } else if (a.debito === 'activa' && inicial.debito !== 'activa') {
           this.aviso.set('Débito automático activo.');
         } else {

@@ -37,6 +37,9 @@ import { SesionService } from '../servicios/sesion.service';
                     <button class="btn" type="button" (click)="cambiarEstado(usuario, true)">Activar</button>
                   }
                   <button class="btn" type="button" (click)="resetearClave(usuario)">Reset clave</button>
+                  @if (sesion.esDuenoTitular()) {
+                    <button class="btn" type="button" (click)="cerrarSesiones(usuario)">Cerrar sesiones</button>
+                  }
                 }
               </td>
             </tr>
@@ -51,7 +54,7 @@ import { SesionService } from '../servicios/sesion.service';
         <label class="field">Nombre <input class="wide" type="text" [(ngModel)]="form.nombre" /></label>
         <label class="field">Usuario <input class="wide" type="text" [(ngModel)]="form.nombreUsuario" [disabled]="!!editando" /></label>
         @if (!editando) {
-          <label class="field">Clave inicial <input class="wide" type="password" [(ngModel)]="form.clave" /></label>
+          <label class="field">Clave inicial (mínimo 8) <input class="wide" type="password" minlength="8" [(ngModel)]="form.clave" /></label>
         }
         <label class="field">Rol
           <select class="wide" [(ngModel)]="form.rol">
@@ -155,6 +158,14 @@ export class UsuariosComponent implements OnInit {
     this.api.resetearClaveUsuario(usuario.id, clave).subscribe({
       next: () => (this.error = ''),
       error: (e) => (this.error = this.mensaje(e, 'No se pudo resetear la clave.'))
+    });
+  }
+
+  async cerrarSesiones(usuario: UsuarioDto): Promise<void> {
+    if (!await this.dialogo.confirmar(`¿Cerrar las sesiones de ${usuario.nombre}?`)) return;
+    this.api.cerrarSesionesUsuario(usuario.id).subscribe({
+      next: () => (this.error = ''),
+      error: (e) => (this.error = this.mensaje(e, 'No se pudieron cerrar las sesiones.'))
     });
   }
 

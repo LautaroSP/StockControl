@@ -1,7 +1,8 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, NgZone, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../servicios/api.service';
+import { montarCaptcha } from '../servicios/turnstile';
 import { TemaService } from '../servicios/tema.service';
 
 const PANTALLAS = [
@@ -220,7 +221,10 @@ const PANTALLAS = [
                 <label class="field">Mensaje <textarea class="wide" name="mensaje" rows="4" maxlength="2000" [(ngModel)]="mensaje"></textarea></label>
                 <input type="hidden" name="apertura" [(ngModel)]="apertura" />
                 <input class="campo-oculto" type="text" name="sitio" [(ngModel)]="sitio" tabindex="-1" autocomplete="off" aria-hidden="true" />
-                <button class="btn btn-primary wide" type="submit" [disabled]="enviando">{{ enviando ? 'Enviando...' : 'Enviar' }}</button>
+                @if (captchaActivo) {
+                  <div id="captcha-landing" class="captcha"></div>
+                }
+                <button class="btn btn-primary wide" type="submit" [disabled]="enviando || (captchaActivo && !captcha)">{{ enviando ? 'Enviando...' : 'Enviar' }}</button>
                 @if (aviso) { <p class="meta">{{ aviso }}</p> }
                 @if (error) { <p class="error">{{ error }}</p> }
               </form>
@@ -268,6 +272,8 @@ export class LandingComponent implements OnInit, OnDestroy {
   mensaje = '';
   sitio = '';
   apertura = '';
+  captcha = '';
+  captchaActivo = false;
   enviando = false;
   aviso = '';
   error = '';
@@ -275,9 +281,12 @@ export class LandingComponent implements OnInit, OnDestroy {
   private reloj: ReturnType<typeof setInterval> | null = null;
   private readonly tituloAnterior = document.title;
 
+  private limpiarCaptcha: (() => void) | null = null;
+
   constructor(
     private readonly api: ApiService,
-    private readonly tema: TemaService
+    private readonly tema: TemaService,
+    private readonly zona: NgZone
   ) {
     document.documentElement.setAttribute('data-tema', 'oscuro');
   }
@@ -297,11 +306,21 @@ export class LandingComponent implements OnInit, OnDestroy {
         this.apertura = r.apertura ?? '';
       }
     });
+    this.api.captchaRegistro().subscribe({
+      next: (r) => {
+        if (!r.siteKey) return;
+        this.captchaActivo = true;
+        setTimeout(() => {
+          this.limpiarCaptcha = montarCaptcha(this.zona, 'captcha-landing', r.siteKey!, (token) => { this.captcha = token; });
+        });
+      }
+    });
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches)
       this.reloj = setInterval(() => this.alternarTema(), 8000);
   }
 
   ngOnDestroy(): void {
+    this.limpiarCaptcha?.();
     if (this.reloj) clearInterval(this.reloj);
     document.documentElement.classList.remove('tema-suave');
     document.title = this.tituloAnterior;
@@ -321,13 +340,15 @@ export class LandingComponent implements OnInit, OnDestroy {
       correo: this.correo.trim(),
       mensaje: this.mensaje.trim(),
       sitio: this.sitio,
-      apertura: this.apertura
+      apertura: this.apertura,
+      captcha: this.captcha
     }).subscribe({
       next: () => {
         this.nombre = '';
         this.correo = '';
         this.mensaje = '';
         this.sitio = '';
+        this.captcha = '';
         this.enviando = false;
         this.aviso = 'Mensaje enviado.';
       },

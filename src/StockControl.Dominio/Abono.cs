@@ -10,6 +10,10 @@ public class Abono
     public const string OrigenMp = "mp";
     public const string OrigenDebito = "debito";
     public const string OrigenAdmin = "admin";
+    /// <summary>Pago único de la deuda de gestión. No renueva el mes.</summary>
+    public const string OrigenGestion = "gestion";
+    /// <summary>El admin saldó la deuda sin Mercado Pago. No renueva el mes.</summary>
+    public const string OrigenGestionAdmin = "gestion_admin";
 
     public int Id { get; set; }
     public int IdLocal { get; set; }

@@ -10,6 +10,10 @@
 		forward_auth {$API} {
 			uri /salud
 		}
+		handle /api/* {
+			uri strip_prefix /api
+			reverse_proxy {$API}
+		}
 		reverse_proxy {$WEB}
 	}
 

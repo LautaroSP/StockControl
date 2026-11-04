@@ -8,7 +8,7 @@ public class LoginPedido
     [Required, MaxLength(80)]
     public string Usuario { get; set; } = "";
 
-    [Required, MinLength(4)]
+    [Required, MaxLength(200)]
     public string Clave { get; set; } = "";
 }
 
@@ -206,13 +206,13 @@ public class UsuarioPedido
 
     public List<int> IdsLocal { get; set; } = new();
 
-    [MinLength(4), MaxLength(200)]
+    [MinLength(ServicioRegistro.LargoMinimoClave, ErrorMessage = "La clave debe tener al menos 8 caracteres."), MaxLength(200)]
     public string? Clave { get; set; }
 }
 
 public class ResetearClavePedido
 {
-    [Required, MinLength(4), MaxLength(200)]
+    [Required, MinLength(ServicioRegistro.LargoMinimoClave, ErrorMessage = "La clave debe tener al menos 8 caracteres."), MaxLength(200)]
     public string Clave { get; set; } = "";
 }
 
@@ -268,6 +268,9 @@ public class MensajeContactoPedido
 
     [MaxLength(400)]
     public string? Apertura { get; set; }
+
+    [MaxLength(2048)]
+    public string? Captcha { get; set; }
 }
 
 public class FormularioContactoPedido
@@ -279,6 +282,12 @@ public class FormularioContactoPedido
 public class ClaveAdminPedido
 {
     public string Clave { get; set; } = "";
+}
+
+public class GestionAdminPedido
+{
+    public string Clave { get; set; } = "";
+    public bool Exento { get; set; }
 }
 
 public class CambioClaveAdminPedido
@@ -527,11 +536,36 @@ public class TiendaPedido
 
     public bool HaceEnvios { get; set; }
 
+    public bool EnvioGratisSiempre { get; set; }
+
+    public decimal? PrecioEnvioKm { get; set; }
+
+    public decimal? EnvioMinimo { get; set; }
+
+    public decimal? RadioEnvioKm { get; set; }
+
+    public decimal? EnvioGratisDesde { get; set; }
+
     [Range(-90, 90)]
     public decimal? Latitud { get; set; }
 
     [Range(-180, 180)]
     public decimal? Longitud { get; set; }
+
+    public bool GestionACargoComprador { get; set; }
+
+    [MaxLength(30)]
+    public string? Cbu { get; set; }
+
+    [MaxLength(ServicioTransferenciaTienda.LargoMaximoAlias)]
+    public string? AliasCbu { get; set; }
+
+    [MaxLength(ServicioTransferenciaTienda.LargoMaximoTitular)]
+    public string? Titular { get; set; }
+
+    /// <summary>Null: la transferencia no vence.</summary>
+    [Range(1, ServicioTransferenciaTienda.PlazoMaximoHoras)]
+    public int? PlazoTransferenciaHoras { get; set; }
 }
 
 public class PublicarProductosPedido
@@ -590,6 +624,12 @@ public class CarritoTiendaPedido
 {
     [Required, MinLength(1), MaxLength(ServicioPedidosTienda.MaximoLineas)]
     public List<ItemPedidoTiendaPedido> Items { get; set; } = new();
+
+    [Range(-90, 90)]
+    public decimal? Latitud { get; set; }
+
+    [Range(-180, 180)]
+    public decimal? Longitud { get; set; }
 }
 
 /// <summary>Pedido de la tienda pública. Sin importes: los pone el servidor.</summary>
@@ -607,9 +647,26 @@ public class PedidoTiendaPedido
     [Required, MinLength(1), MaxLength(ServicioPedidosTienda.MaximoLineas)]
     public List<ItemPedidoTiendaPedido> Items { get; set; } = new();
 
+    /// <summary>coordinar, mercadopago o transferencia.</summary>
+    [MaxLength(20)]
+    public string? MedioPago { get; set; }
+
     /// <summary>Campo oculto contra bots: una persona lo deja vacío.</summary>
     [MaxLength(200)]
     public string? Sitio { get; set; }
+
+    /// <summary>retiro o envio. Vacío: retiro.</summary>
+    [MaxLength(20)]
+    public string? Modalidad { get; set; }
+
+    [MaxLength(ServicioTienda.LargoMaximoDato)]
+    public string? DireccionEnvio { get; set; }
+
+    [Range(-90, 90)]
+    public decimal? Latitud { get; set; }
+
+    [Range(-180, 180)]
+    public decimal? Longitud { get; set; }
 }
 
 public class EstadoPedidoTiendaPedido

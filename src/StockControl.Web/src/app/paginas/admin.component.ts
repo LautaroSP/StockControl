@@ -7,11 +7,12 @@ import { ApiService, LocalAdminDto, LocalPlataformaDto, MensajeContactoDto, Usua
 import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
 import { TemaComponent } from '../tema.component';
+import { GestionTiendaAdminComponent } from './gestion-tienda-admin.component';
 
 @Component({
   selector: 'sc-admin',
   standalone: true,
-  imports: [DatePipe, FormsModule, NgTemplateOutlet, RouterLink, TemaComponent],
+  imports: [DatePipe, FormsModule, GestionTiendaAdminComponent, NgTemplateOutlet, RouterLink, TemaComponent],
   template: `
     <sc-tema />
     <div class="auth" style="align-items:start;padding-top:72px">
@@ -70,7 +71,7 @@ import { TemaComponent } from '../tema.component';
               <label class="field grow" style="margin:0">Nombre <input class="wide" type="text" [(ngModel)]="nombreDueno" /></label>
               <label class="field grow" style="margin:0">Mail <input class="wide" type="email" [(ngModel)]="emailDueno" /></label>
               <label class="field grow" style="margin:0">Usuario <input class="wide" type="text" [(ngModel)]="usuarioDueno" autocomplete="off" /></label>
-              <label class="field grow" style="margin:0">Clave <input class="wide" type="password" [(ngModel)]="claveDueno" autocomplete="new-password" /></label>
+              <label class="field grow" style="margin:0">Clave (mínimo 8) <input class="wide" type="password" minlength="8" [(ngModel)]="claveDueno" autocomplete="new-password" /></label>
             </div>
           }
         </section>
@@ -106,7 +107,12 @@ import { TemaComponent } from '../tema.component';
           <button class="btn" type="button" [class.btn-primary]="vista === 'usuarios'" (click)="vista = 'usuarios'">Usuarios</button>
           <button class="btn" type="button" [class.btn-primary]="vista === 'locales'" (click)="vista = 'locales'">Locales</button>
           <button class="btn" type="button" [class.btn-primary]="vista === 'contacto'" (click)="verContacto()">Contacto</button>
+          <button class="btn" type="button" [class.btn-primary]="vista === 'gestion'" (click)="vista = 'gestion'">Gestión tienda</button>
         </div>
+
+        @if (vista === 'gestion') {
+          <sc-gestion-tienda-admin />
+        }
 
         @if (vista === 'contacto') {
           <section class="panel pad" style="margin-bottom:16px">
@@ -156,17 +162,24 @@ import { TemaComponent } from '../tema.component';
                 @if (!l.activo) {
                   <span class="badge badge-vencido">Desactivado</span>
                 }
+                @if (l.exentoGestion) {
+                  <span class="badge">Sin cargo de gestión</span>
+                }
               </div>
               <div class="row" style="margin-top:8px">
                 <button class="btn" type="button" (click)="abrirAccion('pago', l.idLocal)">Marcar pago</button>
                 <button class="btn" type="button" (click)="abrirAccion('anular', l.idLocal)">Anular pago</button>
                 <button class="btn" type="button" (click)="abrirVence(l)">Vencimiento</button>
+                <button class="btn" type="button" (click)="abrirAccion('gestion', l.idLocal)">
+                  {{ l.exentoGestion ? 'Cobrar gestión' : 'Eximir de gestión' }}
+                </button>
                 @if (l.activo) {
                   <button class="btn btn-danger" type="button" (click)="abrirAccion('baja', l.idLocal)">Desactivar</button>
                 } @else {
                   <button class="btn" type="button" (click)="abrirAccion('activar', l.idLocal)">Activar</button>
                 }
               </div>
+              <ng-container *ngTemplateOutlet="maestra; context: { tipo: 'gestion', id: l.idLocal }" />
               <ng-container *ngTemplateOutlet="maestra; context: { tipo: 'pago', id: l.idLocal }" />
               <ng-container *ngTemplateOutlet="maestra; context: { tipo: 'anular', id: l.idLocal }" />
               <ng-container *ngTemplateOutlet="maestra; context: { tipo: 'vence', id: l.idLocal }" />
@@ -214,13 +227,14 @@ import { TemaComponent } from '../tema.component';
                     <button class="btn" type="button" (click)="pideClave = pideClave === u.id ? 0 : u.id">Hacer admin</button>
                   }
                   <button class="btn" type="button" (click)="abrirClave(u.id)">Cambiar clave</button>
+                  <button class="btn" type="button" (click)="cerrarSesiones(u.id, u.nombre)">Cerrar sesiones</button>
                   <button class="btn btn-danger" type="button" (click)="abrirAccion('eliminar', u.id)">Eliminar</button>
                 </div>
                 <ng-container *ngTemplateOutlet="maestra; context: { tipo: 'bloquear', id: u.id }" />
                 <ng-container *ngTemplateOutlet="maestra; context: { tipo: 'eliminar', id: u.id }" />
                 @if (cambiaClave === u.id) {
                   <label class="field">
-                    Nueva clave
+                    Nueva clave (mínimo 8)
                     <input class="wide" type="password" [(ngModel)]="nuevaClave" autocomplete="new-password" />
                   </label>
                   <label class="field">
@@ -250,13 +264,14 @@ import { TemaComponent } from '../tema.component';
                         <button class="btn" type="button" (click)="abrirAccion('bloquear', c.id)">Bloquear</button>
                       }
                       <button class="btn" type="button" (click)="abrirClave(c.id)">Cambiar clave</button>
+                      <button class="btn" type="button" (click)="cerrarSesiones(c.id, c.nombre)">Cerrar sesiones</button>
                       <button class="btn btn-danger" type="button" (click)="abrirAccion('eliminar', c.id)">Eliminar</button>
                     </div>
                     <ng-container *ngTemplateOutlet="maestra; context: { tipo: 'bloquear', id: c.id }" />
                     <ng-container *ngTemplateOutlet="maestra; context: { tipo: 'eliminar', id: c.id }" />
                     @if (cambiaClave === c.id) {
                       <label class="field">
-                        Nueva clave
+                        Nueva clave (mínimo 8)
                         <input class="wide" type="password" [(ngModel)]="nuevaClave" autocomplete="new-password" />
                       </label>
                       <label class="field">
@@ -304,7 +319,7 @@ import { TemaComponent } from '../tema.component';
 export class AdminComponent implements OnInit {
   usuarios: UsuarioAdminDto[] = [];
   locales: LocalPlataformaDto[] = [];
-  vista: 'usuarios' | 'locales' | 'contacto' = 'usuarios';
+  vista: 'usuarios' | 'locales' | 'contacto' | 'gestion' = 'usuarios';
   mensajes: MensajeContactoDto[] = [];
   formularioActivo = true;
   totalMes = 0;
@@ -388,6 +403,7 @@ export class AdminComponent implements OnInit {
       : tipo === 'vence' ? this.api.cambiarVencimientoAdmin(id, this.vence, clave)
       : tipo === 'baja' ? this.api.desactivarLocal(id, clave)
       : tipo === 'activar' ? this.api.activarLocal(id, clave)
+      : tipo === 'gestion' ? this.api.eximirGestionAdmin(id, !this.locales.find((l) => l.idLocal === id)?.exentoGestion, clave)
       : tipo === 'bloquear' ? this.api.bloquearUsuario(id, clave)
       : this.api.eliminarUsuario(id, clave);
     pedido.subscribe({
@@ -416,6 +432,19 @@ export class AdminComponent implements OnInit {
     this.clave = '';
     this.error = '';
     this.aviso = '';
+  }
+
+  async cerrarSesiones(id: number, nombre: string): Promise<void> {
+    if (!await this.dialogo.confirmar(`¿Cerrar las sesiones de ${nombre}?`)) return;
+    this.ocupado = true;
+    this.api.cerrarSesionesAdmin(id).subscribe({
+      next: () => {
+        this.ocupado = false;
+        this.error = '';
+        this.aviso = 'Sesiones cerradas.';
+      },
+      error: (err) => this.fallo(err)
+    });
   }
 
   guardarClave(id: number): void {

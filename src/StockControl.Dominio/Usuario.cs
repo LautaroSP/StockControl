@@ -10,6 +10,9 @@ public class Usuario
     public string? TokenConfirmacion { get; set; }
     public DateTimeOffset? VenceConfirmacion { get; set; }
     public string HashClave { get; set; } = "";
+    public int IntentosFallidos { get; set; }
+    public DateTimeOffset? BloqueadoHasta { get; set; }
     public string Rol { get; set; } = Roles.Empleado;
     public bool Activo { get; set; } = true;
+    public int VersionSesion { get; set; } = 1;
 }

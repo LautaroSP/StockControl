@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, NgZone, OnDestroy, OnInit } from '@angular/core';
 import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../servicios/api.service';
+import { montarCaptcha } from '../servicios/turnstile';
 import { TemaComponent } from '../tema.component';
 
 @Component({
@@ -33,7 +34,10 @@ import { TemaComponent } from '../tema.component';
             <label class="field">Mensaje <textarea class="wide" name="mensaje" rows="4" maxlength="2000" [(ngModel)]="mensaje"></textarea></label>
             <input type="hidden" name="apertura" [(ngModel)]="apertura" />
             <input class="campo-oculto" type="text" name="sitio" [(ngModel)]="sitio" tabindex="-1" autocomplete="off" aria-hidden="true" />
-            <button class="btn btn-primary wide" type="submit" [disabled]="enviando">{{ enviando ? 'Enviando...' : 'Enviar' }}</button>
+            @if (captchaActivo) {
+              <div id="captcha-contacto" class="captcha"></div>
+            }
+            <button class="btn btn-primary wide" type="submit" [disabled]="enviando || (captchaActivo && !captcha)">{{ enviando ? 'Enviando...' : 'Enviar' }}</button>
           </form>
           @if (aviso) { <p class="meta">{{ aviso }}</p> }
           @if (error) { <p class="error">{{ error }}</p> }
@@ -46,9 +50,10 @@ import { TemaComponent } from '../tema.component';
   `,
   styles: `
     .contacto-volver { display: block; margin-top: 36px; }
+    .captcha { margin: 4px 0 12px; min-height: 65px; }
   `
 })
-export class ContactoComponent implements OnInit {
+export class ContactoComponent implements OnInit, OnDestroy {
   telefono = '';
   email = '';
   url: string | null = null;
@@ -58,13 +63,18 @@ export class ContactoComponent implements OnInit {
   mensaje = '';
   sitio = '';
   apertura = '';
+  captcha = '';
+  captchaActivo = false;
   enviando = false;
   aviso = '';
   error = '';
 
+  private limpiarCaptcha: (() => void) | null = null;
+
   constructor(
     private readonly lugar: Location,
-    private readonly api: ApiService
+    private readonly api: ApiService,
+    private readonly zona: NgZone
   ) {}
 
   ngOnInit(): void {
@@ -77,6 +87,19 @@ export class ContactoComponent implements OnInit {
         this.apertura = r.apertura ?? '';
       }
     });
+    this.api.captchaRegistro().subscribe({
+      next: (r) => {
+        if (!r.siteKey) return;
+        this.captchaActivo = true;
+        setTimeout(() => {
+          this.limpiarCaptcha = montarCaptcha(this.zona, 'captcha-contacto', r.siteKey!, (token) => { this.captcha = token; });
+        });
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.limpiarCaptcha?.();
   }
 
   enviar(): void {
@@ -92,13 +115,15 @@ export class ContactoComponent implements OnInit {
       correo: this.correo.trim(),
       mensaje: this.mensaje.trim(),
       sitio: this.sitio,
-      apertura: this.apertura
+      apertura: this.apertura,
+      captcha: this.captcha
     }).subscribe({
       next: () => {
         this.nombre = '';
         this.correo = '';
         this.mensaje = '';
         this.sitio = '';
+        this.captcha = '';
         this.enviando = false;
         this.aviso = 'Mensaje enviado.';
       },

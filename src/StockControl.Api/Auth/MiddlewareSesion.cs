@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using StockControl.Api.Datos;
+using StockControl.Dominio;
 
 namespace StockControl.Api.Auth;
 
@@ -25,13 +26,14 @@ public class MiddlewareSesion
                 sesion.IdLocal = local;
             if (int.TryParse(http.User.FindFirstValue("nroCaja"), out var caja))
                 sesion.NroCaja = caja;
+            int? versionToken = int.TryParse(http.User.FindFirstValue("sesion"), out var version) ? version : null;
             if (sesion.IdUsuario is int idUsuario)
             {
-                var activo = await db.Usuarios.AsNoTracking()
+                var fila = await db.Usuarios.AsNoTracking()
                     .Where(u => u.Id == idUsuario)
-                    .Select(u => (bool?)u.Activo)
+                    .Select(u => new { u.Activo, u.VersionSesion })
                     .FirstOrDefaultAsync();
-                if (activo != true)
+                if (fila is not { Activo: true } || !ServicioUsuarios.SesionVigente(versionToken, fila.VersionSesion))
                 {
                     http.Response.StatusCode = StatusCodes.Status401Unauthorized;
                     return;

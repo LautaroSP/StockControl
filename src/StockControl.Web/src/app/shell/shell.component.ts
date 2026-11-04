@@ -187,6 +187,20 @@ function leerGrupos(): Record<Grupo, boolean> {
               }
             }
           }
+          @if (abono.gestionPendiente > 0) {
+            <div class="aviso-abono" [class.aviso-abono-vencido]="abono.gestionVencida">
+              @if (abono.gestionVencida) {
+                La tienda online está cerrada por la gestión impaga. La caja sigue funcionando.
+              } @else {
+                Tenés $ {{ pesos(abono.gestionPendiente) }} de gestión de la tienda.
+                Si no la pagás antes del {{ abono.gestionLimite | date: 'dd/MM' }} a las {{ abono.gestionLimite | date: 'HH:mm' }},
+                se cierra la tienda online. La caja sigue abierta.
+              }
+              @if (sesion.puedeConfigurarLocal()) {
+                <a class="btn btn-primary" routerLink="/activar">Abono</a>
+              }
+            </div>
+          }
         }
         <router-outlet />
       </main>
@@ -225,6 +239,10 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   abierto(grupo: Grupo): boolean {
     return this.grupos[grupo];
+  }
+
+  pesos(n: number): string {
+    return Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 });
   }
 
   alternar(grupo: Grupo, e: Event): void {

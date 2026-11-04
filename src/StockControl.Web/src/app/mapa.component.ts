@@ -13,12 +13,13 @@ const ATRIBUCION = '© <a href="https://www.openstreetmap.org/copyright" target=
   standalone: true,
   encapsulation: ViewEncapsulation.None,
   styleUrl: '../../node_modules/leaflet/dist/leaflet.css',
-  template: `<div #contenedor class="mapa" role="region" aria-label="Mapa con la ubicación del local"></div>`
+  template: `<div #contenedor class="mapa" role="region" [attr.aria-label]="etiqueta"></div>`
 })
 export class MapaComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input({ required: true }) latitud!: number;
   @Input({ required: true }) longitud!: number;
   @Input() editable = false;
+  @Input() etiqueta = 'Ubicación del local';
   @Output() readonly movido = new EventEmitter<Ubicacion>();
   @ViewChild('contenedor', { static: true }) private readonly contenedor!: ElementRef<HTMLDivElement>;
 
@@ -31,7 +32,7 @@ export class MapaComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.mapa = L.map(this.contenedor.nativeElement, { scrollWheelZoom: false }).setView(punto, 16);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: ATRIBUCION }).addTo(this.mapa);
     const icono = L.divIcon({ className: 'marcador-tienda', html: '<span></span>', iconSize: [22, 22], iconAnchor: [11, 22] });
-    this.marcador = L.marker(punto, { icon: icono, draggable: this.editable, title: 'Ubicación del local' }).addTo(this.mapa);
+    this.marcador = L.marker(punto, { icon: icono, draggable: this.editable, title: this.etiqueta }).addTo(this.mapa);
     if (!this.editable) return;
     this.marcador.on('dragend', () => this.avisar());
     this.mapa.on('click', (e) => {

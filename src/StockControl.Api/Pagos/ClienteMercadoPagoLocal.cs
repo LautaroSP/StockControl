@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using StockControl.Dominio;
 
 namespace StockControl.Api.Pagos;
 
@@ -111,6 +112,63 @@ public class ClienteMercadoPagoLocal
 
     public Task CancelarOrden(string token, string idOrden) =>
         Enviar(token, HttpMethod.Post, $"v1/orders/{Uri.EscapeDataString(idOrden)}/cancel", new { });
+
+    /// <summary>
+    /// Checkout Pro del pedido de la tienda. La gestión va como marketplace_fee: MP la separa sola.
+    /// Sin efectivo ni cajero: esos pagos se aprueban después del plazo del pedido.
+    /// </summary>
+    public async Task<string> CrearPreferenciaTienda(
+        string token,
+        PedidoTienda pedido,
+        string nombreLocal,
+        string urlVuelta,
+        string urlAviso,
+        DateTimeOffset vence)
+    {
+        var items = pedido.Lineas.OrderBy(l => l.Id).Select(l => new
+        {
+            title = l.Nombre,
+            quantity = (int)l.Cantidad,
+            unit_price = l.PrecioUnitario,
+            currency_id = "ARS"
+        }).ToList();
+        if (pedido.Envio > 0)
+            items.Add(new { title = "Envío", quantity = 1, unit_price = pedido.Envio, currency_id = "ARS" });
+        if (pedido.GestionACargoComprador && pedido.Gestion > 0)
+            items.Add(new { title = "Gestión", quantity = 1, unit_price = pedido.Gestion, currency_id = "ARS" });
+
+        var json = await Enviar(token, HttpMethod.Post, "checkout/preferences", new
+        {
+            items,
+            external_reference = ServicioPagoPedidoTienda.Referencia(pedido.Id),
+            statement_descriptor = nombreLocal.Length > 22 ? nombreLocal[..22] : nombreLocal,
+            marketplace_fee = pedido.Gestion,
+            notification_url = urlAviso,
+            back_urls = new { success = urlVuelta, pending = urlVuelta, failure = urlVuelta },
+            auto_return = "approved",
+            expires = true,
+            expiration_date_to = vence.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture),
+            payment_methods = new
+            {
+                excluded_payment_types = new[] { new { id = "ticket" }, new { id = "atm" } },
+                installments = 1
+            }
+        });
+        return ClienteMercadoPago.ElegirUrlPago(Texto(json, "init_point"), Texto(json, "sandbox_init_point"));
+    }
+
+    public async Task<PagoMercadoPagoTienda> ObtenerPago(string token, string idPago)
+    {
+        var json = await Enviar(token, HttpMethod.Get, $"v1/payments/{Uri.EscapeDataString(idPago)}");
+        var importe = json.TryGetProperty("transaction_amount", out var t) && t.ValueKind == JsonValueKind.Number ? t.GetDecimal() : 0m;
+        return new PagoMercadoPagoTienda(
+            Texto(json, "id") ?? "", Texto(json, "status") ?? "", Texto(json, "currency_id") ?? "",
+            importe, Texto(json, "external_reference"), Texto(json, "collector_id"));
+    }
+
+    /// <summary>Reembolso total. MP descuenta en proporción del local y de la gestión.</summary>
+    public Task ReembolsarPago(string token, string idPago) =>
+        Enviar(token, HttpMethod.Post, $"v1/payments/{Uri.EscapeDataString(idPago)}/refunds", new { });
 
     private async Task<OrdenMercadoPago> CrearOrden(string token, object cuerpo)
     {

@@ -56,6 +56,7 @@ export class TiendaResumenComponent implements OnInit {
   alias = '';
   estadoTienda: EstadoTienda = 'inactiva';
   vista: VistaTienda | null = null;
+  motivoCierre: 'abono' | 'gestion' | null = null;
   publicados = 0;
   conImagen = 0;
   cargada = false;
@@ -70,6 +71,7 @@ export class TiendaResumenComponent implements OnInit {
         this.alias = r.alias;
         this.estadoTienda = r.estado;
         this.vista = r.vista;
+        this.motivoCierre = r.motivoCierre;
         this.publicados = r.publicados;
         this.conImagen = r.conImagen;
         this.cargada = true;
@@ -79,6 +81,7 @@ export class TiendaResumenComponent implements OnInit {
   }
 
   estado(): Estado {
+    if (this.motivoCierre === 'gestion') return { texto: 'Cerrada por la gestión', clase: 'badge-vencido' };
     if (this.vista === 'cerrada') return { texto: 'Cerrada por el abono', clase: 'badge-vencido' };
     if (this.vista === 'pausada') return { texto: 'Pausada', clase: 'badge-aviso' };
     if (this.vista === 'catalogo') return { texto: 'Activa', clase: '' };

@@ -12,6 +12,14 @@ public class PermisosTests
     }
 
     [Fact]
+    public void El_empleado_no_ve_el_costo_y_el_dueno_si()
+    {
+        Assert.Null(Permisos.CostoVisible(Roles.Empleado, 12.5m));
+        Assert.Equal(12.5m, Permisos.CostoVisible(Roles.Dueno, 12.5m));
+        Assert.Equal(12.5m, Permisos.CostoVisible(Roles.Socio, 12.5m));
+    }
+
+    [Fact]
     public void Empleado_no_cobra_al_costo()
     {
         Assert.False(Permisos.PuedeCobrarAlCosto(Roles.Empleado));

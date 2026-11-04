@@ -9,6 +9,7 @@ public static class ServicioAvisos
 {
     public const string PedidoNuevo = "pedido_nuevo";
     public const string PedidoCancelado = "pedido_cancelado";
+    public const string PagoVencido = "pago_vencido";
     public const int TopeLista = 30;
 
     private static readonly CultureInfo Ar = new("es-AR");
@@ -57,13 +58,16 @@ public static class ServicioAvisos
     {
         PedidoNuevo => "Pedido nuevo en la tienda",
         PedidoCancelado => "Pedido cancelado",
+        PagoVencido => "Transferencia sin confirmar",
         _ => throw new ArgumentOutOfRangeException(nameof(tipo))
     };
 
     public static string Texto(string tipo, PedidoTienda pedido) => tipo switch
     {
-        PedidoNuevo => $"N° {pedido.Numero} de {pedido.Nombre} por $ {pedido.Total.ToString("N2", Ar)}",
+        PedidoNuevo => $"N° {pedido.Numero} de {pedido.Nombre} por $ {pedido.Total.ToString("N2", Ar)}"
+            + (pedido.MedioPago == ServicioPagoPedidoTienda.Transferencia ? " · a confirmar transferencia" : ""),
         PedidoCancelado => $"{pedido.Nombre} canceló el pedido N° {pedido.Numero}",
+        PagoVencido => $"El pedido N° {pedido.Numero} de {pedido.Nombre} se canceló: la transferencia no se confirmó a tiempo",
         _ => throw new ArgumentOutOfRangeException(nameof(tipo))
     };
 }

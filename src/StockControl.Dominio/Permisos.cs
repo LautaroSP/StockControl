@@ -20,6 +20,9 @@ public static class Permisos
     public static bool PuedeVerCostoEnInforme(string rol) =>
         EsDuenoOperativo(rol);
 
+    public static decimal? CostoVisible(string rol, decimal costo) =>
+        PuedeVerCostoEnInforme(rol) ? costo : null;
+
     public static bool PuedeVerEstadisticas(string rol) =>
         EsDuenoOperativo(rol);
 

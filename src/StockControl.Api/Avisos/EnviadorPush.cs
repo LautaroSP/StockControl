@@ -40,6 +40,7 @@ public class EnviadorPush(
     {
         using var scope = scopes.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        scope.ServiceProvider.GetRequiredService<AlcanceDatos>().AbrirTodo();
         var suscripciones = await db.SuscripcionesPush.IgnoreQueryFilters()
             .Where(s => s.IdLocal == mensaje.IdLocal && mensaje.IdsUsuario.Contains(s.IdUsuario))
             .ToListAsync(cancelar);

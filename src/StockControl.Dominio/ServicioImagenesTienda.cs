@@ -158,13 +158,13 @@ public static class ServicioImagenesTienda
     }
 
     /// <summary>Una imagen se sirve solo si es de ese producto, ese local y la tienda está abierta con el producto publicado.</summary>
-    public static bool Disponible(ImagenProducto imagen, Producto producto, Local local, DateTimeOffset ahora) =>
+    public static bool Disponible(ImagenProducto imagen, Producto producto, Local local, DateTimeOffset ahora, bool gestionVencida = false) =>
         imagen.IdProducto == producto.Id
         && imagen.IdLocal == local.IdLocal
         && producto.IdLocal == local.IdLocal
         && producto.Publicado
         && ServicioCatalogoTienda.PuedePublicar(producto)
-        && ServicioTienda.Vista(local, ahora) == ServicioTienda.VistaCatalogo;
+        && ServicioTienda.Vista(local, ahora, gestionVencida) == ServicioTienda.VistaCatalogo;
 
     public static ImagenTienda ATienda(ImagenProducto imagen) =>
         new(imagen.Id, imagen.Origen, imagen.Fuente, imagen.Enlace, imagen.Licencia);

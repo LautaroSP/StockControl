@@ -81,14 +81,21 @@ public static class ServicioTienda
 
     public static bool MuestraMapa(Local local) => local.Latitud.HasValue && local.Longitud.HasValue;
 
-    /// <summary>Null = no resuelve (404). El abono manda sobre la pausa del dueño.</summary>
-    public static string? Vista(Local local, DateTimeOffset ahora)
+    /// <summary>Null = no resuelve (404). El abono manda sobre la gestión impaga, y esa sobre la pausa del dueño.</summary>
+    public static string? Vista(Local local, DateTimeOffset ahora, bool gestionVencida = false)
     {
         if (!local.Activo || local.AliasTienda == null || local.EstadoTienda == Inactiva)
             return null;
-        if (!ServicioAbono.Estado(local, ahora).PuedeOperarCaja)
+        if (!ServicioAbono.Estado(local, ahora).PuedeOperarCaja || gestionVencida)
             return VistaCerrada;
         return local.EstadoTienda == Pausada ? VistaPausada : VistaCatalogo;
+    }
+
+    /// <summary>Null si la tienda no está cerrada. El abono gana si los dos la cierran.</summary>
+    public static string? MotivoCierre(Local local, DateTimeOffset ahora, bool gestionVencida)
+    {
+        if (Vista(local, ahora, gestionVencida) != VistaCerrada) return null;
+        return ServicioAbono.Estado(local, ahora).PuedeOperarCaja ? "gestion" : "abono";
     }
 
     private static string Recortar(string? valor, string campo)

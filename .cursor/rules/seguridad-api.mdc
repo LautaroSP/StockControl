@@ -15,3 +15,5 @@ alwaysApply: false
 - RLS: filtro `IdLocal` en EF **y** políticas en Postgres. Un JWT no lee otro local.
 - Cifrar en la app solo secretos de terceros (tokens MP del local) con Data Protection / clave en entorno. Productos y ventas no se cifran campo a campo.
 - Formulario de contacto: honeypot + rate limit; CAPTCHA si no alcanza.
+- SQL: LINQ. `ExecuteSqlRaw`, `FromSqlRaw` y `SqlQueryRaw` solo con texto fijo, sin concatenar ni `string.Format` datos de afuera. Con datos variables: `ExecuteSql`, `FromSql` o `SqlQuery` (EF los parametriza).
+- Búsquedas `ILike`: el patrón sale de `Busqueda.Patron` (escapa `%`, `_` y `\`, y corta a 80).

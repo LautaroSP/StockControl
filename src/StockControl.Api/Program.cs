@@ -3,7 +3,9 @@ using System.Text.Json;
 using System.Threading.RateLimiting;
 using System.Globalization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -33,13 +35,20 @@ if (args.Length >= 1 && args[0] == "vapid")
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<SesionActual>();
-builder.Services.AddDbContext<AppDbContext>(o =>
+builder.Services.AddScoped<AlcanceDatos>();
+builder.Services.AddScoped<InterceptorAlcance>();
+builder.Services.AddDbContext<AppDbContext>((sp, o) =>
+{
     o.UseNpgsql(builder.Configuration.GetConnectionString("Default")
-                ?? throw new InvalidOperationException("Falta ConnectionStrings:Default")));
+                ?? throw new InvalidOperationException("Falta ConnectionStrings:Default"));
+    o.AddInterceptors(sp.GetRequiredService<InterceptorAlcance>());
+});
 builder.Services.AddSingleton<JwtServicio>();
 builder.Services.AddSingleton<PasswordHasher<Usuario>>();
 var proteccion = builder.Services.AddDataProtection();
 var rutaClaves = builder.Configuration["DataProtection:Ruta"];
+if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(rutaClaves))
+    throw new InvalidOperationException("Falta DataProtection:Ruta");
 if (!string.IsNullOrWhiteSpace(rutaClaves))
     proteccion.PersistKeysToFileSystem(new DirectoryInfo(rutaClaves));
 builder.Services.AddHttpClient<ClienteMercadoPago>(c =>
@@ -62,6 +71,13 @@ builder.Services.AddHttpClient("resend", c =>
     c.BaseAddress = new Uri("https://api.resend.com/");
     c.Timeout = TimeSpan.FromSeconds(15);
 });
+builder.Services.AddHttpClient<ClienteOpenRouteService>(c =>
+{
+    c.BaseAddress = new Uri("https://api.heigit.org/");
+    c.Timeout = TimeSpan.FromSeconds(8);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd(builder.Configuration["Nominatim:UserAgent"] ?? "StockControl/1.0 (tienda de locales)");
+    c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+});
 builder.Services.AddHttpClient<ClienteNominatim>(c =>
 {
     c.BaseAddress = new Uri("https://nominatim.openstreetmap.org/");
@@ -79,17 +95,19 @@ builder.Services.AddHttpClient(EnviadorPush.Cliente, c => c.Timeout = TimeSpan.F
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddSingleton<ColaPush>();
 builder.Services.AddHostedService<EnviadorPush>();
+builder.Services.AddHostedService<VencedorPedidosTienda>();
 builder.Services.AddSingleton(new AlmacenImagenes(
     builder.Configuration["Imagenes:Ruta"] ?? Path.Combine(builder.Environment.ContentRootPath, "datos", "imagenes")));
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
     {
-        var clave = builder.Configuration["Jwt:Clave"]
-                    ?? throw new InvalidOperationException("Falta Jwt:Clave");
+        var (clave, emisor, audiencia) = JwtServicio.Leer(builder.Configuration);
         o.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = false,
-            ValidateAudience = false,
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidIssuer = emisor,
+            ValidAudience = audiencia,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(clave)),
             ClockSkew = TimeSpan.FromMinutes(1)
@@ -100,11 +118,16 @@ builder.Services.AddAuthorization();
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    o.AddFixedWindowLimiter("api", c =>
+    o.AddPolicy("api", ctx => ctx.User.FindFirst("sub")?.Value is string usuario
+        ? RateLimitPartition.GetFixedWindowLimiter("u:" + usuario,
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 300, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 })
+        : RateLimitPartition.GetFixedWindowLimiter("ip:" + (ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip"),
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    o.AddPolicy("login", httpContext =>
     {
-        c.PermitLimit = 120;
-        c.Window = TimeSpan.FromMinutes(1);
-        c.QueueLimit = 0;
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "sin-ip";
+        return RateLimitPartition.GetFixedWindowLimiter("login:" + ip,
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });
     });
     o.AddPolicy("registro", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
@@ -128,8 +151,19 @@ builder.Services.AddRateLimiter(o =>
         "nominatim",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 1, Window = TimeSpan.FromSeconds(1), QueueLimit = 0 }));
 });
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    var redes = builder.Configuration["Proxy:Redes"] ?? "";
+    foreach (var red in redes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        o.KnownNetworks.Add(Microsoft.AspNetCore.HttpOverrides.IPNetwork.Parse(red));
+});
+var origenesCors = (builder.Configuration["Cors:Origenes"] ?? "")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+if (origenesCors.Length == 0)
+    origenesCors = ["http://localhost:4200", "http://127.0.0.1:4200"];
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
-    p.WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
+    p.WithOrigins(origenesCors)
         .AllowAnyHeader()
         .AllowAnyMethod()));
 builder.Services.AddEndpointsApiExplorer();
@@ -166,6 +200,23 @@ if (app.Environment.IsDevelopment())
     await AsegurarEmailVentas(db);
 }
 
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler(errores => errores.Run(async ctx =>
+    {
+        var error = ctx.Features.Get<IExceptionHandlerFeature>()?.Error;
+        ctx.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("Errores")
+            .LogError(error, "Error no controlado");
+        ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        ctx.Response.ContentType = "text/plain; charset=utf-8";
+        await ctx.Response.WriteAsync("No se pudo completar la operación.");
+    }));
+}
+
+app.UseForwardedHeaders();
+app.UseRouting();
+
 app.Use(async (ctx, next) =>
 {
     if (!ctx.Request.Path.StartsWithSegments("/salud"))
@@ -186,12 +237,30 @@ if (!app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<MiddlewareSesion>();
+app.Use(async (ctx, siguiente) =>
+{
+    if (ctx.Request.Path.StartsWithSegments("/admin"))
+    {
+        var sesion = ctx.RequestServices.GetRequiredService<SesionActual>();
+        if (Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? ""))
+        {
+            var alcance = ctx.RequestServices.GetRequiredService<AlcanceDatos>();
+            alcance.AbrirTodo();
+            var db = ctx.RequestServices.GetRequiredService<AppDbContext>();
+            await alcance.Aplicar(db.Database.GetDbConnection(), sesion);
+        }
+    }
+    await siguiente(ctx);
+});
 app.UseRateLimiter();
+app.Use(StockControl.Api.FiltroValidacion.Invocar);
 
 app.Use(async (ctx, next) =>
 {
     ctx.Response.Headers["X-Content-Type-Options"] = "nosniff";
     ctx.Response.Headers["Referrer-Policy"] = "same-origin";
+    ctx.Response.Headers["X-Frame-Options"] = "DENY";
+    ctx.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'none'; default-src 'none'";
     if (!ctx.Request.Host.Host.Contains("localhost"))
         ctx.Response.Headers["Strict-Transport-Security"] = "max-age=31536000";
     await next();
@@ -204,14 +273,23 @@ app.MapPost("/auth/login", async (LoginPedido pedido, AppDbContext db, PasswordH
 {
     if (string.IsNullOrWhiteSpace(pedido.Usuario) || string.IsNullOrWhiteSpace(pedido.Clave))
         return Results.BadRequest("Usuario y clave son obligatorios.");
+    var ahora = DateTimeOffset.UtcNow;
     var u = await db.Usuarios.IgnoreQueryFilters()
         .FirstOrDefaultAsync(x => x.NombreUsuario == pedido.Usuario);
-    if (u == null || !u.Activo || hasher.VerifyHashedPassword(u, u.HashClave, pedido.Clave) == PasswordVerificationResult.Failed)
+    if (u == null || !u.Activo || ServicioLogin.EstaFrenado(u, ahora))
         return Results.Unauthorized();
+    if (hasher.VerifyHashedPassword(u, u.HashClave, pedido.Clave) == PasswordVerificationResult.Failed)
+    {
+        ServicioLogin.RegistrarFallo(u, ahora);
+        await db.SaveChangesAsync();
+        return Results.Unauthorized();
+    }
     if (!u.EmailConfirmado)
         return Results.BadRequest("Confirmá el mail antes de entrar. Revisá la bandeja.");
+    ServicioLogin.RegistrarAcierto(u);
+    await db.SaveChangesAsync();
     return Results.Ok(new { token = jwt.Emitir(u, null), rol = u.Rol, nombre = string.IsNullOrWhiteSpace(u.Nombre) ? u.NombreUsuario : u.Nombre });
-}).RequireRateLimiting("api");
+}).RequireRateLimiting("login");
 
 app.MapGet("/registro/captcha", (IConfiguration config, IWebHostEnvironment env) =>
 {
@@ -219,7 +297,7 @@ app.MapGet("/registro/captcha", (IConfiguration config, IWebHostEnvironment env)
     return Results.Ok(new { siteKey = claves?.SiteKey });
 }).RequireRateLimiting("api");
 
-app.MapPost("/registro", async (RegistroCuentaPedido pedido, HttpContext http, AppDbContext db, PasswordHasher<Usuario> hasher, JwtServicio jwt, IConfiguration config, IWebHostEnvironment env, IHttpClientFactory clientes) =>
+app.MapPost("/registro", async (RegistroCuentaPedido pedido, HttpContext http, AppDbContext db, AlcanceDatos alcance, PasswordHasher<Usuario> hasher, JwtServicio jwt, IConfiguration config, IWebHostEnvironment env, IHttpClientFactory clientes) =>
 {
     if (!string.IsNullOrEmpty(pedido.Sitio)) return Results.Ok();
     if (ClavesCaptcha(config, env) is { } captcha)
@@ -238,6 +316,7 @@ app.MapPost("/registro", async (RegistroCuentaPedido pedido, HttpContext http, A
         return Results.BadRequest(ex.Message);
     }
     var (dueno, local) = ServicioRegistro.Armar(pedido, DateTimeOffset.UtcNow);
+    alcance.AbrirTodo();
     if (await db.Usuarios.IgnoreQueryFilters().AnyAsync(u => u.NombreUsuario == dueno.NombreUsuario || u.Email == dueno.Email))
         return Results.Conflict("Ya existe una cuenta con ese usuario o mail.");
     dueno.HashClave = hasher.HashPassword(dueno, pedido.Clave);
@@ -306,13 +385,15 @@ app.MapGet("/locales", async (AppDbContext db, SesionActual sesion) =>
     });
 }).RequireAuthorization().RequireRateLimiting("api");
 
-app.MapPost("/locales/contratar", async (ContratarLocalPedido pedido, AppDbContext db, SesionActual sesion, ClienteMercadoPago mp, ILoggerFactory logs, IConfiguration config) =>
+app.MapPost("/locales/contratar", async (ContratarLocalPedido pedido, AppDbContext db, AlcanceDatos alcance, SesionActual sesion, ClienteMercadoPago mp, ILoggerFactory logs, IConfiguration config) =>
 {
     if (sesion.IdUsuario == null) return Results.Unauthorized();
     if (sesion.Rol != Roles.Dueno) return Results.Forbid();
     try
     {
         var local = ServicioAdmin.ContratarLocal(pedido.Nombre);
+        alcance.AbrirTodo();
+        await alcance.Aplicar(db.Database.GetDbConnection(), sesion);
         await using var transaccion = await db.Database.BeginTransactionAsync();
         db.Locales.Add(local);
         await db.SaveChangesAsync();
@@ -350,6 +431,7 @@ app.MapGet("/locales/actual/abono", async (AppDbContext db, SesionActual sesion,
     var abono = ServicioAbono.Estado(local, ahora);
     var pagoPendiente = await AbonoPendiente(db, ahora) != null;
     var email = await db.Usuarios.IgnoreQueryFilters().Where(u => u.Id == sesion.IdUsuario).Select(u => u.Email).FirstOrDefaultAsync();
+    var deudas = await db.GestionesTienda.AsNoTracking().Where(g => g.Estado == GestionTienda.Pendiente).ToListAsync();
     return Results.Ok(new
     {
         abono.Estado,
@@ -362,7 +444,12 @@ app.MapGet("/locales/actual/abono", async (AppDbContext db, SesionActual sesion,
         debito = local.EstadoSuscripcion,
         email = email ?? "",
         precioMensual = ServicioAbono.PrecioMensual,
-        ventasWhatsApp = UrlContacto(await TelefonoVentas(db), $"Hola, quiero reactivar el local {local.Nombre}.")
+        ventasWhatsApp = UrlContacto(await TelefonoVentas(db), $"Hola, quiero reactivar el local {local.Nombre}."),
+        gestionPendiente = deudas.Sum(d => d.Importe),
+        gestionPedidos = deudas.Count,
+        gestionLimite = deudas.Count == 0 ? (DateTimeOffset?)null : deudas.Min(d => ServicioGestionTienda.Limite(d)),
+        gestionVencida = ServicioGestionTienda.CierraTienda(deudas, ahora),
+        pagoGestionPendiente = await AbonoGestionPendiente(db, ahora) != null
     });
 }).RequireAuthorization().RequireRateLimiting("api");
 
@@ -397,6 +484,60 @@ app.MapPost("/locales/actual/abono/pagar", async (AppDbContext db, SesionActual 
     {
         logs.CreateLogger("MercadoPago").LogError(ex, "No se pudo crear la preferencia del abono {IdAbono}", abono.Id);
         abono.Estado = Abono.Rechazado;
+        await db.SaveChangesAsync();
+        return Results.Json(ErrorMercadoPago, statusCode: StatusCodes.Status502BadGateway);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/locales/actual/abono/gestion", async (AppDbContext db, SesionActual sesion, ClienteMercadoPago mp, ILoggerFactory logs) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
+    var local = await db.Locales.FirstAsync(l => l.IdLocal == sesion.IdLocal);
+    var ahora = DateTimeOffset.UtcNow;
+    var vigente = await AbonoGestionPendiente(db, ahora);
+    if (vigente != null) return Results.Ok(new { urlPago = vigente.UrlPago });
+
+    var corte = ahora.AddMinutes(-30);
+    var viejos = await db.Abonos
+        .Where(a => a.Estado == Abono.Pendiente && a.Origen == Abono.OrigenGestion && a.FechaCreacion <= corte)
+        .ToListAsync();
+    if (viejos.Count > 0)
+    {
+        var ids = viejos.Select(a => a.Id).ToList();
+        var reservadas = await db.GestionesTienda.Where(g => g.IdAbono != null && ids.Contains(g.IdAbono.Value)).ToListAsync();
+        foreach (var viejo in viejos)
+            ServicioGestionTienda.RechazarPreferencia(viejo);
+        ServicioGestionTienda.Liberar(reservadas);
+        await db.SaveChangesAsync();
+    }
+
+    var deudas = await db.GestionesTienda.Where(g => g.Estado == GestionTienda.Pendiente && g.IdAbono == null).ToListAsync();
+    Abono abono;
+    try
+    {
+        abono = ServicioGestionTienda.NuevoCobro(local.IdLocal, deudas, ahora);
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+    db.Abonos.Add(abono);
+    await db.SaveChangesAsync();
+    ServicioGestionTienda.Reservar(deudas, abono.Id);
+    try
+    {
+        var preferencia = await mp.CrearPreferencia(abono, local.Nombre);
+        abono.IdPreferenciaMp = preferencia.Id;
+        abono.UrlPago = preferencia.UrlPago;
+        await db.SaveChangesAsync();
+        return Results.Ok(new { urlPago = abono.UrlPago });
+    }
+    catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
+    {
+        logs.CreateLogger("MercadoPago").LogError(ex, "No se pudo crear la preferencia de la gestión {IdAbono}", abono.Id);
+        abono.Estado = Abono.Rechazado;
+        ServicioGestionTienda.Liberar(deudas);
         await db.SaveChangesAsync();
         return Results.Json(ErrorMercadoPago, statusCode: StatusCodes.Status502BadGateway);
     }
@@ -448,7 +589,7 @@ app.MapDelete("/locales/actual/abono/debito", async (AppDbContext db, SesionActu
     }
 }).RequireAuthorization().RequireRateLimiting("api");
 
-app.MapPost("/mercadopago/webhook", async (HttpRequest req, AppDbContext db, ClienteMercadoPago mp, ClienteMercadoPagoLocal mpLocal, IDataProtectionProvider proteccion, IConfiguration config, ILoggerFactory logs) =>
+app.MapPost("/mercadopago/webhook", async (HttpRequest req, AppDbContext db, AlcanceDatos alcance, SesionActual sesion, ClienteMercadoPago mp, ClienteMercadoPagoLocal mpLocal, IDataProtectionProvider proteccion, IConfiguration config, ColaPush cola, ILoggerFactory logs) =>
 {
     var log = logs.CreateLogger("MercadoPago");
     string? tipo = req.Query["type"], id = req.Query["data.id"];
@@ -471,11 +612,18 @@ app.MapPost("/mercadopago/webhook", async (HttpRequest req, AppDbContext db, Cli
     if (!FirmaWebhook.EsValida(req.Headers["x-signature"], req.Headers["x-request-id"], id, config["MercadoPago:WebhookSecret"] ?? ""))
         return Results.Unauthorized();
     if (string.IsNullOrEmpty(id) || id.Length > 64) return Results.Ok();
+    alcance.AbrirTodo();
     try
     {
         if (tipo == "order")
         {
             await CobrosMercadoPagoApp.AplicarAviso(db, mpLocal, proteccion.CreateProtector(CobrosMercadoPagoApp.Proposito), config, id);
+            return Results.Ok();
+        }
+        if (tipo == "payment" && int.TryParse(req.Query["tienda"], out var idLocalTienda))
+        {
+            await PagosPedidoTienda.AplicarAviso(db, sesion, mpLocal, proteccion.CreateProtector(CobrosMercadoPagoApp.Proposito),
+                config, cola, log, idLocalTienda, id);
             return Results.Ok();
         }
         await AvisosMercadoPago.Procesar(tipo, id, db, mp);
@@ -532,7 +680,7 @@ app.MapGet("/productos", async (AppDbContext db, SesionActual sesion, [AsParamet
             p.Codigo,
             p.Nombre,
             p.Cantidad,
-            p.Costo,
+            Costo = Permisos.CostoVisible(sesion.Rol ?? "", p.Costo),
             p.Precio,
             p.ProductoSector,
             p.IdGrupoProducto,
@@ -672,7 +820,7 @@ app.MapGet("/grupos", async (AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     if (!Permisos.PuedeAdministrarGrupos(sesion.Rol ?? "")) return Results.Forbid();
-    var grupos = await db.GrupoProductos.OrderBy(g => g.NombreGrupo).ToListAsync();
+    var grupos = await db.GrupoProductos.OrderBy(g => g.NombreGrupo).Take(maxPagina).ToListAsync();
     var conteos = await db.Productos.Where(p => p.IdGrupoProducto != 0)
         .GroupBy(p => p.IdGrupoProducto)
         .Select(g => new { Id = g.Key, Cantidad = g.Count() })
@@ -698,6 +846,7 @@ app.MapGet("/grupos/{id:int}", async (int id, AppDbContext db, SesionActual sesi
     if (g == null) return Results.NotFound();
     var miembros = await db.Productos.Where(p => p.IdGrupoProducto == id)
         .OrderBy(p => p.Nombre)
+        .Take(maxPagina)
         .Select(p => new { p.Id, p.Codigo, p.Nombre, p.Costo, p.Precio })
         .ToListAsync();
     return Results.Ok(new
@@ -825,7 +974,7 @@ app.MapGet("/categorias", async (AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     if (!Permisos.PuedeAdministrarCategorias(sesion.Rol ?? "")) return Results.Forbid();
-    var categorias = await db.Categorias.AsNoTracking().OrderBy(c => c.Nombre).ToListAsync();
+    var categorias = await db.Categorias.AsNoTracking().OrderBy(c => c.Nombre).Take(maxPagina).ToListAsync();
     var grupos = await db.GrupoProductos.AsNoTracking().ToListAsync();
     var productos = await db.Productos.AsNoTracking()
         .Select(p => new Producto { Id = p.Id, IdLocal = p.IdLocal, IdGrupoProducto = p.IdGrupoProducto, IdCategoria = p.IdCategoria })
@@ -1058,21 +1207,36 @@ app.MapGet("/configuracion/tienda", async (AppDbContext db, SesionActual sesion)
     if (!Permisos.PuedeConfigurarLocal(sesion.Rol ?? "")) return Results.Forbid();
     var local = await db.Locales.AsNoTracking().FirstOrDefaultAsync(l => l.IdLocal == sesion.IdLocal);
     if (local == null) return Results.NotFound();
+    var ahoraTienda = DateTimeOffset.UtcNow;
+    var gestionVencida = await ConsultaGestionTienda.Vencida(db, local.IdLocal, ahoraTienda);
     var publicados = await db.Productos.CountAsync(p => p.Publicado);
     var conImagen = await db.Productos.CountAsync(p => p.Publicado && db.ImagenesProducto.Any(i => i.IdProducto == p.Id));
     return Results.Ok(new
     {
         alias = local.AliasTienda ?? "",
         estado = local.EstadoTienda,
-        vista = ServicioTienda.Vista(local, DateTimeOffset.UtcNow),
+        vista = ServicioTienda.Vista(local, ahoraTienda, gestionVencida),
+        motivoCierre = ServicioTienda.MotivoCierre(local, ahoraTienda, gestionVencida),
         local.Direccion,
         local.Horario,
         whatsApp = local.WhatsApp.Length == 0 ? "" : ServicioAdmin.MostrarTelefono(local.WhatsApp),
         local.HaceEnvios,
+        local.EnvioGratisSiempre,
+        local.PrecioEnvioKm,
+        local.EnvioMinimo,
+        local.RadioEnvioKm,
+        local.EnvioGratisDesde,
         local.Latitud,
         local.Longitud,
         publicados,
-        conImagen
+        conImagen,
+        mercadoPago = await PagosPedidoTienda.AceptaMercadoPago(db, local.IdLocal),
+        gestion = local.ExentoGestion ? 0 : ServicioGestionTienda.ImportePorPedido,
+        local.GestionACargoComprador,
+        cbu = local.CbuTienda,
+        aliasCbu = local.AliasCbuTienda,
+        titular = local.TitularTienda,
+        plazoTransferenciaHoras = local.PlazoTransferenciaHoras
     });
 }).RequireAuthorization().RequireRateLimiting("api");
 
@@ -1085,13 +1249,24 @@ app.MapPut("/configuracion/tienda", async (TiendaPedido pedido, AppDbContext db,
     try
     {
         var alias = ServicioTienda.NormalizarAlias(pedido.Alias);
-        var tomado = alias != null && await db.Locales.AnyAsync(l => l.AliasTienda == alias && l.IdLocal != local.IdLocal);
+        var tomado = alias != null && await LocalesTienda.AliasTomado(db, alias, local.IdLocal);
         ServicioTienda.AsignarAlias(local, alias, tomado);
         ServicioTienda.AsignarDatos(local, pedido.Direccion, pedido.Horario, pedido.WhatsApp, pedido.HaceEnvios);
+        ServicioEnvioTienda.Asignar(local, pedido.EnvioGratisSiempre, pedido.PrecioEnvioKm, pedido.EnvioMinimo, pedido.RadioEnvioKm, pedido.EnvioGratisDesde);
         ServicioTienda.AsignarUbicacion(local, pedido.Latitud, pedido.Longitud);
         ServicioTienda.CambiarEstado(local, pedido.Estado);
+        local.GestionACargoComprador = pedido.GestionACargoComprador;
+        ServicioTransferenciaTienda.AsignarDatos(local, pedido.Cbu, pedido.AliasCbu, pedido.Titular, pedido.PlazoTransferenciaHoras);
         await db.SaveChangesAsync();
-        return Results.Ok(new { alias = local.AliasTienda ?? "", estado = local.EstadoTienda, vista = ServicioTienda.Vista(local, DateTimeOffset.UtcNow) });
+        var ahoraGuardada = DateTimeOffset.UtcNow;
+        var gestionGuardada = await ConsultaGestionTienda.Vencida(db, local.IdLocal, ahoraGuardada);
+        return Results.Ok(new
+        {
+            alias = local.AliasTienda ?? "",
+            estado = local.EstadoTienda,
+            vista = ServicioTienda.Vista(local, ahoraGuardada, gestionGuardada),
+            motivoCierre = ServicioTienda.MotivoCierre(local, ahoraGuardada, gestionGuardada)
+        });
     }
     catch (ErrorNegocio ex)
     {
@@ -1155,17 +1330,18 @@ app.MapPut("/productos/publicados/lista", async ([AsParameters] FiltroProductos 
     return Results.Ok(new { actualizados });
 }).RequireAuthorization().RequireRateLimiting("api");
 
-app.MapGet("/tienda/{alias}", async (string alias, AppDbContext db, SesionActual sesion) =>
+app.MapGet("/tienda/{alias}", async (string alias, AppDbContext db, AlcanceDatos alcance, SesionActual sesion) =>
 {
-    var local = await LocalesTienda.PorAlias(db, alias);
-    var vista = local == null ? null : ServicioTienda.Vista(local, DateTimeOffset.UtcNow);
+    var local = await LocalesTienda.PorAlias(db, alcance, sesion, alias);
+    var ahoraVista = DateTimeOffset.UtcNow;
+    var vista = local == null ? null : ServicioTienda.Vista(local, ahoraVista, await ConsultaGestionTienda.Vencida(db, local.IdLocal, ahoraVista));
     if (local == null || vista == null) return Results.NotFound();
     var catalogo = vista == ServicioTienda.VistaCatalogo;
     var mapa = catalogo && ServicioTienda.MuestraMapa(local);
     sesion.IdLocal = local.IdLocal;
     var categorias = catalogo
         ? await ServicioCatalogoTienda.CategoriasConPublicados(
-            db.Productos.AsNoTracking(), db.GrupoProductos.AsNoTracking(), db.Categorias.AsNoTracking(), local.IdLocal).ToListAsync()
+            db.Productos.AsNoTracking(), db.GrupoProductos.AsNoTracking(), db.Categorias.AsNoTracking(), local.IdLocal).Take(maxPagina).ToListAsync()
         : new List<CategoriaTienda>();
     return Results.Ok(new
     {
@@ -1175,17 +1351,18 @@ app.MapGet("/tienda/{alias}", async (string alias, AppDbContext db, SesionActual
         horario = local.Horario,
         direccion = catalogo ? local.Direccion : "",
         whatsApp = catalogo ? local.WhatsApp : "",
-        haceEnvios = catalogo && local.HaceEnvios,
+        haceEnvios = catalogo && ServicioEnvioTienda.Ofrece(local),
         latitud = mapa ? local.Latitud : null,
         longitud = mapa ? local.Longitud : null,
         categorias
     });
 }).RequireRateLimiting("tienda");
 
-app.MapGet("/tienda/{alias}/productos", async (string alias, string? q, string? categorias, AppDbContext db, SesionActual sesion, int pagina = 1) =>
+app.MapGet("/tienda/{alias}/productos", async (string alias, string? q, string? categorias, AppDbContext db, AlcanceDatos alcance, SesionActual sesion, int pagina = 1) =>
 {
-    var local = await LocalesTienda.PorAlias(db, alias);
-    if (local == null || ServicioTienda.Vista(local, DateTimeOffset.UtcNow) != ServicioTienda.VistaCatalogo)
+    var local = await LocalesTienda.PorAlias(db, alcance, sesion, alias);
+    var ahoraCatalogo = DateTimeOffset.UtcNow;
+    if (local == null || ServicioTienda.Vista(local, ahoraCatalogo, await ConsultaGestionTienda.Vencida(db, local.IdLocal, ahoraCatalogo)) != ServicioTienda.VistaCatalogo)
         return Results.NotFound();
     sesion.IdLocal = local.IdLocal;
     pagina = Math.Max(1, pagina);
@@ -1206,14 +1383,15 @@ app.MapGet("/tienda/{alias}/productos", async (string alias, string? q, string? 
     });
 }).RequireRateLimiting("tienda");
 
-app.MapGet("/tienda/{alias}/imagenes/{idImagen:int}", async (string alias, int idImagen, HttpContext http, AppDbContext db, SesionActual sesion, AlmacenImagenes almacen) =>
+app.MapGet("/tienda/{alias}/imagenes/{idImagen:int}", async (string alias, int idImagen, HttpContext http, AppDbContext db, AlcanceDatos alcance, SesionActual sesion, AlmacenImagenes almacen) =>
 {
-    var local = await LocalesTienda.PorAlias(db, alias);
+    var local = await LocalesTienda.PorAlias(db, alcance, sesion, alias);
     if (local == null) return Results.NotFound();
     sesion.IdLocal = local.IdLocal;
+    var ahoraImagen = DateTimeOffset.UtcNow;
     var imagen = await db.ImagenesProducto.AsNoTracking().FirstOrDefaultAsync(i => i.Id == idImagen);
     var producto = imagen == null ? null : await db.Productos.AsNoTracking().FirstOrDefaultAsync(p => p.Id == imagen.IdProducto);
-    if (imagen == null || producto == null || !ServicioImagenesTienda.Disponible(imagen, producto, local, DateTimeOffset.UtcNow))
+    if (imagen == null || producto == null || !ServicioImagenesTienda.Disponible(imagen, producto, local, ahoraImagen, await ConsultaGestionTienda.Vencida(db, local.IdLocal, ahoraImagen)))
         return Results.NotFound();
     var ruta = almacen.Ruta(imagen);
     if (ruta == null) return Results.NotFound();
@@ -1241,6 +1419,7 @@ app.MapGet("/usuarios", async (AppDbContext db, SesionActual sesion) =>
     var usuarios = await db.Usuarios.AsNoTracking()
         .Where(u => idsUsuarios.Contains(u.Id) && (u.Rol == Roles.Empleado || u.Rol == Roles.Socio))
         .OrderBy(u => u.Nombre).ThenBy(u => u.NombreUsuario)
+        .Take(maxPagina)
         .ToListAsync();
     var nombres = locales.ToDictionary(l => l.IdLocal, l => l.Nombre);
     return Results.Ok(new
@@ -1301,8 +1480,10 @@ app.MapPut("/usuarios/{id:int}", async (int id, UsuarioPedido pedido, AppDbConte
     if (!idsLocal.All(locales.Contains)) return Results.Forbid();
     usuario.Nombre = pedido.Nombre.Trim();
     usuario.NombreUsuario = pedido.NombreUsuario.Trim();
-    usuario.Rol = pedido.Rol;
+    ServicioUsuarios.CambiarRol(usuario, pedido.Rol);
     var actuales = await db.UsuarioLocales.Where(x => x.IdUsuario == id && locales.Contains(x.IdLocal)).ToListAsync();
+    if (ServicioUsuarios.SacoAlgunLocal(actuales.Select(x => x.IdLocal), idsLocal))
+        ServicioUsuarios.CortarSesion(usuario);
     db.UsuarioLocales.RemoveRange(actuales);
     db.UsuarioLocales.AddRange(idsLocal.Select(idLocal => new UsuarioLocal { IdUsuario = id, IdLocal = idLocal }));
     await db.SaveChangesAsync();
@@ -1324,8 +1505,23 @@ app.MapPost("/usuarios/{id:int}/resetear-clave", async (int id, ResetearClavePed
     var locales = await LocalesDeLaCuenta(db, sesion);
     if (usuario == null || !await EstaEnLaCuenta(db, id, locales)) return Results.NotFound();
     if (!PuedeEditarUsuario(sesion.Rol, usuario.Rol, usuario.Rol)) return Results.Forbid();
-    if (string.IsNullOrWhiteSpace(pedido.Clave) || pedido.Clave.Length < 4) return Results.BadRequest("La clave debe tener al menos 4 caracteres.");
+    if (string.IsNullOrWhiteSpace(pedido.Clave) || pedido.Clave.Length < ServicioRegistro.LargoMinimoClave)
+        return Results.BadRequest($"La clave debe tener al menos {ServicioRegistro.LargoMinimoClave} caracteres.");
     usuario.HashClave = hasher.HashPassword(usuario, pedido.Clave);
+    ServicioUsuarios.ClaveCambiada(usuario);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/usuarios/{id:int}/cerrar-sesiones", async (int id, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (sesion.Rol is not (Roles.Dueno or Roles.Admin)) return Results.Forbid();
+    var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
+    var locales = await LocalesDeLaCuenta(db, sesion);
+    if (usuario == null || !await EstaEnLaCuenta(db, id, locales)) return Results.NotFound();
+    if (!Permisos.EsRolGestionable(usuario.Rol)) return Results.Forbid();
+    ServicioUsuarios.CortarSesion(usuario);
     await db.SaveChangesAsync();
     return Results.NoContent();
 }).RequireAuthorization().RequireRateLimiting("api");
@@ -1435,7 +1631,7 @@ app.MapPost("/admin/locales/{idLocal:int}/anular-pago", async (int idLocal, Clav
     var local = await db.Locales.FirstOrDefaultAsync(l => l.IdLocal == idLocal);
     if (local == null) return Results.NotFound();
     var abono = await db.Abonos.IgnoreQueryFilters()
-        .Where(a => a.IdLocal == idLocal && a.Estado == Abono.Aprobado)
+        .Where(a => a.IdLocal == idLocal && a.Estado == Abono.Aprobado && a.Origen == Abono.OrigenAdmin)
         .OrderByDescending(a => a.FechaAcreditacion)
         .ThenByDescending(a => a.Id)
         .FirstOrDefaultAsync();
@@ -1495,6 +1691,7 @@ app.MapGet("/admin/locales", async (AppDbContext db, SesionActual sesion) =>
                 cliente,
                 abono.Estado,
                 abono.Vence,
+                l.ExentoGestion,
                 empleados = ServicioAdmin.Empleados(pares, l.IdLocal)
             };
         })
@@ -1566,6 +1763,8 @@ app.MapPost("/admin/locales/{idLocal:int}/desactivar", async (int idLocal, Clave
 app.MapPost("/admin/locales/{idLocal:int}/activar", async (int idLocal, ClaveAdminPedido pedido, AppDbContext db, SesionActual sesion, IConfiguration config) =>
     await CambiarActivoLocal(idLocal, true, pedido, db, sesion, config)).RequireAuthorization().RequireRateLimiting("api");
 
+app.MapGestionTienda();
+
 app.MapGet("/admin/ventas/telefono", async (AppDbContext db, SesionActual sesion) =>
 {
     if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
@@ -1605,9 +1804,16 @@ app.MapGet("/ventas/contacto", async (AppDbContext db, IDataProtectionProvider p
     });
 }).RequireRateLimiting("api");
 
-app.MapPost("/ventas/contacto", async (MensajeContactoPedido pedido, AppDbContext db, IDataProtectionProvider proteccion) =>
+app.MapPost("/ventas/contacto", async (MensajeContactoPedido pedido, HttpContext http, AppDbContext db, IDataProtectionProvider proteccion, IConfiguration config, IWebHostEnvironment env, IHttpClientFactory clientes) =>
 {
     if (ServicioContacto.EsCebo(pedido.Sitio)) return Results.Ok();
+    if (ClavesCaptcha(config, env) is { } captcha)
+    {
+        var falta = ServicioCaptcha.Falta(pedido.Captcha);
+        if (falta != null) return Results.BadRequest(falta);
+        var ok = await CaptchaValido(clientes, captcha.Secreto, pedido.Captcha!, http.Connection.RemoteIpAddress?.ToString());
+        if (!ok) return Results.BadRequest("No pudimos comprobar el captcha. Probá de nuevo.");
+    }
     var transcurrido = EdadApertura(proteccion, pedido.Apertura);
     if (transcurrido == null)
         return Results.BadRequest("Volvé a cargar la página y enviá de nuevo.");
@@ -1694,7 +1900,7 @@ app.MapPost("/admin/usuarios/{id:int}/admin", async (int id, ClaveAdminPedido pe
     {
         return Results.BadRequest(ex.Message);
     }
-    usuario.Rol = Roles.Admin;
+    ServicioUsuarios.CambiarRol(usuario, Roles.Admin);
     await db.SaveChangesAsync();
     return Results.NoContent();
 }).RequireAuthorization().RequireRateLimiting("api");
@@ -1708,6 +1914,7 @@ app.MapPost("/admin/usuarios/{id:int}/clave", async (int id, CambioClaveAdminPed
     {
         var clave = ServicioAdmin.ValidarCambioClave(usuario.Rol, pedido.Clave, pedido.ClaveSecreta, config["Admin:Clave"]);
         usuario.HashClave = hasher.HashPassword(usuario, clave);
+        ServicioUsuarios.ClaveCambiada(usuario);
     }
     catch (ErrorNegocio ex)
     {
@@ -1762,11 +1969,23 @@ app.MapDelete("/admin/usuarios/{id:int}", async (int id, [FromBody] ClaveAdminPe
     return Results.NoContent();
 }).RequireAuthorization().RequireRateLimiting("api");
 
+app.MapPost("/admin/usuarios/{id:int}/cerrar-sesiones", async (int id, AppDbContext db, SesionActual sesion) =>
+{
+    if (!Permisos.PuedeAdministrarPlataforma(sesion.Rol ?? "")) return Results.Forbid();
+    var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
+    if (usuario == null) return Results.NotFound();
+    if (usuario.Rol is not (Roles.Dueno or Roles.Admin or Roles.Empleado or Roles.Socio)) return Results.Forbid();
+    ServicioUsuarios.CortarSesion(usuario);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization().RequireRateLimiting("api");
+
 app.MapGet("/productos/grupos", async (AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     var grupos = await db.GrupoProductos.OrderBy(g => g.NombreGrupo)
         .Select(g => new { g.IdGrupoProducto, g.NombreGrupo })
+        .Take(maxPagina)
         .ToListAsync();
     return Results.Ok(grupos);
 }).RequireAuthorization().RequireRateLimiting("api");
@@ -1840,7 +2059,7 @@ app.MapGet("/proveedores", async (AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     if (!Permisos.PuedeAdministrarProveedores(sesion.Rol ?? "")) return Results.Forbid();
-    var proveedores = await db.Proveedores.OrderBy(p => p.Nombre).ToListAsync();
+    var proveedores = await db.Proveedores.OrderBy(p => p.Nombre).Take(maxPagina).ToListAsync();
     var productos = await ProductosPorProveedor(db);
     var ultimas = await db.OrdenesCompra
         .GroupBy(o => o.IdProveedor).Select(g => new { g.Key, Fecha = g.Max(o => o.Fecha) })
@@ -1950,9 +2169,9 @@ app.MapGet("/proveedores/{id:int}/productos", async (int id, AppDbContext db, Se
     pagina = Math.Max(1, pagina);
     var vinculados = db.ProductosProveedor.Where(v => v.IdProveedor == id);
     var consulta = db.Productos.Where(p => p.IdProveedor == id || vinculados.Any(v => v.IdProducto == p.Id));
-    var texto = (q ?? "").Trim();
-    if (texto.Length > 0)
-        consulta = consulta.Where(p => EF.Functions.ILike(p.Nombre, $"%{texto}%") || EF.Functions.ILike(p.Codigo, $"%{texto}%"));
+    var patron = Busqueda.Patron(q);
+    if (patron != null)
+        consulta = consulta.Where(p => EF.Functions.ILike(p.Nombre, patron) || EF.Functions.ILike(p.Codigo, patron));
     var total = await consulta.CountAsync();
     var productos = await consulta.OrderBy(p => p.Nombre).Skip((pagina - 1) * tamano).Take(tamano)
         .Select(p => new { p.Id, p.Nombre, p.Cantidad }).ToListAsync();
@@ -2367,7 +2586,7 @@ app.MapGet("/ofertas/vigentes", async (AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     var ofertas = await OfertasVigentes.DelDia(db, sesion.IdLocal.Value, DiaArgentina.Hoy());
-    return Results.Ok(ofertas.Select(o => new
+    return Results.Ok(ofertas.Take(maxPagina).Select(o => new
     {
         o.IdProducto,
         o.Tipo,
@@ -2440,7 +2659,7 @@ app.MapGet("/combos/vigentes", async (AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     var combos = await OfertasVigentes.CombosDelDia(db, sesion.IdLocal.Value, DiaArgentina.Hoy());
-    return Results.Ok(combos.Select(c => new
+    return Results.Ok(combos.Take(maxPagina).Select(c => new
     {
         c.Id,
         c.Nombre,
@@ -2495,10 +2714,10 @@ app.MapGet("/clientes", async (AppDbContext db, SesionActual sesion, string? q) 
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     if (!await PuedeFiar(db, sesion)) return Results.Forbid();
-    var texto = (q ?? "").Trim();
     var consulta = db.Clientes.AsNoTracking();
-    if (texto.Length > 0)
-        consulta = consulta.Where(c => EF.Functions.ILike(c.Nombre, $"%{texto}%"));
+    var patron = Busqueda.Patron(q);
+    if (patron != null)
+        consulta = consulta.Where(c => EF.Functions.ILike(c.Nombre, patron));
     var lista = await consulta.OrderBy(c => c.Nombre).Take(20)
         .Select(c => new { c.Id, c.Nombre, c.Telefono })
         .ToListAsync();
@@ -2587,9 +2806,9 @@ app.MapGet("/cuentas", async (AppDbContext db, SesionActual sesion, string? clie
         .Join(db.Clientes, c => c.IdCliente, cl => cl.Id, (c, cl) => new { c, cl.Nombre, cl.Telefono });
     if (filtroEstado != "todas")
         consulta = consulta.Where(x => x.c.Estado == filtroEstado);
-    var texto = (cliente ?? "").Trim();
-    if (texto.Length > 0)
-        consulta = consulta.Where(x => EF.Functions.ILike(x.Nombre, $"%{texto}%"));
+    var patron = Busqueda.Patron(cliente);
+    if (patron != null)
+        consulta = consulta.Where(x => EF.Functions.ILike(x.Nombre, patron));
     if (idCliente is > 0)
         consulta = consulta.Where(x => x.c.IdCliente == idCliente);
     var total = await consulta.CountAsync();
@@ -2904,7 +3123,19 @@ app.MapGet("/ventas", async (AppDbContext db, SesionActual sesion, DateOnly? des
     var items = await q.Skip((pagina - 1) * tamano).Take(tamano)
         .Select(v => new { v.IdInformeVenta, v.Fecha, v.Total, v.MetodoPago, v.Descuento, v.PrecioCosto, v.NroCaja, v.IdCierre })
         .ToListAsync();
-    return Results.Ok(new { total, suma, pagina, tamano, items });
+    var verCostoListado = Permisos.PuedeVerCostoEnInforme(sesion.Rol ?? "");
+    var visibles = items.Select(v => new
+    {
+        v.IdInformeVenta,
+        v.Fecha,
+        v.Total,
+        v.MetodoPago,
+        v.Descuento,
+        PrecioCosto = verCostoListado ? v.PrecioCosto : null,
+        v.NroCaja,
+        v.IdCierre
+    });
+    return Results.Ok(new { total, suma, pagina, tamano, items = visibles });
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapGet("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual sesion) =>
@@ -2922,7 +3153,7 @@ app.MapGet("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual sesi
         venta.Subtotal,
         venta.MetodoPago,
         venta.Descuento,
-        venta.PrecioCosto,
+        PrecioCosto = verCosto ? venta.PrecioCosto : null,
         venta.NroCaja,
         venta.IdCierre,
         pagos = venta.Pagos.Select(p => new { p.IdMetodoPago, p.DescripcionMetodoPago, p.Importe }),
@@ -2974,6 +3205,7 @@ app.MapDelete("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual s
 
 app.MapGet("/estadisticas", async (
     AppDbContext db,
+    AlcanceDatos alcance,
     SesionActual sesion,
     int? idLocal,
     bool? todos,
@@ -3035,6 +3267,8 @@ app.MapGet("/estadisticas", async (
     }
 
     var (iniHoy, finHoy) = DiaArgentina.Rango(hoy);
+    alcance.PermitirLectura(localesObjetivo);
+    await alcance.Aplicar(db.Database.GetDbConnection(), sesion);
 
     var ventasPeriodo = await db.InformeVenta
         .IgnoreQueryFilters()
@@ -3250,11 +3484,13 @@ app.MapGet("/cajas/filtros", async (AppDbContext db, SesionActual sesion) =>
         .Select(c => c.NombreCierre)
         .Distinct()
         .OrderBy(n => n)
+        .Take(maxPagina)
         .ToListAsync();
     var medios = await db.Cajas.Where(c => c.MetodoPago != "Total" && c.TipoDesglose == TipoDesgloseCaja.Medio)
         .Select(c => c.MetodoPago)
         .Distinct()
         .OrderBy(m => m)
+        .Take(maxPagina)
         .ToListAsync();
     return Results.Ok(new { personas, medios });
 }).RequireAuthorization().RequireRateLimiting("api");
@@ -3452,8 +3688,8 @@ static IQueryable<Producto> FiltrarProductos(IQueryable<Producto> consulta, Filt
         consulta = consulta.Where(p => !p.ProductoSector && p.Cantidad <= umbral);
     if (!string.IsNullOrWhiteSpace(f.Codigo))
         consulta = consulta.Where(p => p.Codigo == f.Codigo);
-    else if (!string.IsNullOrWhiteSpace(f.Q))
-        consulta = consulta.Where(p => EF.Functions.ILike(p.Nombre, $"%{f.Q}%") || EF.Functions.ILike(p.Codigo, $"%{f.Q}%"));
+    else if (Busqueda.Patron(f.Q) is string patron)
+        consulta = consulta.Where(p => EF.Functions.ILike(p.Nombre, patron) || EF.Functions.ILike(p.Codigo, patron));
     return consulta;
 }
 
@@ -3544,6 +3780,15 @@ static async Task<Abono?> AbonoPendiente(AppDbContext db, DateTimeOffset ahora)
         .FirstOrDefaultAsync();
 }
 
+static async Task<Abono?> AbonoGestionPendiente(AppDbContext db, DateTimeOffset ahora)
+{
+    var desde = ahora.AddMinutes(-30);
+    return await db.Abonos
+        .Where(a => a.Estado == Abono.Pendiente && a.Origen == Abono.OrigenGestion && a.UrlPago != null && a.FechaCreacion > desde)
+        .OrderByDescending(a => a.FechaCreacion)
+        .FirstOrDefaultAsync();
+}
+
 static async Task<int> CantidadCajasLocal(AppDbContext db)
 {
     var valor = (await db.Configuracion.FirstOrDefaultAsync(c => c.Clave == "CantidadCajas"))?.Valor;
@@ -3626,10 +3871,7 @@ static async Task<List<Producto>> ProductosPorCodigo(AppDbContext db, IEnumerabl
 }
 
 static async Task<string> TelefonoVentas(AppDbContext db) =>
-    await db.Ajustes.AsNoTracking()
-        .Where(a => a.Clave == Ajuste.TelefonoVentas)
-        .Select(a => a.Valor)
-        .FirstOrDefaultAsync() ?? "";
+    await LocalesTienda.AjustePublico(db, Ajuste.TelefonoVentas) ?? "";
 
 static async Task<bool> EnviarConfirmacion(IHttpClientFactory clientes, string apiKey, string desde, string para, string enlace)
 {
@@ -3694,10 +3936,7 @@ static TimeSpan? EdadApertura(IDataProtectionProvider proteccion, string? apertu
 
 static async Task<bool> FormularioContactoActivo(AppDbContext db)
 {
-    var valor = await db.Ajustes.AsNoTracking()
-        .Where(a => a.Clave == Ajuste.FormularioContacto)
-        .Select(a => a.Valor)
-        .FirstOrDefaultAsync();
+    var valor = await LocalesTienda.AjustePublico(db, Ajuste.FormularioContacto);
     return ServicioContacto.EstaActivo(valor);
 }
 
@@ -3712,10 +3951,7 @@ static async Task PurgarMensajesLeidos(AppDbContext db)
 }
 
 static async Task<string> EmailVentas(AppDbContext db) =>
-    await db.Ajustes.AsNoTracking()
-        .Where(a => a.Clave == Ajuste.EmailVentas)
-        .Select(a => a.Valor)
-        .FirstOrDefaultAsync() ?? ServicioAdmin.EmailVentasGenerico;
+    await LocalesTienda.AjustePublico(db, Ajuste.EmailVentas) ?? ServicioAdmin.EmailVentasGenerico;
 
 static async Task AsegurarEmailVentas(AppDbContext db)
 {
@@ -4023,7 +4259,8 @@ static async Task<IResult> CambiarEstadoUsuario(int id, bool activo, AppDbContex
     var locales = await LocalesDeLaCuenta(db, sesion);
     if (usuario == null || !await EstaEnLaCuenta(db, id, locales)) return Results.NotFound();
     if (!PuedeEditarUsuario(sesion.Rol, usuario.Rol, usuario.Rol)) return Results.Forbid();
-    usuario.Activo = activo;
+    if (activo) usuario.Activo = true;
+    else ServicioUsuarios.Desactivar(usuario);
     await db.SaveChangesAsync();
     return Results.Ok(new { usuario.Id, usuario.Activo });
 }
@@ -4050,8 +4287,8 @@ static string? ValidarUsuarioPedido(UsuarioPedido pedido, bool requiereClave)
         return "Asigná al menos un local.";
     if (requiereClave && string.IsNullOrWhiteSpace(pedido.Clave))
         return "La clave es obligatoria.";
-    if (!string.IsNullOrWhiteSpace(pedido.Clave) && pedido.Clave.Length < 4)
-        return "La clave debe tener al menos 4 caracteres.";
+    if (!string.IsNullOrWhiteSpace(pedido.Clave) && pedido.Clave.Length < ServicioRegistro.LargoMinimoClave)
+        return $"La clave debe tener al menos {ServicioRegistro.LargoMinimoClave} caracteres.";
     return null;
 }
 

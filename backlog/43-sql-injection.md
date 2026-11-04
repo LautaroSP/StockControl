@@ -15,12 +15,12 @@ Hoy las consultas van por EF con LINQ, que manda los valores como parámetros. E
 
 ## Criterios de aceptación
 
-- [ ] Inventario de todo el SQL crudo (`FromSqlRaw`, `ExecuteSqlRaw`, `SqlQueryRaw`, `NpgsqlCommand`). Ninguno concatena ni interpola datos de afuera. Con datos variables se usan `FromSql`, `SqlQuery` o `ExecuteSql` (interpolación parametrizada).
-- [ ] Regla en `.cursor/rules`: prohibido `*Raw` con concatenación o `string.Format`; el `Raw` solo con texto fijo.
-- [ ] Las búsquedas `ILike` escapan `%`, `_` y `\` con una función del dominio, con test xUnit.
-- [ ] Los textos de búsqueda tienen largo máximo (por ejemplo 80) y se cortan antes de consultar.
-- [ ] El usuario de Postgres que usa la app no es superusuario ni dueño del esquema. Las migraciones corren con otro usuario o en el deploy. Queda escrito en el manual de deploy.
-- [ ] En producción, un error de la base no devuelve el mensaje de Npgsql ni la traza al cliente: responde 500 genérico y lo deja en el log.
+- [x] Inventario de todo el SQL crudo (`FromSqlRaw`, `ExecuteSqlRaw`, `SqlQueryRaw`, `NpgsqlCommand`). Ninguno concatena ni interpola datos de afuera. Con datos variables se usan `FromSql`, `SqlQuery` o `ExecuteSql` (interpolación parametrizada).
+- [x] Regla en `.cursor/rules`: prohibido `*Raw` con concatenación o `string.Format`; el `Raw` solo con texto fijo.
+- [x] Las búsquedas `ILike` escapan `%`, `_` y `\` con una función del dominio, con test xUnit.
+- [x] Los textos de búsqueda tienen largo máximo (por ejemplo 80) y se cortan antes de consultar.
+- [x] El usuario de Postgres que usa la app no es superusuario ni dueño del esquema. Las migraciones corren con otro usuario o en el deploy. Queda escrito en el manual de deploy.
+- [x] En producción, un error de la base no devuelve el mensaje de Npgsql ni la traza al cliente: responde 500 genérico y lo deja en el log.
 
 ## Fuera
 

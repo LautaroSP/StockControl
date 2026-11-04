@@ -167,7 +167,7 @@ public class ServicioAdminTests
     {
         var error = Assert.Throws<ErrorNegocio>(() => ServicioAdmin.ValidarCambioClave(Roles.Dueno, "abc", "clave-local", "clave-local"));
 
-        Assert.Equal("La clave debe tener al menos 4 caracteres.", error.Message);
+        Assert.Equal("La clave debe tener al menos 8 caracteres.", error.Message);
     }
 
     [Fact]

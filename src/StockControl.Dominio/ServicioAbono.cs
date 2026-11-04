@@ -121,11 +121,11 @@ public static class ServicioAbono
         local.EstadoAbono = string.IsNullOrEmpty(abono.EstadoAnterior) ? AlDia : abono.EstadoAnterior;
     }
 
-    public static void ValidarPagoMp(string estado, string moneda, decimal importe)
+    public static void ValidarPagoMp(string estado, string moneda, decimal importe, decimal? esperado = null)
     {
         if (estado != "approved")
             throw new ErrorNegocio("El pago no está aprobado.");
-        if (moneda != "ARS" || importe != PrecioMensual)
+        if (moneda != "ARS" || importe != (esperado ?? PrecioMensual))
             throw new ErrorNegocio("El importe del pago no coincide con el abono.");
     }
 

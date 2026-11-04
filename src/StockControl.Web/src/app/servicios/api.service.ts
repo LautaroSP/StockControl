@@ -36,8 +36,19 @@ export interface ConfiguracionTiendaDto {
   horario: string;
   whatsApp: string;
   haceEnvios: boolean;
+  envioGratisSiempre: boolean;
+  precioEnvioKm: number | null;
+  envioMinimo: number | null;
+  radioEnvioKm: number | null;
+  envioGratisDesde: number | null;
   latitud: number | null;
   longitud: number | null;
+  gestionACargoComprador: boolean;
+  cbu: string;
+  aliasCbu: string;
+  titular: string;
+  /** Null: la transferencia no vence. */
+  plazoTransferenciaHoras: number | null;
 }
 
 export interface LugarEncontradoDto {
@@ -92,21 +103,42 @@ export interface ItemCarritoTienda {
   cantidad: number;
 }
 
+export interface EnvioTiendaDto {
+  ofrece: boolean;
+  disponible: boolean;
+  distanciaKm: number | null;
+  importe: number;
+  origen: 'recorrido' | 'recta' | null;
+  motivo: string | null;
+}
+
 export interface CotizacionTiendaDto {
   lineas: { idProducto: number; nombre: string; cantidad: number; precioUnitario: number; subTotal: number; maximo: number | null }[];
   noDisponibles: number[];
   total: number;
+  envio: EnvioTiendaDto;
+  /** Null si el local no conectó Mercado Pago. La gestión es la que paga el comprador (0 si va incluida). El envío se suma aparte. */
+  mercadoPago: { gestion: number; total: number } | null;
+  /** Null si el local no cargó CBU o alias y titular. */
+  transferencia: { gestion: number; total: number } | null;
 }
 
 export type EstadoPedidoTienda = 'nuevo' | 'preparando' | 'listo' | 'entregado' | 'cancelado';
+
+export type MedioPagoTienda = 'coordinar' | 'mercadopago' | 'transferencia';
+
+export type EstadoPagoTienda = 'sinpago' | 'pendiente' | 'pagado' | 'reembolsado';
 
 export interface PedidoPanelListaDto {
   id: number;
   numero: number;
   estado: EstadoPedidoTienda;
+  medioPago: MedioPagoTienda;
+  estadoPago: EstadoPagoTienda;
   creado: string;
   nombre: string;
   total: number;
+  modalidad: string;
   productos: number;
 }
 
@@ -124,7 +156,19 @@ export interface PedidoPanelDto {
   telefonoVisible: string;
   email: string;
   subtotal: number;
+  envio: number;
   total: number;
+  modalidad: string;
+  direccionEnvio: string;
+  distanciaKm: number | null;
+  origenDistancia: string;
+  medioPago: MedioPagoTienda;
+  estadoPago: EstadoPagoTienda;
+  gestion: number;
+  gestionACargoComprador: boolean;
+  pagado: string | null;
+  vencePago: string | null;
+  esperaPago: boolean;
   siguientes: EstadoPedidoTienda[];
   lineas: { id: number; codigo: string; nombre: string; cantidad: number; precioUnitario: number; subTotal: number }[];
 }
@@ -165,7 +209,19 @@ export interface PedidoTiendaDto {
   creado: string;
   nombre: string;
   subtotal: number;
+  gestion: number;
+  envio: number;
   total: number;
+  modalidad: string;
+  direccionEnvio: string;
+  distanciaKm: number | null;
+  origenDistancia: string;
+  medioPago: MedioPagoTienda;
+  estadoPago: EstadoPagoTienda;
+  urlPago: string | null;
+  venceElPago: string | null;
+  /** Solo mientras el local no confirmó la transferencia. */
+  transferencia: { cbu: string; alias: string; titular: string } | null;
   lineas: { nombre: string; cantidad: number; precioUnitario: number; subTotal: number }[];
   local: { nombre: string; direccion: string; horario: string; whatsApp: string };
 }
@@ -209,6 +265,24 @@ export interface UsuarioAdminDto {
   locales: LocalAdminDto[];
 }
 
+export interface GestionTiendaAdminDto {
+  mes: string;
+  importe: number;
+  total: number;
+  totalPendiente: number;
+  totalSaldada: number;
+  items: {
+    idLocal: number;
+    nombre: string;
+    pedidos: number;
+    gestion: number;
+    fueraDeMp: number;
+    pendiente: number;
+    saldada: number;
+    puedeAnularSaldo: boolean;
+  }[];
+}
+
 export interface LocalPlataformaDto {
   idLocal: number;
   nombre: string;
@@ -216,6 +290,7 @@ export interface LocalPlataformaDto {
   cliente: string;
   estado: string;
   vence: string | null;
+  exentoGestion: boolean;
   empleados: number;
 }
 
@@ -268,6 +343,11 @@ export interface AbonoDto {
   email: string;
   precioMensual: number;
   ventasWhatsApp: string | null;
+  gestionPendiente: number;
+  gestionPedidos: number;
+  gestionLimite: string | null;
+  gestionVencida: boolean;
+  pagoGestionPendiente: boolean;
 }
 
 export interface RegistroPedidoDto {
@@ -500,6 +580,22 @@ export class ApiService {
     return this.http.post(`${this.base}/admin/locales/${idLocal}/activar`, { clave });
   }
 
+  eximirGestionAdmin(idLocal: number, exento: boolean, clave: string) {
+    return this.http.post(`${this.base}/admin/locales/${idLocal}/gestion`, { exento, clave });
+  }
+
+  saldarGestionAdmin(idLocal: number, clave: string) {
+    return this.http.post(`${this.base}/admin/locales/${idLocal}/gestion/saldar`, { clave });
+  }
+
+  anularSaldoGestionAdmin(idLocal: number, clave: string) {
+    return this.http.post(`${this.base}/admin/locales/${idLocal}/gestion/anular-saldo`, { clave });
+  }
+
+  gestionTiendaAdmin(mes: string) {
+    return this.http.get<GestionTiendaAdminDto>(`${this.base}/admin/gestion-tienda`, { params: new HttpParams().set('mes', mes) });
+  }
+
   guardarTelefonoVentas(telefono: string, email: string, clave: string) {
     return this.http.put<{ telefono: string; email: string }>(`${this.base}/admin/ventas/telefono`, { telefono, email, clave });
   }
@@ -508,7 +604,7 @@ export class ApiService {
     return this.http.get<{ telefono: string; url: string | null; email: string; formularioActivo: boolean; apertura: string }>(`${this.base}/ventas/contacto`);
   }
 
-  enviarContacto(body: { nombre: string; correo: string; mensaje: string; sitio: string; apertura: string }) {
+  enviarContacto(body: { nombre: string; correo: string; mensaje: string; sitio: string; apertura: string; captcha?: string }) {
     return this.http.post(`${this.base}/ventas/contacto`, body);
   }
 
@@ -540,6 +636,10 @@ export class ApiService {
     return this.http.post(`${this.base}/admin/usuarios/${id}/bloquear`, { clave });
   }
 
+  cerrarSesionesAdmin(id: number) {
+    return this.http.post(`${this.base}/admin/usuarios/${id}/cerrar-sesiones`, {});
+  }
+
   eliminarUsuario(id: number, clave: string) {
     return this.http.delete(`${this.base}/admin/usuarios/${id}`, { body: { clave } });
   }
@@ -562,6 +662,10 @@ export class ApiService {
 
   pagarAbono() {
     return this.http.post<{ urlPago: string }>(`${this.base}/locales/actual/abono/pagar`, {});
+  }
+
+  pagarGestion() {
+    return this.http.post<{ urlPago: string }>(`${this.base}/locales/actual/abono/gestion`, {});
   }
 
   activarDebito(mailPagador: string) {
@@ -618,6 +722,10 @@ export class ApiService {
 
   resetearClaveUsuario(id: number, clave: string) {
     return this.http.post(`${this.base}/usuarios/${id}/resetear-clave`, { clave });
+  }
+
+  cerrarSesionesUsuario(id: number) {
+    return this.http.post(`${this.base}/usuarios/${id}/cerrar-sesiones`, {});
   }
 
   gruposFiltro() {
@@ -931,7 +1039,7 @@ export class ApiService {
   }
 
   configuracionTienda() {
-    return this.http.get<ConfiguracionTiendaDto & { vista: VistaTienda | null; publicados: number; conImagen: number }>(`${this.base}/configuracion/tienda`);
+    return this.http.get<ConfiguracionTiendaDto & { vista: VistaTienda | null; motivoCierre: 'abono' | 'gestion' | null; publicados: number; conImagen: number; mercadoPago: boolean; gestion: number }>(`${this.base}/configuracion/tienda`);
   }
 
   guardarConfiguracionTienda(tienda: ConfiguracionTiendaDto) {
@@ -984,12 +1092,23 @@ export class ApiService {
     );
   }
 
-  cotizarCarritoTienda(alias: string, items: ItemCarritoTienda[]) {
-    return this.http.post<CotizacionTiendaDto>(`${this.base}/tienda/${encodeURIComponent(alias)}/carrito`, { items });
+  cotizarCarritoTienda(alias: string, items: ItemCarritoTienda[], punto?: { latitud: number; longitud: number } | null) {
+    return this.http.post<CotizacionTiendaDto>(`${this.base}/tienda/${encodeURIComponent(alias)}/carrito`, {
+      items,
+      latitud: punto?.latitud ?? null,
+      longitud: punto?.longitud ?? null
+    });
   }
 
-  crearPedidoTienda(alias: string, pedido: { nombre: string; telefono: string; email: string; items: ItemCarritoTienda[]; sitio: string }) {
-    return this.http.post<{ numero: number; estado: string; codigo: string } | null>(`${this.base}/tienda/${encodeURIComponent(alias)}/pedidos`, pedido);
+  crearPedidoTienda(alias: string, pedido: {
+    nombre: string; telefono: string; email: string; items: ItemCarritoTienda[]; medioPago: MedioPagoTienda; sitio: string;
+    modalidad: string; direccionEnvio: string; latitud: number | null; longitud: number | null;
+  }) {
+    return this.http.post<{ numero: number; estado: string; codigo: string; urlPago: string | null } | null>(`${this.base}/tienda/${encodeURIComponent(alias)}/pedidos`, pedido);
+  }
+
+  buscarUbicacionTienda(alias: string, q: string) {
+    return this.http.get<LugarEncontradoDto[]>(`${this.base}/tienda/${encodeURIComponent(alias)}/ubicacion`, { params: new HttpParams().set('q', q) });
   }
 
   pedidoTienda(alias: string, codigo: string) {
@@ -1019,6 +1138,18 @@ export class ApiService {
 
   cancelarPedidoPanel(id: number) {
     return this.http.post<PedidoPanelDto>(`${this.base}/pedidos-tienda/${id}/cancelar`, {});
+  }
+
+  reembolsarPedidoPanel(id: number) {
+    return this.http.post<PedidoPanelDto>(`${this.base}/pedidos-tienda/${id}/reembolsar`, {});
+  }
+
+  confirmarTransferenciaPanel(id: number) {
+    return this.http.post<PedidoPanelDto>(`${this.base}/pedidos-tienda/${id}/confirmar-transferencia`, {});
+  }
+
+  devolverTransferenciaPanel(id: number) {
+    return this.http.post<PedidoPanelDto>(`${this.base}/pedidos-tienda/${id}/devolver-transferencia`, {});
   }
 
   contadorAvisos() {

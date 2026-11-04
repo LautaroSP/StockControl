@@ -444,6 +444,58 @@ namespace StockControl.Api.Datos.Migraciones
                     b.ToTable("CuentasPendientes", (string)null);
                 });
 
+            modelBuilder.Entity("StockControl.Dominio.GestionTienda", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset?>("FechaSaldo")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("IdAbono")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("IdLocal")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("IdPedido")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Importe")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<string>("Medio")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset>("Nacida")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("VencePeriodo")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdAbono");
+
+                    b.HasIndex("IdPedido")
+                        .IsUnique();
+
+                    b.HasIndex("IdLocal", "Estado");
+
+                    b.ToTable("GestionesTienda", (string)null);
+                });
+
             modelBuilder.Entity("StockControl.Dominio.GrupoProductos", b =>
                 {
                     b.Property<int>("IdGrupoProducto")
@@ -920,9 +972,23 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
 
+                    b.Property<string>("AliasCbuTienda")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("");
+
                     b.Property<string>("AliasTienda")
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
+
+                    b.Property<string>("CbuTienda")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(22)
+                        .HasColumnType("character varying(22)")
+                        .HasDefaultValue("");
 
                     b.Property<string>("Direccion")
                         .IsRequired()
@@ -930,6 +996,19 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasDefaultValue("");
+
+                    b.Property<decimal?>("EnvioGratisDesde")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<bool>("EnvioGratisSiempre")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<decimal?>("EnvioMinimo")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
 
                     b.Property<string>("EstadoAbono")
                         .IsRequired()
@@ -949,6 +1028,12 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("inactiva");
+
+                    b.Property<bool>("ExentoGestion")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("GestionACargoComprador")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("HaceEnvios")
                         .HasColumnType("boolean");
@@ -976,6 +1061,24 @@ namespace StockControl.Api.Datos.Migraciones
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<int?>("PlazoTransferenciaHoras")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("PrecioEnvioKm")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<decimal?>("RadioEnvioKm")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("numeric(6,2)");
+
+                    b.Property<string>("TitularTienda")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasDefaultValue("");
 
                     b.Property<DateTimeOffset?>("Vence")
                         .HasColumnType("timestamp with time zone");
@@ -1411,6 +1514,17 @@ namespace StockControl.Api.Datos.Migraciones
                     b.Property<DateTimeOffset>("Creado")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("DireccionEnvio")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasDefaultValue("");
+
+                    b.Property<decimal?>("DistanciaKm")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1419,11 +1533,30 @@ namespace StockControl.Api.Datos.Migraciones
                     b.Property<DateTimeOffset?>("Entregado")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<decimal>("Envio")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
                     b.Property<string>("Estado")
                         .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<string>("EstadoPago")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("sinpago");
+
+                    b.Property<decimal>("Gestion")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<bool>("GestionACargoComprador")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("HashCodigo")
                         .IsRequired()
@@ -1436,6 +1569,32 @@ namespace StockControl.Api.Datos.Migraciones
                     b.Property<int>("IdLocal")
                         .HasColumnType("integer");
 
+                    b.Property<string>("IdPagoMp")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal?>("LatitudEnvio")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
+
+                    b.Property<decimal?>("LongitudEnvio")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
+
+                    b.Property<string>("MedioPago")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("coordinar");
+
+                    b.Property<string>("Modalidad")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("retiro");
+
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasMaxLength(80)
@@ -1443,6 +1602,16 @@ namespace StockControl.Api.Datos.Migraciones
 
                     b.Property<int>("Numero")
                         .HasColumnType("integer");
+
+                    b.Property<string>("OrigenDistancia")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("");
+
+                    b.Property<DateTimeOffset?>("Pagado")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("Subtotal")
                         .HasPrecision(14, 2)
@@ -1457,10 +1626,26 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)");
 
+                    b.Property<string>("UrlPagoMp")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasDefaultValue("");
+
+                    b.Property<DateTimeOffset?>("VencePago")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("Id");
 
                     b.HasIndex("HashCodigo")
                         .IsUnique();
+
+                    b.HasIndex("IdPagoMp")
+                        .IsUnique()
+                        .HasFilter("\"IdPagoMp\" IS NOT NULL");
+
+                    b.HasIndex("EstadoPago", "VencePago");
 
                     b.HasIndex("IdLocal", "Estado");
 
@@ -1770,6 +1955,9 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
 
+                    b.Property<DateTimeOffset?>("BloqueadoHasta")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1785,6 +1973,11 @@ namespace StockControl.Api.Datos.Migraciones
                     b.Property<string>("HashClave")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("IntentosFallidos")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<string>("Nombre")
                         .IsRequired()
@@ -1807,6 +2000,11 @@ namespace StockControl.Api.Datos.Migraciones
 
                     b.Property<DateTimeOffset?>("VenceConfirmacion")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("VersionSesion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.HasKey("Id");
 
@@ -1860,6 +2058,20 @@ namespace StockControl.Api.Datos.Migraciones
                     b.HasOne("StockControl.Dominio.Cliente", null)
                         .WithMany()
                         .HasForeignKey("IdCliente")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StockControl.Dominio.GestionTienda", b =>
+                {
+                    b.HasOne("StockControl.Dominio.Abono", null)
+                        .WithMany()
+                        .HasForeignKey("IdAbono")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StockControl.Dominio.PedidoTienda", null)
+                        .WithMany()
+                        .HasForeignKey("IdPedido")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

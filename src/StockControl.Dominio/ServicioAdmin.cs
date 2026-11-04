@@ -136,7 +136,7 @@ public static class ServicioAdmin
     {
         if (usuario.Id == idActor)
             throw new ErrorNegocio("No podés bloquear tu propio usuario.");
-        usuario.Activo = false;
+        ServicioUsuarios.Desactivar(usuario);
     }
 
     public static void ValidarEliminar(int idActor, int idObjetivo)
@@ -243,8 +243,8 @@ public static class ServicioAdmin
         if (rol is not (Roles.Admin or Roles.Dueno or Roles.Empleado or Roles.Socio))
             throw new ErrorNegocio("No se puede cambiar la clave de ese usuario.");
         var limpia = clave?.Trim() ?? "";
-        if (limpia.Length < 4)
-            throw new ErrorNegocio("La clave debe tener al menos 4 caracteres.");
+        if (limpia.Length < ServicioRegistro.LargoMinimoClave)
+            throw new ErrorNegocio($"La clave debe tener al menos {ServicioRegistro.LargoMinimoClave} caracteres.");
         if (limpia.Length > 200)
             throw new ErrorNegocio("La clave es demasiado larga.");
         return limpia;

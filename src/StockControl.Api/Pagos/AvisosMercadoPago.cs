@@ -22,6 +22,15 @@ public static class AvisosMercadoPago
         var abono = await db.Abonos.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == idAbono);
         if (abono == null) return;
 
+        if (abono.Origen == Abono.OrigenGestion)
+        {
+            ServicioAbono.ValidarPagoMp(pago.Estado, pago.Moneda, pago.Importe, abono.Importe);
+            var deudas = await db.GestionesTienda.IgnoreQueryFilters().Where(g => g.IdAbono == abono.Id).ToListAsync();
+            ServicioGestionTienda.AcreditarCobro(abono, deudas, pago.Fecha ?? DateTimeOffset.UtcNow, id);
+            await db.SaveChangesAsync();
+            return;
+        }
+
         ServicioAbono.ValidarPagoMp(pago.Estado, pago.Moneda, pago.Importe);
         var local = await db.Locales.FirstAsync(l => l.IdLocal == abono.IdLocal);
         if (abono.Origen == Abono.OrigenMp)

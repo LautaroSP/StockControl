@@ -1,0 +1,5 @@
+title = "StockControl"
+
+[allowlist]
+description = "Claves de ejemplo de Web Push en un test. No son de un servicio."
+paths = ['''src/StockControl.Tests/ServicioPushTests.cs''']

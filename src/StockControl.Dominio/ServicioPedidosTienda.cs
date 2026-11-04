@@ -63,6 +63,7 @@ public static class ServicioPedidosTienda
         return new CotizacionTienda(lineas, noDisponibles, lineas.Sum(l => l.SubTotal));
     }
 
+    /// <summary>Con Mercado Pago o transferencia congela la gestión y el vencimiento, y el pedido espera el pago.</summary>
     public static PedidoCreado Crear(
         Local local,
         DateTimeOffset ahora,
@@ -71,9 +72,12 @@ public static class ServicioPedidosTienda
         IReadOnlyList<ItemPedidoTienda> items,
         IReadOnlyCollection<Producto> productos,
         IReadOnlyDictionary<int, decimal> reservado,
-        bool stockRigido)
+        bool stockRigido,
+        string medioPago = ServicioPagoPedidoTienda.Coordinar,
+        bool gestionVencida = false,
+        DatosEnvio? envio = null)
     {
-        ExigirAbierta(local, ahora);
+        ExigirAbierta(local, ahora, gestionVencida);
         var pedido = new PedidoTienda
         {
             IdLocal = local.IdLocal,
@@ -88,32 +92,52 @@ public static class ServicioPedidosTienda
         pedido.Lineas.AddRange(cotizacion.Lineas.Select(l => ALinea(local.IdLocal, l)));
         pedido.Subtotal = cotizacion.Total;
         pedido.Total = cotizacion.Total;
+        if (medioPago == ServicioPagoPedidoTienda.MercadoPago)
+            ConPagoPrevio(pedido, local, medioPago, ahora + ServicioPagoPedidoTienda.Plazo);
+        else if (medioPago == ServicioPagoPedidoTienda.Transferencia)
+            ConTransferencia(pedido, local, ahora);
+        else if (medioPago != ServicioPagoPedidoTienda.Coordinar)
+            throw new ErrorNegocio("El medio de pago no es válido.");
+
+        var entrega = envio ?? new DatosEnvio(ServicioEnvioTienda.Retiro, null, null, null, null);
+        ServicioEnvioTienda.Aplicar(pedido, local, entrega.Modalidad, entrega.Direccion, entrega.Latitud, entrega.Longitud, entrega.KmRecorrido);
+        pedido.Total += pedido.Envio;
 
         var codigo = GenerarCodigo();
         pedido.HashCodigo = HashDeCodigo(codigo);
         return new PedidoCreado(pedido, codigo);
     }
 
-    public static void ExigirAbierta(Local local, DateTimeOffset ahora)
+    public static void ExigirAbierta(Local local, DateTimeOffset ahora, bool gestionVencida = false)
     {
-        if (ServicioTienda.Vista(local, ahora) != ServicioTienda.VistaCatalogo)
+        if (ServicioTienda.Vista(local, ahora, gestionVencida) != ServicioTienda.VistaCatalogo)
             throw new ErrorNegocio("La tienda no está recibiendo pedidos en este momento.");
     }
 
-    /// <summary>El comprador cancela solo un pedido nuevo. Cancelado deja de contar como reservado.</summary>
+    /// <summary>El comprador cancela solo un pedido nuevo y sin pagar. Cancelado deja de contar como reservado.</summary>
     public static void Cancelar(PedidoTienda pedido, DateTimeOffset ahora)
     {
         if (pedido.Estado == Cancelado)
             throw new ErrorNegocio("El pedido ya está cancelado.");
+        if (pedido.EstadoPago == ServicioPagoPedidoTienda.Pagado)
+            throw new ErrorNegocio("El pedido ya está pagado. Escribile al local para cancelarlo.");
         if (pedido.Estado != Nuevo)
             throw new ErrorNegocio("El pedido ya no se puede cancelar.");
-        CancelarDelLocal(pedido, ahora);
+        Anular(pedido, ahora);
     }
 
-    public static bool PuedeCancelar(PedidoTienda pedido) => pedido.Estado == Nuevo;
+    public static bool PuedeCancelar(PedidoTienda pedido) =>
+        pedido.Estado == Nuevo && pedido.EstadoPago != ServicioPagoPedidoTienda.Pagado;
 
-    /// <summary>El local cancela mientras el pedido siga abierto.</summary>
+    /// <summary>El local cancela mientras el pedido siga abierto. Pagado va con reembolso.</summary>
     public static void CancelarDelLocal(PedidoTienda pedido, DateTimeOffset ahora)
+    {
+        if (pedido.EstadoPago == ServicioPagoPedidoTienda.Pagado)
+            throw new ErrorNegocio("El pedido está pagado: cancelalo con reembolso.");
+        Anular(pedido, ahora);
+    }
+
+    internal static void Anular(PedidoTienda pedido, DateTimeOffset ahora)
     {
         CambiarEstado(pedido, Cancelado, ahora);
         pedido.Cancelado = ahora;
@@ -124,6 +148,7 @@ public static class ServicioPedidosTienda
     {
         if (estado is not (Preparando or Listo))
             throw new ErrorNegocio("Ese estado no existe.");
+        ServicioPagoPedidoTienda.ExigirSinPagoPendiente(pedido);
         CambiarEstado(pedido, estado, ahora);
     }
 
@@ -188,6 +213,24 @@ public static class ServicioPedidosTienda
         int? maximo = stockRigido && cantidad > disponible ? disponible : null;
         var subTotal = Math.Round(producto.Precio * cantidad, 2, MidpointRounding.AwayFromZero);
         return new LineaCotizada(producto.Id, producto.Codigo, producto.Nombre, cantidad, producto.Precio, subTotal, maximo);
+    }
+
+    private static void ConTransferencia(PedidoTienda pedido, Local local, DateTimeOffset ahora)
+    {
+        if (!ServicioTransferenciaTienda.Acepta(local))
+            throw new ErrorNegocio("Este local no recibe transferencias.");
+        ConPagoPrevio(pedido, local, ServicioPagoPedidoTienda.Transferencia, ServicioTransferenciaTienda.VencePago(local, ahora));
+    }
+
+    private static void ConPagoPrevio(PedidoTienda pedido, Local local, string medio, DateTimeOffset? vencePago)
+    {
+        var desglose = ServicioGestionTienda.Desglose(local, pedido.Subtotal);
+        pedido.MedioPago = medio;
+        pedido.EstadoPago = ServicioPagoPedidoTienda.Pendiente;
+        pedido.VencePago = vencePago;
+        pedido.Gestion = desglose.Gestion;
+        pedido.GestionACargoComprador = desglose.ACargoComprador;
+        pedido.Total = desglose.Total;
     }
 
     private static void ExigirCompleta(CotizacionTienda cotizacion)

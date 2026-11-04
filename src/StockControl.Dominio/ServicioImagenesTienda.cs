@@ -6,7 +6,8 @@ public sealed record ImagenTienda(int Id, string Origen, string Fuente, string E
 public static class ServicioImagenesTienda
 {
     public const int MaximoPorProducto = 2;
-    public const int LadoMaximo = 400;
+    public const int AnchoMaximo = 250;
+    public const int AltoMaximo = 300;
     public const int MaximoBytes = 2 * 1024 * 1024;
     public const int MaximoPixeles = 25_000_000;
     /// <summary>El nombre hoy mide 69 (SHA-256 en hexadecimal + ".webp"); la columna deja margen.</summary>
@@ -79,11 +80,11 @@ public static class ServicioImagenesTienda
             throw new ErrorNegocio("La imagen es demasiado grande.");
     }
 
-    /// <summary>Entra en 400 × 400 conservando la proporción. Una imagen más chica no se agranda.</summary>
+    /// <summary>Entra en 250 × 300 conservando la proporción. Una imagen más chica no se agranda.</summary>
     public static (int Ancho, int Alto) Dimensiones(int ancho, int alto)
     {
-        if (ancho <= LadoMaximo && alto <= LadoMaximo) return (ancho, alto);
-        var escala = Math.Min((double)LadoMaximo / ancho, (double)LadoMaximo / alto);
+        if (ancho <= AnchoMaximo && alto <= AltoMaximo) return (ancho, alto);
+        var escala = Math.Min((double)AnchoMaximo / ancho, (double)AltoMaximo / alto);
         return (Math.Max(1, (int)Math.Round(ancho * escala)), Math.Max(1, (int)Math.Round(alto * escala)));
     }
 

@@ -189,13 +189,13 @@ public class ServicioImagenesTiendaTests
     }
 
     [Theory]
-    [InlineData(800, 600, 400, 300)]
-    [InlineData(600, 800, 300, 400)]
-    [InlineData(1000, 2000, 200, 400)]
-    [InlineData(400, 400, 400, 400)]
-    [InlineData(300, 200, 300, 200)]
-    [InlineData(4000, 10, 400, 1)]
-    public void Entra_en_400_por_400_sin_deformarse_ni_agrandarse(int ancho, int alto, int esperadoAncho, int esperadoAlto)
+    [InlineData(800, 600, 250, 188)]
+    [InlineData(600, 800, 225, 300)]
+    [InlineData(1000, 2000, 150, 300)]
+    [InlineData(400, 400, 250, 250)]
+    [InlineData(200, 180, 200, 180)]
+    [InlineData(4000, 10, 250, 1)]
+    public void Entra_en_250_por_300_sin_deformarse_ni_agrandarse(int ancho, int alto, int esperadoAncho, int esperadoAlto)
     {
         Assert.Equal((esperadoAncho, esperadoAlto), ServicioImagenesTienda.Dimensiones(ancho, alto));
     }

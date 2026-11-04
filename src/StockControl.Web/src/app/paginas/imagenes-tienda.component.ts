@@ -3,14 +3,15 @@ import { FormsModule } from '@angular/forms';
 import { ApiService, ImagenProductoDto, ProductoDto, PropuestaImagenDto } from '../servicios/api.service';
 
 const MAXIMO_BYTES_ORIGINAL = 20 * 1024 * 1024;
-const LADO_MAXIMO = 400;
+const ANCHO_MAXIMO = 250;
+const ALTO_MAXIMO = 300;
 const AVISO_ORIGEN =
   'Generamos imágenes a partir de Open Food Facts, una base abierta hecha por usuarios (licencia CC-BY-SA). Pueden no coincidir con tu producto.';
 
 /** Achica en el navegador para que una foto de celular llegue con pocos KB. El servidor igual valida y vuelve a achicar. */
 async function achicar(archivo: File): Promise<string> {
   const imagen = await createImageBitmap(archivo);
-  const escala = Math.min(1, LADO_MAXIMO / imagen.width, LADO_MAXIMO / imagen.height);
+  const escala = Math.min(1, ANCHO_MAXIMO / imagen.width, ALTO_MAXIMO / imagen.height);
   const lienzo = document.createElement('canvas');
   lienzo.width = Math.max(1, Math.round(imagen.width * escala));
   lienzo.height = Math.max(1, Math.round(imagen.height * escala));
@@ -31,7 +32,7 @@ async function achicar(archivo: File): Promise<string> {
       <h1>Imágenes de productos</h1>
     </div>
     <section class="panel config-form">
-      <p class="hint">Hasta 2 por producto publicado, de hasta 400 × 400 px. Nada se publica sin que lo aceptes.</p>
+      <p class="hint">Hasta 2 por producto publicado, de hasta 250 × 300 px. Nada se publica sin que lo aceptes.</p>
       <input class="wide" type="search" maxlength="80" placeholder="Buscar producto publicado" aria-label="Buscar producto publicado"
              [(ngModel)]="busqueda" (ngModelChange)="buscarEnUnRato()" />
 

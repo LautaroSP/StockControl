@@ -917,9 +917,10 @@ html.tema-suave .reel-track {
 .tienda-nombre { font-weight: 600; }
 .tienda-precio { font-size: 18px; font-variant-numeric: tabular-nums; }
 .tienda-foto {
-  width: 100%;
-  aspect-ratio: 1 / 1;
+  width: min(100%, 250px);
+  aspect-ratio: 250 / 300;
   object-fit: contain;
+  align-self: center;
   border-radius: 8px;
   background: var(--paper);
 }
@@ -970,6 +971,7 @@ html.tema-suave .reel-track {
 .imagen-previa { width: 160px; height: 160px; object-fit: contain; border-radius: 8px; background: var(--paper); border: 1px solid var(--line); }
 .imagen-vacia { display: flex; align-items: center; justify-content: center; color: var(--ink-soft); font-size: 13px; }
 @media (max-width: 800px) { .tienda-datos { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .tienda-productos { grid-template-columns: 1fr; } }
 
 sc-mapa { display: block; width: 100%; }
 .mapa { width: 100%; height: 260px; border-radius: 8px; z-index: 0; }

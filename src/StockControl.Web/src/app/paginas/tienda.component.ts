@@ -74,7 +74,7 @@ import { NoEncontradaComponent } from './no-encontrada.component';
             @for (p of productos; track p.id) {
               <li class="panel">
                 @if (fotoActual(p); as foto) {
-                  <img class="tienda-foto" [src]="urlFoto(foto.id)" [alt]="p.nombre" width="400" height="400" loading="lazy" />
+                  <img class="tienda-foto" [src]="urlFoto(foto.id)" [alt]="p.nombre" width="250" height="300" loading="lazy" />
                   @if (p.imagenes.length > 1) {
                     <span class="tienda-miniaturas">
                       @for (i of p.imagenes; track i.id; let n = $index) {

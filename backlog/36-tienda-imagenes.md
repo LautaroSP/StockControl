@@ -32,7 +32,7 @@ Por cada producto publicado:
 
 ## Reglas de las imágenes
 
-- Máximo 2 por producto. Se guardan en **400 × 400 px** como máximo (se redimensionan en el servidor).
+- Máximo 2 por producto. Se guardan en **250 × 300 px** como máximo (se redimensionan en el servidor). En el celular la tienda las muestra en ese recuadro.
 - Vale igual para la propuesta aceptada y para la propia: tipo **real** (JPG, PNG, WebP), peso máximo.
 - Se guardan en un volumen, fuera de git y fuera de la base. La base guarda la ruta y la atribución.
 - El nombre en disco lo genera el servidor; nunca el del archivo subido.
@@ -46,7 +46,7 @@ Por cada producto publicado:
 - [x] **Subir propia** permite cargar un archivo; se rechaza lo que no sea JPG, PNG o WebP reales o pese de más.
 - [ ] Sin código de barras o sin resultado, solo «Subir propia». *(código y tests listos; falta verlo en el navegador)*
 - [x] Si Open Food Facts no responde, el apartado sigue funcionando.
-- [x] Hasta 2 imágenes por producto, en 400 × 400 px como máximo.
+- [x] Hasta 2 imágenes por producto, en 250 × 300 px como máximo.
 - [ ] La atribución de la imagen aceptada se muestra en la tienda. *(código listo; falta verlo en el navegador)*
 - [x] Una propuesta rechazada no se vuelve a ofrecer.
 - [x] Una imagen de producto no publicado o de otro local no se sirve.

@@ -22,20 +22,20 @@ public class ProcesadorImagenTests
     }
 
     [Fact]
-    public void Una_foto_grande_queda_en_400_de_lado_sin_deformarse()
+    public void Una_foto_grande_entra_en_250_por_300_sin_deformarse()
     {
         var preparada = ProcesadorImagen.Preparar(Imagen(1600, 1200, SKEncodedImageFormat.Jpeg));
 
-        Assert.Equal((400, 300), (preparada.Ancho, preparada.Alto));
-        Assert.Equal((400, 300), Medidas(preparada.Datos));
+        Assert.Equal((250, 188), (preparada.Ancho, preparada.Alto));
+        Assert.Equal((250, 188), Medidas(preparada.Datos));
     }
 
     [Fact]
-    public void Una_foto_vertical_queda_con_400_de_alto()
+    public void Una_foto_vertical_queda_con_300_de_alto()
     {
         var preparada = ProcesadorImagen.Preparar(Imagen(600, 1200, SKEncodedImageFormat.Png));
 
-        Assert.Equal((200, 400), (preparada.Ancho, preparada.Alto));
+        Assert.Equal((150, 300), (preparada.Ancho, preparada.Alto));
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public class ProcesadorImagenTests
     {
         var preparada = ProcesadorImagen.Preparar(Imagen(900, 900, SKEncodedImageFormat.Webp));
 
-        Assert.Equal((400, 400), (preparada.Ancho, preparada.Alto));
+        Assert.Equal((250, 250), (preparada.Ancho, preparada.Alto));
     }
 
     [Fact]

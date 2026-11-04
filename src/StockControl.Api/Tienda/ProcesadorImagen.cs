@@ -5,7 +5,7 @@ namespace StockControl.Api.Tienda;
 
 public sealed record ImagenPreparada(byte[] Datos, string Tipo, int Ancho, int Alto);
 
-/// <summary>Valida que el archivo sea una imagen real y la guarda en WebP, dentro de 400 × 400 y sin deformarla.</summary>
+/// <summary>Valida que el archivo sea una imagen real y la guarda en WebP, dentro de 250 × 300 y sin deformarla.</summary>
 public static class ProcesadorImagen
 {
     private const int Calidad = 80;

@@ -42,7 +42,8 @@ export const routes: Routes = [
           { path: '', pathMatch: 'full', loadComponent: () => import('./paginas/tienda-resumen.component').then((m) => m.TiendaResumenComponent), canActivate: [tiendaGuard] },
           { path: 'pedidos', loadComponent: () => import('./paginas/panel-pedidos.component').then((m) => m.PanelPedidosComponent) },
           { path: 'configuracion', loadComponent: () => import('./paginas/config-tienda.component').then((m) => m.ConfigTiendaComponent), canActivate: [tiendaGuard] },
-          { path: 'imagenes', loadComponent: () => import('./paginas/imagenes-tienda.component').then((m) => m.ImagenesTiendaComponent), canActivate: [tiendaGuard] }
+          { path: 'imagenes', loadComponent: () => import('./paginas/imagenes-tienda.component').then((m) => m.ImagenesTiendaComponent), canActivate: [tiendaGuard] },
+          { path: 'qr', loadComponent: () => import('./paginas/qr-tienda.component').then((m) => m.QrTiendaComponent), canActivate: [tiendaGuard] }
         ]
       },
       {

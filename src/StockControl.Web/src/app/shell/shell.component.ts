@@ -96,6 +96,7 @@ function leerGrupos(): Record<Grupo, boolean> {
                 @if (sesion.puedeConfigurarLocal()) {
                   <a routerLink="/mi-tienda/configuracion" routerLinkActive="active"><sc-icono nombre="configuracion" /> Configuración</a>
                   <a routerLink="/mi-tienda/imagenes" routerLinkActive="active"><sc-icono nombre="imagenes" /> Imágenes de productos</a>
+                  <a routerLink="/mi-tienda/qr" routerLinkActive="active"><sc-icono nombre="qr" /> QR de la tienda</a>
                 }
               </div>
             }

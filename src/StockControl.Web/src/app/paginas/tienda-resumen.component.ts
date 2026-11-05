@@ -33,6 +33,7 @@ interface Estado {
             <a class="grow" [href]="link()" target="_blank" rel="noopener">{{ link() }}</a>
             <button class="btn" type="button" (click)="copiar()">Copiar</button>
             <a class="btn btn-primary" [href]="link()" target="_blank" rel="noopener">Ver mi tienda</a>
+            <a class="btn" routerLink="/mi-tienda/qr">QR de la tienda</a>
           </div>
           @if (mensaje) { <p class="meta">{{ mensaje }}</p> }
         }

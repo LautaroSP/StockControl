@@ -115,6 +115,12 @@ import { Component, Input } from '@angular/core';
         @case ('luna') {
           <path d="M16.2 3.6A7.2 7.2 0 1 0 20.4 14 5.6 5.6 0 0 1 16.2 3.6z" />
         }
+        @case ('qr') {
+          <rect x="4" y="4" width="6.5" height="6.5" rx="1" />
+          <rect x="13.5" y="4" width="6.5" height="6.5" rx="1" />
+          <rect x="4" y="13.5" width="6.5" height="6.5" rx="1" />
+          <path d="M14 14h2M18 14h2M14 18h2M18 18h2M16 16h2" />
+        }
       }
     </svg>
   `,

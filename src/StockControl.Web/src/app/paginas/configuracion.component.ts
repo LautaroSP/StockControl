@@ -75,9 +75,16 @@ import { IconoComponent } from '../icono.component';
             <span class="meta">Sin QR</span>
           }
           <button class="btn" type="button" (click)="prepararPuesto(nro)">Preparar QR</button>
-          <label class="field grow">Lector Point
-            <input class="wide" type="text" [ngModel]="lectores[nro] || ''" (ngModelChange)="lector(nro, $event)" />
-          </label>
+          <div class="field grow">
+            <span class="lector-titulo">
+              Lector Point
+              <span class="ayuda-wrap">
+                <button type="button" class="ayuda" [attr.aria-expanded]="ayudaLector === nro" [attr.aria-describedby]="'ayuda-lector-' + nro" (click)="ayudaLector = ayudaLector === nro ? 0 : nro">?</button>
+                <span [id]="'ayuda-lector-' + nro" class="ayuda-texto" [class.visible]="ayudaLector === nro" role="tooltip">El identificador del Point de la cuenta conectada, con el modelo y el número. Por ejemplo NEWLAND_N950__N950NCB801293637. El aparato tiene que estar en esa misma cuenta, en modo PDV y encendido. Al cobrar, el monto llega solo: en el Point no se tipea nada.</span>
+              </span>
+            </span>
+            <input class="wide" type="text" [attr.aria-label]="'Lector Point del puesto ' + nro" [ngModel]="lectores[nro] || ''" (ngModelChange)="lector(nro, $event)" />
+          </div>
           <button class="btn" type="button" (click)="guardarLector(nro)">Guardar lector</button>
         </div>
       }
@@ -107,6 +114,22 @@ import { IconoComponent } from '../icono.component';
       @if (mensaje) { <p class="meta">{{ mensaje }}</p> }
     </section>
     <p class="meta" style="margin-top:16px"><sc-icono nombre="tienda" /> La tienda online se configura en <a routerLink="/mi-tienda/configuracion">Tienda</a>.</p>
+  `,
+  styles: `
+    .lector-titulo { display: flex; align-items: center; gap: 6px; }
+    .ayuda-wrap { position: relative; display: inline-flex; }
+    .ayuda {
+      width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line);
+      background: var(--panel); color: var(--ink); font-weight: 700; line-height: 1; padding: 0; cursor: pointer;
+    }
+    .ayuda-texto {
+      display: none; position: absolute; z-index: 2; left: 0; top: calc(100% + 6px); width: min(320px, 70vw);
+      padding: 8px 10px; background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+      border-radius: 8px; font-size: 13px; font-weight: 400; line-height: 1.35;
+    }
+    .ayuda-wrap:hover .ayuda-texto,
+    .ayuda-wrap:focus-within .ayuda-texto,
+    .ayuda-texto.visible { display: block; }
   `
 })
 export class ConfiguracionComponent implements OnInit {
@@ -123,6 +146,7 @@ export class ConfiguracionComponent implements OnInit {
   mpVinculada = false;
   mpPuestos: CuentaMercadoPagoDto['puestos'] = [];
   lectores: Record<number, string> = {};
+  ayudaLector = 0;
 
   constructor(
     private readonly api: ApiService,

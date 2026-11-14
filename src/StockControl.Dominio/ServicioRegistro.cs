@@ -9,6 +9,7 @@ public class RegistroPedido
     public string NombreUsuario { get; set; } = "";
     public string NombreLocal { get; set; } = "";
     public string Modalidad { get; set; } = ServicioRegistro.Prueba;
+    public bool AceptaTerminos { get; set; }
 }
 
 public static class ServicioRegistro
@@ -21,6 +22,7 @@ public static class ServicioRegistro
 
     public static void Validar(RegistroPedido pedido, string clave)
     {
+        ServicioTerminos.Exigir(pedido.AceptaTerminos);
         if (Vacio(pedido.Nombre) || Vacio(pedido.Email) || Vacio(pedido.NombreUsuario) || Vacio(pedido.NombreLocal))
             throw new ErrorNegocio("Completá nombre, mail, usuario y nombre del local.");
         if (pedido.Nombre.Trim().Length > 120 || pedido.NombreUsuario.Trim().Length > 80
@@ -44,6 +46,7 @@ public static class ServicioRegistro
             Rol = Roles.Dueno,
             Activo = true
         };
+        ServicioTerminos.Marcar(dueno, ahora);
         var prueba = pedido.Modalidad == Prueba;
         var local = new Local
         {

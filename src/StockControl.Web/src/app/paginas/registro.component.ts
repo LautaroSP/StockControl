@@ -53,6 +53,10 @@ import { SesionService } from '../servicios/sesion.service';
               Pagar ahora $ 14.999
             </label>
           </div>
+          <label class="check" style="margin:4px 0 16px">
+            <input type="checkbox" name="acepta" [(ngModel)]="pedido.aceptaTerminos" />
+            <span>Acepto los <a routerLink="/terminos" (click)="$event.stopPropagation()">términos</a> y la <a routerLink="/privacidad" (click)="$event.stopPropagation()">política de privacidad</a>.</span>
+          </label>
           @if (captchaActivo) {
             <div id="captcha-registro" class="captcha"></div>
           }
@@ -81,7 +85,8 @@ export class RegistroComponent implements OnInit, OnDestroy {
     modalidad: 'prueba',
     clave: '',
     sitio: '',
-    captcha: ''
+    captcha: '',
+    aceptaTerminos: false
   };
   clave2 = '';
   error = '';
@@ -128,7 +133,7 @@ export class RegistroComponent implements OnInit, OnDestroy {
           this.cargando = false;
           return;
         }
-        this.sesion.guardarLogin(r.token, r.rol, r.nombre);
+        this.sesion.guardarLogin(r.token, r.rol, r.nombre, r.terminosVigentes ?? true);
         void this.router.navigateByUrl('/locales');
       },
       error: (err) => {
@@ -178,6 +183,7 @@ export class RegistroComponent implements OnInit, OnDestroy {
       return 'Completá todos los datos.';
     if (p.clave.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
     if (p.clave !== this.clave2) return 'Las contraseñas no coinciden.';
+    if (!p.aceptaTerminos) return 'Tenés que aceptar los términos y la política de privacidad.';
     return '';
   }
 }

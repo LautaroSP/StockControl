@@ -8,7 +8,7 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 
 ## Siguiente
 
-**#52 · 48 Legales**. Pendientes de prueba en el navegador con la base: 40 Envío por km, 51 Gestión fuera de MP, 39 Transferencia, 38 Mercado Pago y gestión (con cuentas de prueba de MP), 37 Carrito y pedido, 41 Panel de pedidos (incluye Web Push), 36 Imágenes y 49 Categorías
+**#53 · 52 Actualizar Angular**. Pendientes de prueba en el navegador con la base: 40 Envío por km, 51 Gestión fuera de MP, 39 Transferencia, 38 Mercado Pago y gestión (con cuentas de prueba de MP), 37 Carrito y pedido, 41 Panel de pedidos (incluye Web Push), 36 Imágenes y 49 Categorías
 
 ## Tablero
 
@@ -65,12 +65,20 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 | 49 | 43 | [SQL injection](43-sql-injection.md) | sí | `Busqueda.Patron` escapa comodines de `ILike` y corta a 80. `*Raw` solo con texto fijo. En producción un error de base responde 500 genérico. Roles en `deploy/base.md`: la app no es dueña; migra el otro usuario |
 | 50 | 44 | [Auditoría de seguridad](44-auditoria-seguridad.md) | sí | Informe en `44-auditoria-informe.md`. Freno de login, clave mínima 8, RLS, validación, costo, CSP, CORS y `/api`. Requiere migración `AuditoriaSeguridad`. Las altas de Angular 18 quedan en la 52 |
 | 51 | 47 | [Mejorar los tickets](47-mejorar-tickets.md) | parcial | Ahorros guardados por línea y ticket armado en `ServicioTicket`; diseño de impresión nuevo. Falta probar la impresión en POS-58, POS-80 y A4. Requiere migración `AhorrosVenta` |
-| 52 | 48 | [Legales](48-legales.md) | no | Términos del servicio, privacidad (Ley 25.326), arrepentimiento y baja (consumidor), términos de la tienda, aceptación con versión. Faltan los datos del titular. Antes de producción y de abrir la tienda al público |
+| 52 | 48 | [Legales](48-legales.md) | sí | Términos, privacidad, aceptación en el registro y al entrar, arrepentimiento con código para el admin, baja que no renueva el mes, pie de la tienda. El profesional y la AAIP quedan para cuando haya clientes. Requiere migración `LegalesBajaYArrepentimiento` |
 | 53 | 52 | [Actualizar Angular](52-actualizar-angular.md) | no | Las altas de `npm audit` en `@angular/*` 18 no tienen parche en esa línea. El arreglo publicado es la 22. No se forzó en la 44 |
 | 54 | 53 | [Tienda: QR para el comprador](53-qr-tienda.md) | sí | Afiche verde con TIENDA ONLINE y el QR. Abajo, StockControl. Chico, mediano y grande. En la POS, 50 mm |
+| 55 | 54 | [Tienda: paleta](54-tienda-paleta.md) | no | Color de marca en catálogo, carrito y pedido. Vacío = paleta de StockControl. Con color propio, esas pantallas quedan en claro y sin interruptor. El QR de la 53 sigue verde |
 
 ## Log
 
+- 2026-11-11 · 48 Legales · sí · Arrepentimiento del abono con código, pendiente para el admin. Baja en Abono: el mes pagado sigue y el débito no renueva. Dueño y socio con versión vieja no operan hasta aceptar. Pie de la tienda con términos, datos del local y arrepentimiento. Aviso en contacto. Requiere migración `LegalesBajaYArrepentimiento`
+- 2026-11-11 · 48 Legales · parcial · `/terminos` y `/privacidad` con el borrador versión 1. El pie de la landing resume y enlaza; login, registro y contacto también. El registro y contratar otro local piden el tilde sin marcar; sin eso no se crea la cuenta ni el local. `Usuario` guarda `VersionTerminos` y `AceptoTerminosEn`. Requiere migración `TerminosAceptados`. Falta el pie de la tienda, reaceptar si cambia la versión, arrepentimiento y baja
+- 2026-11-11 · 48 Legales · ajuste · Domicilio legal: Avenida Rivadavia 15240, 4.º D, Haedo, Partido de Morón (la localidad sale de la altura, CP 1706). Borrador versión 1 en la tarjeta: términos del servicio, privacidad y términos de la tienda. Sin publicar
+- 2026-11-11 · 48 Legales · ajuste · Titular Lautaro Parandelli, identificación 23-40133767-9, mail legal y Provincia de Buenos Aires. Falta el domicilio legal (calle, número y localidad)
+- 2026-11-11 · 48 Legales · ajuste · La revisión de un profesional y la inscripción en la AAIP no frenan la tarjeta: quedan para cuando haya clientes. El borrador se escribe con los datos del titular
+- 2026-11-11 · 48 Legales · ajuste · Los términos del servicio prohíben copiar o republicar el sitio y el sistema. Los de la tienda prohíben copiar el catálogo público (nombres, precios y fotos) para armar otra tienda. No es un bloqueo técnico: sirve para pedir la baja. Queda fuera ofuscar el front o bloquear el clic derecho
+- 2026-11-05 · 54 Tienda: paleta · no · alta de tarjeta (color de marca en Tienda › Configuración; vacío = paleta de StockControl; con color propio el catálogo, el carrito y el pedido van en claro y sin modo oscuro; el QR sigue verde; la caja no cambia)
 - 2026-11-04 · 53 Tienda: QR para el comprador · ajuste · El impreso es el afiche verde (carro, TIENDA ONLINE, QR en recuadro blanco). Abajo dice StockControl, con la misma letra del título. Chico 80 mm, mediano 120 mm, grande 160 mm. En la POS el afiche mide siempre 50 mm
 - 2026-11-04 · 53 Tienda: QR para el comprador · sí · En Tienda, el dueño arma un QR que abre `/tienda/{alias}`. Chico 32 mm, mediano 50 mm y grande 80 mm, para imprimir o descargar. Al imprimir puede sumar reborde y el nombre StockControl. En la POS el QR mide siempre 40 mm, en el papel del ticket
 - 2026-11-04 · 36 Tienda: imágenes · ajuste · El tope pasa de 400 × 400 a 250 × 300. El servidor y el navegador achican ahí, sin deformar ni agrandar. En el celular la foto se ve en ese recuadro. Las ya guardadas siguen en 400 px hasta que se vuelvan a subir

@@ -114,6 +114,7 @@ import { IconoComponent } from '../icono.component';
       @if (mensaje) { <p class="meta">{{ mensaje }}</p> }
     </section>
     <p class="meta" style="margin-top:16px"><sc-icono nombre="tienda" /> La tienda online se configura en <a routerLink="/mi-tienda/configuracion">Tienda</a>.</p>
+    <p class="meta"><a routerLink="/terminos">Términos</a> · <a routerLink="/privacidad">Privacidad</a> · La baja del abono está en <a routerLink="/activar">Abono</a>.</p>
   `,
   styles: `
     .lector-titulo { display: flex; align-items: center; gap: 6px; }

@@ -54,11 +54,13 @@ export class SesionService {
   readonly puedeConfigurarLocal = computed(() => this.rol() === 'dueno' || this.rol() === 'socio');
   readonly puedeGestionarProveedores = computed(() => this.rol() === 'dueno' || this.rol() === 'socio');
   readonly hayCaja = computed(() => this.nroCaja() > 0);
+  readonly terminosVigentes = signal<boolean | null>(null);
 
-  guardarLogin(token: string, rol: string, nombre: string): void {
+  guardarLogin(token: string, rol: string, nombre: string, terminosVigentes = true): void {
     this.token.set(token);
     this.rol.set(rol);
     this.nombre.set(nombre);
+    this.terminosVigentes.set(terminosVigentes);
     localStorage.setItem(TOKEN, token);
     localStorage.setItem(ROL, rol);
     localStorage.setItem(NOMBRE, nombre);
@@ -102,6 +104,7 @@ export class SesionService {
     this.token.set('');
     this.rol.set('');
     this.nombre.set('');
+    this.terminosVigentes.set(null);
     this.limpiarLocal();
     localStorage.removeItem(TOKEN);
     localStorage.removeItem(ROL);

@@ -34,6 +34,7 @@ import { TemaComponent } from '../tema.component';
           <button class="btn btn-primary wide" type="submit" [disabled]="cargando">Entrar</button>
         </form>
         <p class="meta" style="margin-top:12px">¿No tenés cuenta? <a routerLink="/registro">Registrate</a></p>
+        <p class="meta"><a routerLink="/terminos">Términos</a> · <a routerLink="/privacidad">Privacidad</a></p>
       </div>
     </div>
   `
@@ -58,7 +59,7 @@ export class LoginComponent {
     this.cargando = true;
     this.api.login(this.usuario.trim(), this.clave).subscribe({
       next: (r) => {
-        this.sesion.guardarLogin(r.token, r.rol, r.nombre);
+        this.sesion.guardarLogin(r.token, r.rol, r.nombre, r.terminosVigentes);
         this.router.navigateByUrl(r.rol === 'admin' ? '/admin' : '/locales');
       },
       error: (err) => {

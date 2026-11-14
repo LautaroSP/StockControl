@@ -44,6 +44,14 @@ interface Estado {
           <a class="btn" routerLink="/productos">Publicar en Productos</a>
           <a class="btn" routerLink="/mi-tienda/imagenes">Imágenes de productos</a>
         </div>
+        @if (arrepentimientos.length > 0) {
+          <h2>Arrepentimientos</h2>
+          <ul>
+            @for (a of arrepentimientos; track a.codigo) {
+              <li><strong>{{ a.codigo }}</strong> · {{ a.nombre }} · {{ a.correo }} @if (a.mensaje) { — {{ a.mensaje }} }</li>
+            }
+          </ul>
+        }
       </section>
     }
   `,
@@ -63,6 +71,7 @@ export class TiendaResumenComponent implements OnInit {
   cargada = false;
   error = '';
   mensaje = '';
+  arrepentimientos: { codigo: string; nombre: string; correo: string; mensaje: string }[] = [];
 
   constructor(private readonly api: ApiService) {}
 
@@ -76,6 +85,9 @@ export class TiendaResumenComponent implements OnInit {
         this.publicados = r.publicados;
         this.conImagen = r.conImagen;
         this.cargada = true;
+        this.api.arrepentimientosTienda().subscribe({
+          next: (items) => { this.arrepentimientos = items; }
+        });
       },
       error: (e) => (this.error = typeof e.error === 'string' ? e.error : 'No se pudo cargar la tienda.')
     });

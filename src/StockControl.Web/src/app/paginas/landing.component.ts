@@ -204,7 +204,7 @@ const PANTALLAS = [
           <div class="contacto-publico">
             <div>
               <h2>Contacto</h2>
-              <p class="lead" style="margin-top:0">Escribinos por la prueba, el abono o el uso de la caja.</p>
+              <p class="lead" style="margin-top:0">Escribinos por la prueba, el abono o el uso de la caja. Usamos tu nombre, mail y mensaje solo para contestarte.</p>
               @if (url) {
                 <p><a [href]="url">{{ telefono }}</a></p>
               } @else {
@@ -238,14 +238,8 @@ const PANTALLAS = [
       <footer class="site-foot" id="terminos">
         <h2>Términos y condiciones</h2>
         <div class="terminos">
-          <p>StockControl es el servicio de caja y stock. Al crear la cuenta empezás una prueba gratuita de 7 días, en un local.</p>
-          <p>Durante la prueba podés cargar productos y cobrar. Pasados los 7 días, el local sigue si abonás $ 14.999 por mes.</p>
-          <p>El abono se cobra con Mercado Pago: un pago del mes o el débito automático. Ese cobro es el servicio, no las ventas del mostrador.</p>
-          <p>Las ventas del mostrador se pueden cobrar con la pasarela de Mercado Pago: un QR generado para esa venta, el Point o un QR impreso. Ese dinero entra en la cuenta del local.</p>
-          <div class="marca-mp">
-            <img class="logo-mp" src="mercadopago-claro.svg" alt="Mercado Pago" />
-          </div>
-          <p>Cada local se abona por separado. Los empleados no tienen un cargo aparte. Si el abono está vencido, ese local no puede cobrar hasta renovarlo.</p>
+          <p>StockControl es el servicio de caja y stock. La prueba dura 7 días, en un local. Después, el abono es $ 14.999 por mes.</p>
+          <p><a routerLink="/terminos">Leer los términos</a> y la <a routerLink="/privacidad">política de privacidad</a>.</p>
         </div>
         <div class="foot-row">
           <span>StockControl · Argentina</span>
@@ -253,7 +247,8 @@ const PANTALLAS = [
             <a routerLink="/registro">Registrate</a>
             <a routerLink="/login">Entrar</a>
             <a href="#contacto">Contacto</a>
-            <a href="#terminos">Términos</a>
+            <a routerLink="/terminos">Términos</a>
+            <a routerLink="/privacidad">Privacidad</a>
           </nav>
         </div>
       </footer>

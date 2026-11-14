@@ -108,9 +108,20 @@ const MAX_CONSULTAS = 40;
       @if (error()) {
         <p class="error">{{ error() }}</p>
       }
+      <section class="panel pad" style="margin-top:14px">
+        <h2>Baja del abono</h2>
+        @if (a.renueva) {
+          <p>El mes ya pagado sigue hasta el vencimiento. Después este local no se renueva solo.</p>
+          <button class="btn" type="button" (click)="darDeBaja()" [disabled]="ocupado()">Dar de baja</button>
+        } @else {
+          <p>Este local no se renueva. Un pago nuevo vuelve a activar el mes.</p>
+        }
+      </section>
       <p class="meta" style="margin-top:14px">
         ¿No tenés Mercado Pago?
         <a routerLink="/contacto">Contactá a ventas</a>
+        · <a routerLink="/terminos">Términos</a>
+        · <a routerLink="/arrepentimiento">Arrepentimiento</a>
       </p>
     }
   `
@@ -182,6 +193,19 @@ export class ActivarComponent implements OnInit, OnDestroy {
     }
     this.iniciar(this.api.activarDebito(this.mailPagador.trim()), async (url) => {
       window.location.href = url;
+    });
+  }
+
+  async darDeBaja(): Promise<void> {
+    if (!await this.dialogo.confirmar('¿Dar de baja el abono? El mes ya pagado sigue hasta el vencimiento y no se renueva solo.')) return;
+    this.ocupado.set(true);
+    this.api.darDeBajaAbono().subscribe({
+      next: () => {
+        this.ocupado.set(false);
+        this.aviso.set('El abono no se renueva.');
+        this.recargar();
+      },
+      error: (err) => this.fallo(err)
     });
   }
 

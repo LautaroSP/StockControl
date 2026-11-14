@@ -348,6 +348,7 @@ export interface AbonoDto {
   gestionLimite: string | null;
   gestionVencida: boolean;
   pagoGestionPendiente: boolean;
+  renueva: boolean;
 }
 
 export interface RegistroPedidoDto {
@@ -359,6 +360,7 @@ export interface RegistroPedidoDto {
   clave: string;
   sitio: string;
   captcha: string;
+  aceptaTerminos: boolean;
 }
 
 export interface ItemVenta {
@@ -526,18 +528,26 @@ export class ApiService {
   constructor(private readonly http: HttpClient) {}
 
   login(usuario: string, clave: string) {
-    return this.http.post<{ token: string; rol: string; nombre: string }>(
+    return this.http.post<{ token: string; rol: string; nombre: string; terminosVigentes: boolean }>(
       `${this.base}/auth/login`,
       { usuario, clave }
     );
+  }
+
+  terminosSesion() {
+    return this.http.get<{ vigente: boolean }>(`${this.base}/auth/terminos`);
+  }
+
+  aceptarTerminos() {
+    return this.http.post<{ vigente: boolean }>(`${this.base}/auth/terminos`, { acepta: true });
   }
 
   locales() {
     return this.http.get<{ totalMensual: number; precioMensual: number; items: LocalDto[] }>(`${this.base}/locales`);
   }
 
-  contratarLocal(nombre: string) {
-    return this.http.post<{ idLocal: number; nombre: string; urlPago: string }>(`${this.base}/locales/contratar`, { nombre });
+  contratarLocal(nombre: string, aceptaTerminos: boolean) {
+    return this.http.post<{ idLocal: number; nombre: string; urlPago: string }>(`${this.base}/locales/contratar`, { nombre, aceptaTerminos });
   }
 
   pagarContratacion(idLocal: number) {
@@ -649,7 +659,27 @@ export class ApiService {
   }
 
   registrar(pedido: RegistroPedidoDto) {
-    return this.http.post<{ token?: string; rol?: string; nombre?: string; pendiente?: boolean }>(`${this.base}/registro`, pedido);
+    return this.http.post<{ token?: string; rol?: string; nombre?: string; pendiente?: boolean; terminosVigentes?: boolean }>(`${this.base}/registro`, pedido);
+  }
+
+  pedirArrepentimiento(pedido: { nombre: string; correo: string; local: string; mensaje: string; sitio: string }) {
+    return this.http.post<{ codigo: string }>(`${this.base}/arrepentimiento`, pedido);
+  }
+
+  pedirArrepentimientoTienda(alias: string, pedido: { nombre: string; correo: string; mensaje: string; sitio: string }) {
+    return this.http.post<{ codigo: string }>(`${this.base}/tienda/${alias}/arrepentimiento`, pedido);
+  }
+
+  arrepentimientosAdmin() {
+    return this.http.get<{ codigo: string; nombre: string; correo: string; local: string; mensaje: string; estado: string; creado: string }[]>(`${this.base}/admin/arrepentimientos`);
+  }
+
+  arrepentimientosTienda() {
+    return this.http.get<{ codigo: string; nombre: string; correo: string; mensaje: string; estado: string; creado: string }[]>(`${this.base}/arrepentimientos-tienda`);
+  }
+
+  darDeBajaAbono() {
+    return this.http.post<{ renueva: boolean; vence: string | null }>(`${this.base}/locales/actual/abono/baja`, {});
   }
 
   confirmarCorreo(token: string) {

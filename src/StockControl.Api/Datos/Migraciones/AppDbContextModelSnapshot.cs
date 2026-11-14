@@ -1073,6 +1073,11 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasPrecision(6, 2)
                         .HasColumnType("numeric(6,2)");
 
+                    b.Property<bool>("Renueva")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("TitularTienda")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1101,6 +1106,66 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasFilter("\"IdSuscripcionMp\" IS NOT NULL");
 
                     b.ToTable("Locales", (string)null);
+                });
+
+            modelBuilder.Entity("StockControl.Dominio.Arrepentimiento", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<string>("Correo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("Creado")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("pendiente");
+
+                    b.Property<int?>("IdLocal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Local")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("Mensaje")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("IdLocal", "Estado");
+
+                    b.ToTable("Arrepentimientos", (string)null);
                 });
 
             modelBuilder.Entity("StockControl.Dominio.MensajeContacto", b =>
@@ -1955,6 +2020,9 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
 
+                    b.Property<DateTimeOffset?>("AceptoTerminosEn")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("BloqueadoHasta")
                         .HasColumnType("timestamp with time zone");
 
@@ -2000,6 +2068,13 @@ namespace StockControl.Api.Datos.Migraciones
 
                     b.Property<DateTimeOffset?>("VenceConfirmacion")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VersionTerminos")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("");
 
                     b.Property<int>("VersionSesion")
                         .ValueGeneratedOnAdd()

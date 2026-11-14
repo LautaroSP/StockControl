@@ -143,7 +143,18 @@ public static class ServicioAbono
         abono.IdPagoMp = idPagoMp;
         local.EstadoAbono = AlDia;
         local.Vence = abono.VenceNuevo;
+        local.Renueva = true;
     }
+
+    /// <summary>Deja de renovar. El mes ya pagado sigue hasta su vencimiento.</summary>
+    public static void DarDeBaja(Local local)
+    {
+        local.Renueva = false;
+        if (local.EstadoSuscripcion is DebitoActivo or DebitoPendiente or DebitoPausado)
+            local.EstadoSuscripcion = DebitoCancelado;
+    }
+
+    public static bool RenuevaConDebito(Local local) => local.Renueva;
 
     /// <summary>Primer cobro del débito: al vencer lo ya pagado, o ya si está vencido o en prueba.</summary>
     public static DateTimeOffset InicioDebito(Local local, DateTimeOffset ahora) =>

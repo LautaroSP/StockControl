@@ -219,6 +219,30 @@ public class ResetearClavePedido
 public class ContratarLocalPedido
 {
     public string Nombre { get; set; } = "";
+    public bool AceptaTerminos { get; set; }
+}
+
+public class AceptarTerminosPedido
+{
+    public bool Acepta { get; set; }
+}
+
+public class ArrepentimientoPedido
+{
+    [MaxLength(120)]
+    public string Nombre { get; set; } = "";
+
+    [MaxLength(200)]
+    public string Correo { get; set; } = "";
+
+    [MaxLength(200)]
+    public string Local { get; set; } = "";
+
+    [MaxLength(2000)]
+    public string Mensaje { get; set; } = "";
+
+    /// <summary>Campo oculto contra bots: una persona lo deja vacío.</summary>
+    public string? Sitio { get; set; }
 }
 
 public class AltaLocalAdminPedido

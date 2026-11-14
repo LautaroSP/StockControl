@@ -54,7 +54,7 @@ public static class AvisosMercadoPago
         var cobro = await mp.ObtenerCobroSuscripcion(id);
         if (cobro.EstadoPago != "approved" || cobro.IdPago == null) return;
         var local = await db.Locales.FirstOrDefaultAsync(l => l.IdSuscripcionMp == cobro.IdSuscripcion);
-        if (local == null) return;
+        if (local == null || !ServicioAbono.RenuevaConDebito(local)) return;
         if (await db.Abonos.IgnoreQueryFilters().AnyAsync(a => a.IdPagoMp == cobro.IdPago)) return;
 
         ServicioAbono.ValidarPagoMp(cobro.EstadoPago, cobro.Moneda, cobro.Importe);

@@ -12,7 +12,8 @@ public class ServicioRegistroTests
         Email = "Jorge@Kiosco.com ",
         NombreUsuario = "jorge",
         NombreLocal = "Lo de Jorge",
-        Modalidad = modalidad
+        Modalidad = modalidad,
+        AceptaTerminos = true
     };
 
     [Fact]
@@ -61,5 +62,28 @@ public class ServicioRegistroTests
     public void Registro_valido_no_da_error()
     {
         ServicioRegistro.Validar(Pedido(), "claveLarga1");
+    }
+
+    [Fact]
+    public void Registro_sin_aceptar_no_crea_cuenta()
+    {
+        var pedido = Pedido();
+        pedido.AceptaTerminos = false;
+
+        var error = Assert.Throws<ErrorNegocio>(() => ServicioRegistro.Validar(pedido, "claveLarga1"));
+
+        Assert.Contains("términos", error.Message);
+    }
+
+    [Fact]
+    public void Registro_aceptado_guarda_version_y_fecha()
+    {
+        var pedido = Pedido();
+        ServicioRegistro.Validar(pedido, "claveLarga1");
+
+        var (dueno, _) = ServicioRegistro.Armar(pedido, Ahora);
+
+        Assert.Equal(ServicioTerminos.Version, dueno.VersionTerminos);
+        Assert.Equal(Ahora, dueno.AceptoTerminosEn);
     }
 }

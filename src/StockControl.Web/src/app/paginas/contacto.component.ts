@@ -1,6 +1,7 @@
 import { Component, NgZone, OnDestroy, OnInit } from '@angular/core';
 import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ApiService } from '../servicios/api.service';
 import { montarCaptcha } from '../servicios/turnstile';
 import { TemaComponent } from '../tema.component';
@@ -8,7 +9,7 @@ import { TemaComponent } from '../tema.component';
 @Component({
   selector: 'sc-contacto',
   standalone: true,
-  imports: [FormsModule, TemaComponent],
+  imports: [FormsModule, RouterLink, TemaComponent],
   template: `
     <sc-tema />
     <div class="auth" style="padding-top:72px">
@@ -19,6 +20,7 @@ import { TemaComponent } from '../tema.component';
         </div>
         <h1>Contacto</h1>
         <p>Esta pantalla es la misma para todos los locales.</p>
+        <p class="meta">Usamos tu nombre, mail y mensaje solo para contestarte.</p>
         @if (url) {
           <p><a [href]="url">{{ telefono }}</a></p>
         } @else {
@@ -44,6 +46,7 @@ import { TemaComponent } from '../tema.component';
         } @else {
           <p class="meta">El formulario está desactivado. Escribinos por teléfono o por mail.</p>
         }
+        <p class="meta"><a routerLink="/terminos">Términos</a> · <a routerLink="/privacidad">Privacidad</a></p>
         <button class="btn wide contacto-volver" type="button" (click)="volver()">Volver</button>
       </div>
     </div>

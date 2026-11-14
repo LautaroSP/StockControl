@@ -33,6 +33,7 @@ public class AppDbContext : DbContext
     public DbSet<Abono> Abonos => Set<Abono>();
     public DbSet<Ajuste> Ajustes => Set<Ajuste>();
     public DbSet<MensajeContacto> MensajesContacto => Set<MensajeContacto>();
+    public DbSet<Arrepentimiento> Arrepentimientos => Set<Arrepentimiento>();
     public DbSet<CuentaMercadoPago> CuentasMercadoPago => Set<CuentaMercadoPago>();
     public DbSet<PuestoMercadoPago> PuestosMercadoPago => Set<PuestoMercadoPago>();
     public DbSet<CobroMercadoPago> CobrosMercadoPago => Set<CobroMercadoPago>();
@@ -81,6 +82,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.RadioEnvioKm).HasPrecision(6, 2);
             e.Property(x => x.EnvioGratisDesde).HasPrecision(14, 2);
             e.Property(x => x.EnvioGratisSiempre).HasDefaultValue(false);
+            e.Property(x => x.Renueva).HasDefaultValue(true);
             e.Property(x => x.CbuTienda).HasMaxLength(ServicioTransferenciaTienda.LargoCbu).HasDefaultValue("");
             e.Property(x => x.AliasCbuTienda).HasMaxLength(ServicioTransferenciaTienda.LargoMaximoAlias).HasDefaultValue("");
             e.Property(x => x.TitularTienda).HasMaxLength(ServicioTransferenciaTienda.LargoMaximoTitular).HasDefaultValue("");
@@ -103,6 +105,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Activo).HasDefaultValue(true);
             e.Property(x => x.IntentosFallidos).HasDefaultValue(0);
             e.Property(x => x.VersionSesion).HasDefaultValue(1);
+            e.Property(x => x.VersionTerminos).HasMaxLength(20).HasDefaultValue("");
         });
 
         model.Entity<UsuarioLocal>(e =>
@@ -331,6 +334,21 @@ public class AppDbContext : DbContext
             e.Property(x => x.Correo).HasMaxLength(200);
             e.Property(x => x.Mensaje).HasMaxLength(2000);
             e.HasIndex(x => x.Leido);
+        });
+
+        model.Entity<Arrepentimiento>(e =>
+        {
+            e.ToTable("Arrepentimientos");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Codigo).HasMaxLength(8);
+            e.HasIndex(x => x.Codigo).IsUnique();
+            e.Property(x => x.Nombre).HasMaxLength(120);
+            e.Property(x => x.Correo).HasMaxLength(200);
+            e.Property(x => x.Local).HasMaxLength(200).HasDefaultValue("");
+            e.Property(x => x.Mensaje).HasMaxLength(2000).HasDefaultValue("");
+            e.Property(x => x.Estado).HasMaxLength(20).HasDefaultValue(Arrepentimiento.Pendiente);
+            e.HasIndex(x => new { x.IdLocal, x.Estado });
         });
 
         model.Entity<CuentaMercadoPago>(e =>

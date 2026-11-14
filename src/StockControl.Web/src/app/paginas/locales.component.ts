@@ -49,6 +49,10 @@ const MAX_CONSULTAS = 40;
               Nombre de la sucursal
               <input type="text" name="nombre" [(ngModel)]="nombre" maxlength="200" required />
             </label>
+            <label class="check" style="margin:12px 0 16px">
+              <input type="checkbox" name="acepta" [(ngModel)]="aceptaTerminos" />
+              <span>Acepto los <a routerLink="/terminos" (click)="$event.stopPropagation()">términos</a> y la <a routerLink="/privacidad" (click)="$event.stopPropagation()">política de privacidad</a>.</span>
+            </label>
             <div class="row">
               <button class="btn btn-primary" type="submit" [disabled]="ocupado">Pagar con Mercado Pago</button>
               <a routerLink="/contacto">¿No tenés Mercado Pago? Contactá a ventas</a>
@@ -99,6 +103,7 @@ export class LocalesComponent implements OnInit, OnDestroy {
   error = '';
   contratando = false;
   nombre = '';
+  aceptaTerminos = false;
   ocupado = false;
   qr = '';
   urlPago = '';
@@ -133,13 +138,18 @@ export class LocalesComponent implements OnInit, OnDestroy {
       this.error = 'El nombre del local es obligatorio.';
       return;
     }
+    if (!this.aceptaTerminos) {
+      this.error = 'Tenés que aceptar los términos y la política de privacidad.';
+      return;
+    }
     this.error = '';
     this.ocupado = true;
-    this.api.contratarLocal(nombre).subscribe({
+    this.api.contratarLocal(nombre, this.aceptaTerminos).subscribe({
       next: (r) => {
         this.ocupado = false;
         this.contratando = false;
         this.nombre = '';
+        this.aceptaTerminos = false;
         void this.mostrarPago(r.idLocal, r.nombre, r.urlPago);
         this.cargar();
       },

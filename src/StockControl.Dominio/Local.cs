@@ -25,6 +25,8 @@ public class Local
     /// <summary>Subtotal de productos desde el cual el envío sale gratis.</summary>
     public decimal? EnvioGratisDesde { get; set; }
     public bool EnvioGratisSiempre { get; set; }
+    /// <summary>Si es falso, el débito no suma otro mes. Un pago nuevo lo vuelve a prender.</summary>
+    public bool Renueva { get; set; } = true;
     /// <summary>Lo marca el admin: los pedidos de la tienda no pagan gestión.</summary>
     public bool ExentoGestion { get; set; }
     /// <summary>Lo elige el dueño: la gestión se suma al total del comprador o sale de lo que cobra el local.</summary>

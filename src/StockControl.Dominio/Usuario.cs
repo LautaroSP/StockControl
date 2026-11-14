@@ -15,4 +15,6 @@ public class Usuario
     public string Rol { get; set; } = Roles.Empleado;
     public bool Activo { get; set; } = true;
     public int VersionSesion { get; set; } = 1;
+    public string VersionTerminos { get; set; } = "";
+    public DateTimeOffset? AceptoTerminosEn { get; set; }
 }

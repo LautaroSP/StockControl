@@ -4,6 +4,7 @@ import { ApiService, PedidoTiendaDto } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { TemaComponent } from '../tema.component';
 import { NoEncontradaComponent } from './no-encontrada.component';
+import { PieTiendaComponent } from '../pie-tienda.component';
 
 /** El público tiene tope de 60 consultas por minuto por IP. */
 const CONSULTA_PAGO_MS = 5000;
@@ -21,7 +22,7 @@ const ESTADOS: Record<PedidoTiendaDto['estado'], string> = {
 @Component({
   selector: 'sc-pedido-tienda',
   standalone: true,
-  imports: [RouterLink, TemaComponent, NoEncontradaComponent],
+  imports: [RouterLink, TemaComponent, NoEncontradaComponent, PieTiendaComponent],
   template: `
     @if (noEncontrado) {
       <sc-no-encontrada />
@@ -111,6 +112,7 @@ const ESTADOS: Record<PedidoTiendaDto['estado'], string> = {
             }
           </div>
         </section>
+        <sc-pie-tienda [alias]="alias" [nombre]="p.local.nombre" [direccion]="p.local.direccion" [horario]="p.local.horario" />
       </div>
     }
     @if (!pedido && error) { <p class="error pad">{{ error }}</p> }

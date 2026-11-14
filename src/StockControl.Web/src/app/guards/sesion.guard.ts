@@ -1,6 +1,25 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { ApiService } from '../servicios/api.service';
 import { SesionService } from '../servicios/sesion.service';
+
+export const terminosGuard: CanActivateFn = async () => {
+  const sesion = inject(SesionService);
+  const api = inject(ApiService);
+  const router = inject(Router);
+  if (!sesion.hayToken()) return router.parseUrl('/login');
+  if (sesion.rol() !== 'dueno' && sesion.rol() !== 'socio') return true;
+  if (sesion.terminosVigentes() === true) return true;
+  if (sesion.terminosVigentes() === false) return router.parseUrl('/aceptar');
+  try {
+    const r = await firstValueFrom(api.terminosSesion());
+    sesion.terminosVigentes.set(r.vigente);
+    return r.vigente ? true : router.parseUrl('/aceptar');
+  } catch {
+    return router.parseUrl('/login');
+  }
+};
 
 export const sesionGuard: CanActivateFn = () => {
   const sesion = inject(SesionService);

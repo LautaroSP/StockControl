@@ -107,11 +107,33 @@ import { GestionTiendaAdminComponent } from './gestion-tienda-admin.component';
           <button class="btn" type="button" [class.btn-primary]="vista === 'usuarios'" (click)="vista = 'usuarios'">Usuarios</button>
           <button class="btn" type="button" [class.btn-primary]="vista === 'locales'" (click)="vista = 'locales'">Locales</button>
           <button class="btn" type="button" [class.btn-primary]="vista === 'contacto'" (click)="verContacto()">Contacto</button>
+          <button class="btn" type="button" [class.btn-primary]="vista === 'arrepentimiento'" (click)="verArrepentimiento()">Arrepentimiento</button>
           <button class="btn" type="button" [class.btn-primary]="vista === 'gestion'" (click)="vista = 'gestion'">Gestión tienda</button>
         </div>
 
         @if (vista === 'gestion') {
           <sc-gestion-tienda-admin />
+        }
+
+        @if (vista === 'arrepentimiento') {
+          <section class="panel pad" style="margin-bottom:16px">
+            <strong>Pedidos de arrepentimiento del abono</strong>
+            <p class="meta">Quedan pendientes. El reintegro lo hacés vos.</p>
+            @if (arrepentimientos.length === 0) {
+              <p class="meta">No hay pedidos.</p>
+            } @else {
+              <ul>
+                @for (a of arrepentimientos; track a.codigo) {
+                  <li>
+                    <strong>{{ a.codigo }}</strong> · {{ a.nombre }} · {{ a.correo }}
+                    @if (a.local) { · {{ a.local }} }
+                    <span class="meta"> · {{ a.creado | date: 'dd/MM HH:mm' }} · {{ a.estado }}</span>
+                    @if (a.mensaje) { <p>{{ a.mensaje }}</p> }
+                  </li>
+                }
+              </ul>
+            }
+          </section>
         }
 
         @if (vista === 'contacto') {
@@ -319,7 +341,8 @@ import { GestionTiendaAdminComponent } from './gestion-tienda-admin.component';
 export class AdminComponent implements OnInit {
   usuarios: UsuarioAdminDto[] = [];
   locales: LocalPlataformaDto[] = [];
-  vista: 'usuarios' | 'locales' | 'contacto' | 'gestion' = 'usuarios';
+  vista: 'usuarios' | 'locales' | 'contacto' | 'gestion' | 'arrepentimiento' = 'usuarios';
+  arrepentimientos: { codigo: string; nombre: string; correo: string; local: string; mensaje: string; estado: string; creado: string }[] = [];
   mensajes: MensajeContactoDto[] = [];
   formularioActivo = true;
   totalMes = 0;
@@ -533,6 +556,18 @@ export class AdminComponent implements OnInit {
   verContacto(): void {
     this.vista = 'contacto';
     this.cargarMensajes();
+  }
+
+  verArrepentimiento(): void {
+    this.vista = 'arrepentimiento';
+    this.ocupado = true;
+    this.api.arrepentimientosAdmin().subscribe({
+      next: (items) => {
+        this.arrepentimientos = items;
+        this.ocupado = false;
+      },
+      error: (err) => this.fallo(err)
+    });
   }
 
   marcarLeido(mensaje: MensajeContactoDto): void {

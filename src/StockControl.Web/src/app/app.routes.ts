@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { adminGuard, cajaGuard, duenoGuard, localGuard, proveedoresGuard, sesionGuard, tiendaGuard } from './guards/sesion.guard';
+import { adminGuard, cajaGuard, duenoGuard, localGuard, proveedoresGuard, sesionGuard, terminosGuard, tiendaGuard } from './guards/sesion.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', loadComponent: () => import('./paginas/landing.component').then((m) => m.LandingComponent) },
@@ -7,17 +7,23 @@ export const routes: Routes = [
   { path: 'registro', loadComponent: () => import('./paginas/registro.component').then((m) => m.RegistroComponent) },
   { path: 'confirmar', loadComponent: () => import('./paginas/confirmar.component').then((m) => m.ConfirmarComponent) },
   { path: 'contacto', loadComponent: () => import('./paginas/contacto.component').then(m => m.ContactoComponent) },
+  { path: 'terminos', loadComponent: () => import('./paginas/terminos.component').then(m => m.TerminosComponent) },
+  { path: 'privacidad', loadComponent: () => import('./paginas/privacidad.component').then(m => m.PrivacidadComponent) },
+  { path: 'arrepentimiento', loadComponent: () => import('./paginas/arrepentimiento.component').then(m => m.ArrepentimientoComponent) },
+  { path: 'aceptar', loadComponent: () => import('./paginas/aceptar-terminos.component').then(m => m.AceptarTerminosComponent), canActivate: [sesionGuard] },
   { path: 'admin', loadComponent: () => import('./paginas/admin.component').then(m => m.AdminComponent), canActivate: [adminGuard] },
   { path: 'vista-cliente', loadComponent: () => import('./paginas/vista-cliente.component').then((m) => m.VistaClienteComponent) },
   { path: 'tienda/:alias', loadComponent: () => import('./paginas/tienda.component').then((m) => m.TiendaComponent) },
   { path: 'tienda/:alias/carrito', loadComponent: () => import('./paginas/carrito-tienda.component').then((m) => m.CarritoTiendaComponent) },
   { path: 'tienda/:alias/pedido/:codigo', loadComponent: () => import('./paginas/pedido-tienda.component').then((m) => m.PedidoTiendaComponent) },
-  { path: 'locales', loadComponent: () => import('./paginas/locales.component').then((m) => m.LocalesComponent), canActivate: [sesionGuard] },
-  { path: 'elegir-caja', loadComponent: () => import('./paginas/elegir-caja.component').then((m) => m.ElegirCajaComponent), canActivate: [localGuard] },
+  { path: 'tienda/:alias/terminos', loadComponent: () => import('./paginas/terminos-tienda.component').then((m) => m.TerminosTiendaComponent) },
+  { path: 'tienda/:alias/arrepentimiento', loadComponent: () => import('./paginas/arrepentimiento-tienda.component').then((m) => m.ArrepentimientoTiendaComponent) },
+  { path: 'locales', loadComponent: () => import('./paginas/locales.component').then((m) => m.LocalesComponent), canActivate: [sesionGuard, terminosGuard] },
+  { path: 'elegir-caja', loadComponent: () => import('./paginas/elegir-caja.component').then((m) => m.ElegirCajaComponent), canActivate: [localGuard, terminosGuard] },
   {
     path: '',
     loadComponent: () => import('./shell/shell.component').then((m) => m.ShellComponent),
-    canActivate: [cajaGuard],
+    canActivate: [cajaGuard, terminosGuard],
     children: [
       { path: 'caja', loadComponent: () => import('./paginas/caja.component').then((m) => m.CajaComponent) },
       { path: 'productos', loadComponent: () => import('./paginas/productos.component').then((m) => m.ProductosComponent) },

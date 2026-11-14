@@ -413,6 +413,13 @@ table.data tr.clickable { cursor: pointer; }
   max-width: 380px;
   padding: 28px;
 }
+.legal {
+  width: min(720px, 100%);
+  padding: 28px;
+}
+.legal h1 { margin: 0 0 6px; font-size: 22px; }
+.legal p, .legal li { line-height: 1.5; }
+.legal ul { margin: 8px 0 16px; padding-left: 18px; }
 .auth-card h1 { margin: 0 0 6px; font-size: 22px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; font-size: 13px; }
 .field label { color: var(--ink-soft); }
@@ -976,6 +983,14 @@ html.tema-suave .reel-track {
 }
 
 .tienda { min-height: 100vh; background: var(--paper); padding: 0 6vw 40px; }
+.tienda-pie {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.tienda-pie p { margin: 0 0 6px; }
 .tienda-cabecera {
   display: flex;
   justify-content: space-between;

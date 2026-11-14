@@ -6,11 +6,12 @@ import { CarritoTiendaService, MAXIMO_POR_PRODUCTO } from '../servicios/carrito-
 import { MapaComponent, Ubicacion } from '../mapa.component';
 import { TemaComponent } from '../tema.component';
 import { NoEncontradaComponent } from './no-encontrada.component';
+import { PieTiendaComponent } from '../pie-tienda.component';
 
 @Component({
   selector: 'sc-carrito-tienda',
   standalone: true,
-  imports: [FormsModule, RouterLink, TemaComponent, NoEncontradaComponent, MapaComponent],
+  imports: [FormsModule, RouterLink, TemaComponent, NoEncontradaComponent, MapaComponent, PieTiendaComponent],
   template: `
     @if (noEncontrada) {
       <sc-no-encontrada />
@@ -149,6 +150,7 @@ import { NoEncontradaComponent } from './no-encontrada.component';
             </form>
           }
         }
+        <sc-pie-tienda [alias]="alias" [nombre]="t.nombre" [direccion]="t.direccion" [horario]="t.horario" />
       </div>
     }
   `,

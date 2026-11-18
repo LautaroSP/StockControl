@@ -45,6 +45,19 @@ public sealed partial class AlmacenImagenes
         return nombre;
     }
 
+    public string? RutaPropia(int idLocal, string? archivo)
+    {
+        if (archivo == null || !FormatoNombre().IsMatch(archivo)) return null;
+        var ruta = RutaDe(Path.Combine(CarpetaPropias, idLocal.ToString()), archivo);
+        return File.Exists(ruta) ? ruta : null;
+    }
+
+    public void BorrarPropia(int idLocal, string? archivo)
+    {
+        var ruta = RutaPropia(idLocal, archivo);
+        if (ruta != null) File.Delete(ruta);
+    }
+
     /// <summary>Null si el nombre no tiene el formato que genera el servidor (nada de rutas ajenas).</summary>
     public string? Ruta(ImagenProducto imagen)
     {

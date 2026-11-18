@@ -17,6 +17,7 @@ export interface LineaCarritoPendiente {
   costo: number;
   sector: boolean;
   generico: boolean;
+  porKilo?: boolean;
   precioAnterior?: number | null;
 }
 

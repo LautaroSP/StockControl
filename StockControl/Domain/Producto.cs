@@ -16,6 +16,7 @@ namespace StockControl.Domain
         public decimal Precio { get; set; }
         public int ProductoSector { get; set; } 
         public string Sector { get; set; }
+        public decimal PrecioPorKilo { get; set; }
         public int GananciaIndividual { get; set; }
         public decimal ValorGanancia { get; set; }
         public int IdGrupoProducto { get; set; }

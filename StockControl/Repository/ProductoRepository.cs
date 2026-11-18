@@ -15,8 +15,8 @@ namespace StockControl.Repository
         public void Insertar(Producto p)
         {
             using var con = GetConnection();
-            con.Execute(@"INSERT INTO Productos (Codigo, Nombre, Cantidad, Costo, Precio, ProductoSector, GananciaIndividual, ValorGanancia, IdGrupoProducto, FechaModificacion) 
-                      VALUES (@Codigo, @Nombre, @Cantidad, @Costo, @Precio, @ProductoSector, @GananciaIndividual, @ValorGanancia, @IdGrupoProducto, @fechaModificacion)",  p );
+            con.Execute(@"INSERT INTO Productos (Codigo, Nombre, Cantidad, Costo, Precio, ProductoSector, PrecioPorKilo, GananciaIndividual, ValorGanancia, IdGrupoProducto, FechaModificacion) 
+                      VALUES (@Codigo, @Nombre, @Cantidad, @Costo, @Precio, @ProductoSector, @PrecioPorKilo, @GananciaIndividual, @ValorGanancia, @IdGrupoProducto, @fechaModificacion)",  p );
         }
 
         public List<Producto> Listar()
@@ -36,7 +36,8 @@ namespace StockControl.Repository
             using var con = GetConnection();
             con.Execute(@"UPDATE Productos 
                       SET Codigo=@Codigo, Nombre=@Nombre, Cantidad=@Cantidad, 
-                          Costo=@Costo, Precio=@Precio, GananciaIndividual = @GananciaIndividual, ValorGanancia = @ValorGanancia,
+                          Costo=@Costo, Precio=@Precio, PrecioPorKilo=@PrecioPorKilo,
+                          GananciaIndividual = @GananciaIndividual, ValorGanancia = @ValorGanancia,
                             IdGrupoProducto = @IdGrupoProducto, FechaModificacion = @fechaModificacion
                       WHERE Id=@Id", p);
         }

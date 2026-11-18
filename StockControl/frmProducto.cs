@@ -60,6 +60,8 @@ namespace StockControl
             chkGananciaProd.Checked = _prod.GananciaIndividual == 1;
             if (_prod.GananciaIndividual == 1)
                 txtGanancia.Text = _prod.ValorGanancia.ToString();
+            MostrarPrecioPorKilo(true);
+            txtPrecioPorKilo.Text = _prod.PrecioPorKilo > 0 ? _prod.PrecioPorKilo.ToString("0.##") : string.Empty;
             if (_prod.IdGrupoProducto != 0)
             {
                 lblGrupoSel.Text = _prod.NombreGrupo;
@@ -204,6 +206,16 @@ namespace StockControl
             }
 
             _prod.ProductoSector = chkSector.Checked ? 1 : 0;
+            if (string.IsNullOrWhiteSpace(txtPrecioPorKilo.Text))
+                _prod.PrecioPorKilo = 0;
+            else if (TryParseDecimal(txtPrecioPorKilo.Text, out decimal precioKilo))
+                _prod.PrecioPorKilo = Math.Round(precioKilo, 2);
+            else
+            {
+                MessageBox.Show("El precio por kilo debe ser un número decimal", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+
             _prod.fechaModificacion = DateTime.Now;
             return true;
 
@@ -310,6 +322,14 @@ namespace StockControl
 
                 btnBuscarGrupo.Enabled = true;
             }
+            MostrarPrecioPorKilo(true);
+        }
+
+        private void MostrarPrecioPorKilo(bool visible)
+        {
+            lblPrecioPorKilo.Visible = visible;
+            txtPrecioPorKilo.Visible = visible;
+            txtPrecioPorKilo.Enabled = visible;
         }
 
         private void txtIVA_TextChanged(object sender, EventArgs e)

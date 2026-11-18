@@ -6,26 +6,27 @@
 
 ## Qué
 
-En Tienda › Configuración el dueño elige el color de marca de la tienda pública. Vacío es la paleta de StockControl. Con un color propio, el catálogo, el carrito y el pedido lo usan en claro y no ofrecen modo oscuro.
+En Tienda › Configuración el dueño elige el fondo de la página y el color de los botones. Vacío es la paleta de StockControl. La vista previa usa un producto publicado (foto, nombre, precio, stock y botón) y la ficha sigue clara. El catálogo, el carrito y el pedido siguen con el interruptor: en claro usan esos colores; en oscuro, la paleta oscura de StockControl.
 
-No es un editor de toda la hoja de estilos. Fondo, texto y avisos siguen el claro de StockControl. Cambia el acento: botones primarios, chips activos, enlaces y precio.
+No es un editor de toda la hoja de estilos. El fondo cambia la página. La ficha cambia la carta del producto y el texto de esa carta contrasta con ella. Los botones (también + y −), los chips activos, los enlaces y el precio usan el otro color.
 
 ## Reglas
 
 - El color es `#` y seis hexadecimales. Vacío vuelve a la paleta de StockControl.
-- Si el texto blanco del botón no se lee sobre ese color, se rechaza.
-- Con paleta propia, el catálogo, el carrito y el pedido salen siempre en claro y no muestran el interruptor. No se pisa lo que el visitante guardó para la caja.
-- Sin paleta propia, el interruptor del comprador sigue como en la 23.
+- El botón se rechaza si el texto blanco no se lee encima.
+- El fondo se rechaza si no se lee ni con texto claro ni con texto oscuro. Si el fondo es oscuro, el título, la paginación y el pie van en blanco. Las fichas siguen claras.
+- El interruptor de modo oscuro sigue en el catálogo, el carrito y el pedido. En claro se ven el fondo y los botones del local. En oscuro, la paleta oscura de StockControl.
+- El interruptor guarda la preferencia, igual que en la caja.
 - El QR de la 53 no usa este color: el afiche sigue verde, con StockControl.
 - La caja, el panel, la landing y el admin no cambian.
 - Dueño y socio. El empleado no la configura.
 
 ## Criterios de aceptación
 
-- [ ] En Tienda › Configuración se elige el color, o se deja vacío para la paleta de StockControl.
-- [ ] Un color inválido o ilegible sobre el botón se rechaza.
-- [ ] Catálogo, carrito y pedido usan ese acento. El fondo y el texto siguen el claro de StockControl.
-- [ ] Con paleta propia no hay modo oscuro en esas pantallas, y no se borra la preferencia del navegador.
+- [ ] En Tienda › Configuración se eligen fondo y botones, con vista previa, o se dejan vacíos para la paleta de StockControl.
+- [x] Un color inválido o ilegible sobre el botón se rechaza. Un fondo que no se lee tampoco.
+- [ ] Catálogo, carrito y pedido usan el fondo y los botones. Las fichas de producto siguen claras.
+- [ ] Con paleta propia, el modo claro usa esos colores y el modo oscuro usa la paleta oscura de StockControl.
 - [ ] Sin paleta propia, el modo oscuro del comprador sigue.
-- [ ] El afiche del QR sigue verde.
-- [ ] Test del dominio: vacío, hex válido, hex inválido y color ilegible.
+- [x] El afiche del QR sigue verde.
+- [x] Test del dominio: vacío, hex válido, hex inválido y color ilegible.

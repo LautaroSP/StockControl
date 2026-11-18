@@ -39,7 +39,7 @@ public static class ServicioCobro
     private static LineaVenta ArmarLinea(ItemCarrito item, Producto? producto, PedidoCobro pedido)
     {
         decimal? costo = producto?.Costo;
-        var precioLibre = producto == null || producto.ProductoSector || producto.EsGenerico;
+        var precioLibre = producto == null || producto.ProductoSector || producto.EsGenerico || item.PorKilo;
         var oferta = precioLibre ? null : ServicioOfertas.Aplicable(pedido, producto!.Id);
         var precioOferta = ServicioOfertas.PrecioUnitarioConOferta(oferta, producto?.Precio ?? 0, item.Cantidad);
         var costoOferta = pedido.CobrarAlCosto ? ServicioOfertas.PrecioConOferta(oferta, costo ?? 0) : costo ?? 0;

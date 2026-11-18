@@ -55,6 +55,12 @@ Se paga **$ 14.999 / mes por local** (Argentina). El dueño **no** da de alta lo
 | 39 | [Tienda: transferencia](39-tienda-transferencia.md) | comprador, dueño |
 | 51 | [Tienda: gestión fuera de MP](51-tienda-gestion-fuera-mp.md) | dueño, comprador, admin — monto en pesos (inicial $ 1.000) por pedido en transferencia o efectivo, suma al abono |
 | 40 | [Tienda: envío por km](40-tienda-envio-km.md) | comprador, dueño |
+| 55 | [Tienda: pedido mínimo](55-tienda-pedido-minimo.md) | dueño, comprador — importe mínimo del pedido online, puede ser 0 |
+| 56 | [Tiendas: cerca tuyo](56-tiendas-cerca.md) | comprador, dueño — home pública `/tiendas` con mapa |
+| 57 | [Tiendas: buscar producto](57-tiendas-buscar-producto.md) | comprador — tienda · producto · precio entre tiendas cercanas |
+| 58 | [Tiendas: logo en el mapa](58-tiendas-logo-en-mapa.md) | comprador, dueño — logo del local en un círculo en el mapa |
+| 59 | [Modo balanza](59-modo-balanza.md) | empleado, dueño — en la caja, el peso por el precio por kilo entra al carrito |
+| 60 | [Modo balanza (escritorio)](60-modo-balanza-escritorio.md) | caja de escritorio — el mismo modo, por puerto serie |
 | 30 | [Mantenimiento y 404](30-mantenimiento-y-404.md) | visitante — Caddy si la API no responde; 404 de ruta en Angular |
 | 31 | [Iconos](31-iconos.md) | dueño, empleado — barra y Configuración; Mercado Pago con check |
 | 32 | [Teclado de la caja](32-teclado-caja.md) | empleado, dueño — foco en el lector y cobro con teclado |

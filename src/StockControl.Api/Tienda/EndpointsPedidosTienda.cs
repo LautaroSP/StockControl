@@ -166,7 +166,7 @@ public static class EndpointsPedidosTienda
             {
                 nombre = l.Nombre, cantidad = l.Cantidad, precioUnitario = l.PrecioUnitario, subTotal = l.SubTotal
             }),
-            local = new { nombre = local.Nombre, direccion = local.Direccion, horario = local.Horario, whatsApp = local.WhatsApp }
+            local = new { nombre = local.Nombre, direccion = local.Direccion, horario = local.Horario, whatsApp = local.WhatsApp, colorMarca = local.ColorMarca, colorFondo = local.ColorFondo, colorFicha = local.ColorFicha, logo = local.LogoTienda, textoClaro = ServicioPaletaTienda.TextoClaro(local.ColorFondo), textoClaroFicha = ServicioPaletaTienda.TextoClaro(local.ColorFicha) }
         });
     }
 

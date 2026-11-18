@@ -9,6 +9,6 @@
         public decimal Subtotal => Cantidad * Precio;
 
         public int IdProducto { get; set; }
-
+        public bool PorKilo { get; set; }
     }
 }

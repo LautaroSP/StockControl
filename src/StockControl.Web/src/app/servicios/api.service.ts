@@ -11,6 +11,7 @@ export interface ProductoDto {
   costo: number;
   precio: number;
   productoSector: boolean;
+  precioPorKilo?: number;
   idGrupoProducto?: number;
   nombreGrupo?: string | null;
   /** Categoría propia. Al guardar: 0 la saca, sin valor no la toca. */
@@ -49,6 +50,12 @@ export interface ConfiguracionTiendaDto {
   titular: string;
   /** Null: la transferencia no vence. */
   plazoTransferenciaHoras: number | null;
+  /** Vacío: botones verdes de StockControl. */
+  colorMarca: string | null;
+  /** Vacío: fondo crema de StockControl. */
+  colorFondo: string | null;
+  /** Vacío: la ficha de producto queda clara. */
+  colorFicha: string | null;
 }
 
 export interface LugarEncontradoDto {
@@ -60,6 +67,12 @@ export interface LugarEncontradoDto {
 export interface TiendaPublicaDto {
   alias: string;
   nombre: string;
+  colorMarca: string | null;
+  colorFondo: string | null;
+  colorFicha: string | null;
+  logo: string | null;
+  textoClaro: boolean;
+  textoClaroFicha: boolean;
   vista: VistaTienda;
   horario: string;
   direccion: string;
@@ -223,7 +236,7 @@ export interface PedidoTiendaDto {
   /** Solo mientras el local no confirmó la transferencia. */
   transferencia: { cbu: string; alias: string; titular: string } | null;
   lineas: { nombre: string; cantidad: number; precioUnitario: number; subTotal: number }[];
-  local: { nombre: string; direccion: string; horario: string; whatsApp: string };
+  local: { nombre: string; direccion: string; horario: string; whatsApp: string; colorMarca: string | null; colorFondo: string | null; colorFicha: string | null; logo: string | null; textoClaro: boolean; textoClaroFicha: boolean };
 }
 
 export interface ImagenProductoDto {
@@ -369,6 +382,7 @@ export interface ItemVenta {
   nombre: string;
   cantidad: number;
   precioUnitario: number;
+  porKilo?: boolean;
 }
 
 export interface ConfiguracionLocalDto {
@@ -500,6 +514,7 @@ export interface LineaPedidoCargadaDto {
   costo: number;
   sector: boolean;
   generico: boolean;
+  porKilo?: boolean;
   precioAnterior: number | null;
 }
 
@@ -1069,7 +1084,19 @@ export class ApiService {
   }
 
   configuracionTienda() {
-    return this.http.get<ConfiguracionTiendaDto & { vista: VistaTienda | null; motivoCierre: 'abono' | 'gestion' | null; publicados: number; conImagen: number; mercadoPago: boolean; gestion: number }>(`${this.base}/configuracion/tienda`);
+    return this.http.get<ConfiguracionTiendaDto & { vista: VistaTienda | null; motivoCierre: 'abono' | 'gestion' | null; publicados: number; conImagen: number; mercadoPago: boolean; gestion: number; logo: string | null }>(`${this.base}/configuracion/tienda`);
+  }
+
+  subirLogoTienda(imagen: string) {
+    return this.http.put<{ logo: string }>(`${this.base}/configuracion/tienda/logo`, { imagen });
+  }
+
+  quitarLogoTienda() {
+    return this.http.delete<void>(`${this.base}/configuracion/tienda/logo`);
+  }
+
+  urlLogoTienda(alias: string, logo: string): string {
+    return `${this.base}/tienda/${encodeURIComponent(alias)}/logo?v=${encodeURIComponent(logo)}`;
   }
 
   guardarConfiguracionTienda(tienda: ConfiguracionTiendaDto) {

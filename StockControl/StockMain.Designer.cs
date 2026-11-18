@@ -46,6 +46,7 @@ namespace StockControl
             txtTotal = new Label();
             lblTotal = new Label();
             btnVistaCliente = new Button();
+            btnModoBalanza = new Button();
             dataGridView2 = new DataGridView();
             brnCancelar = new Button();
             btnCobrar = new Button();
@@ -97,6 +98,7 @@ namespace StockControl
             groupBox1.Controls.Add(txtTotal);
             groupBox1.Controls.Add(lblTotal);
             groupBox1.Controls.Add(btnVistaCliente);
+            groupBox1.Controls.Add(btnModoBalanza);
             groupBox1.Controls.Add(dataGridView2);
             groupBox1.Controls.Add(brnCancelar);
             groupBox1.Controls.Add(btnCobrar);
@@ -273,14 +275,26 @@ namespace StockControl
             btnVistaCliente.UseVisualStyleBackColor = true;
             btnVistaCliente.Click += btnVistaCliente_Click;
             // 
+            // btnModoBalanza
+            // 
+            btnModoBalanza.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            btnModoBalanza.Location = new Point(20, 54);
+            btnModoBalanza.Name = "btnModoBalanza";
+            btnModoBalanza.Size = new Size(341, 28);
+            btnModoBalanza.TabIndex = 23;
+            btnModoBalanza.TabStop = false;
+            btnModoBalanza.Text = "Modo balanza";
+            btnModoBalanza.UseVisualStyleBackColor = true;
+            btnModoBalanza.Click += btnModoBalanza_Click;
+            // 
             // dataGridView2
             // 
             dataGridView2.AllowUserToAddRows = false;
             dataGridView2.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dataGridView2.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView2.Location = new Point(20, 54);
+            dataGridView2.Location = new Point(20, 86);
             dataGridView2.Name = "dataGridView2";
-            dataGridView2.Size = new Size(341, 404);
+            dataGridView2.Size = new Size(341, 372);
             dataGridView2.TabIndex = 5;
             dataGridView2.CellBeginEdit += dataGridViewProductos_CellBeginEdit;
             dataGridView2.CellMouseDoubleClick += dataGridView2_CellMouseDoubleClick;
@@ -548,5 +562,6 @@ namespace StockControl
         private Button btnAgregarCarrito;
         private Button btnCerrarCarrito;
         private Button btnVistaCliente;
+        private Button btnModoBalanza;
     }
 }

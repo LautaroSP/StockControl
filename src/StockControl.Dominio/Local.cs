@@ -10,6 +10,14 @@ public class Local
     public string? IdSuscripcionMp { get; set; }
     public string EstadoSuscripcion { get; set; } = "";
     public string? AliasTienda { get; set; }
+    /// <summary>Botones, chips, enlaces y precio de la tienda. Null: verde de StockControl.</summary>
+    public string? ColorMarca { get; set; }
+    /// <summary>Fondo de la página de la tienda. Null: crema de StockControl.</summary>
+    public string? ColorFondo { get; set; }
+    /// <summary>Fondo de la ficha de producto. Null: crema clara. El texto de la ficha contrasta con este color.</summary>
+    public string? ColorFicha { get; set; }
+    /// <summary>Archivo del logo, ya achicado. Null: la ficha de datos no muestra logo.</summary>
+    public string? LogoTienda { get; set; }
     public string EstadoTienda { get; set; } = ServicioTienda.Inactiva;
     public string Direccion { get; set; } = "";
     public string Horario { get; set; } = "";

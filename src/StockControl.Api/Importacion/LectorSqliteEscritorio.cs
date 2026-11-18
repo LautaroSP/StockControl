@@ -57,9 +57,14 @@ public static class LectorSqliteEscritorio
     private static List<Producto> LeerProductos(SqliteConnection con)
     {
         using var cmd = con.CreateCommand();
-        cmd.CommandText = @"SELECT Id, Codigo, Nombre, Cantidad, IFNULL(Costo,0), Precio,
-            IFNULL(ProductoSector,0), IFNULL(IdGrupoProducto,0), IFNULL(GananciaIndividual,0),
-            IFNULL(ValorGanancia,0), FechaModificacion FROM Productos";
+        var tienePrecioPorKilo = TieneColumna(con, "Productos", "PrecioPorKilo");
+        cmd.CommandText = tienePrecioPorKilo
+            ? @"SELECT Id, Codigo, Nombre, Cantidad, IFNULL(Costo,0), Precio,
+                IFNULL(ProductoSector,0), IFNULL(IdGrupoProducto,0), IFNULL(GananciaIndividual,0),
+                IFNULL(ValorGanancia,0), FechaModificacion, IFNULL(PrecioPorKilo,0) FROM Productos"
+            : @"SELECT Id, Codigo, Nombre, Cantidad, IFNULL(Costo,0), Precio,
+                IFNULL(ProductoSector,0), IFNULL(IdGrupoProducto,0), IFNULL(GananciaIndividual,0),
+                IFNULL(ValorGanancia,0), FechaModificacion, 0 FROM Productos";
         using var r = cmd.ExecuteReader();
         var list = new List<Producto>();
         while (r.Read())
@@ -76,7 +81,8 @@ public static class LectorSqliteEscritorio
                 IdGrupoProducto = Convert.ToInt32(r.GetValue(7)),
                 GananciaIndividual = Convert.ToInt32(r.GetValue(8)) == 1,
                 ValorGanancia = Convert.ToDecimal(r.GetValue(9)),
-                FechaModificacion = ParseFecha(r.IsDBNull(10) ? null : r.GetValue(10)?.ToString())
+                FechaModificacion = ParseFecha(r.IsDBNull(10) ? null : r.GetValue(10)?.ToString()),
+                PrecioPorKilo = Convert.ToDecimal(r.GetValue(11))
             });
         }
         return list;
@@ -214,6 +220,19 @@ public static class LectorSqliteEscritorio
         {
             return [];
         }
+    }
+
+    private static bool TieneColumna(SqliteConnection con, string tabla, string columna)
+    {
+        using var cmd = con.CreateCommand();
+        cmd.CommandText = $"PRAGMA table_info({tabla})";
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+        {
+            if (string.Equals(r.GetString(1), columna, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 
     private static DateTimeOffset? ParseFecha(string? raw)

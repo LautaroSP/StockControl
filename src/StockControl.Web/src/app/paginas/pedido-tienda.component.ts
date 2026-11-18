@@ -3,6 +3,8 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService, PedidoTiendaDto } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { TemaComponent } from '../tema.component';
+import { TemaService } from '../servicios/tema.service';
+import { colorSiClaro, tintaDe } from '../servicios/paleta';
 import { NoEncontradaComponent } from './no-encontrada.component';
 import { PieTiendaComponent } from '../pie-tienda.component';
 
@@ -28,7 +30,7 @@ const ESTADOS: Record<PedidoTiendaDto['estado'], string> = {
       <sc-no-encontrada />
     }
     @if (pedido; as p) {
-      <div class="tienda">
+      <div class="tienda" [class.tienda-marca]="!!propio(p.local.colorMarca)" [class.tienda-fondo]="!!propio(p.local.colorFondo)" [style.--acento]="propio(p.local.colorMarca)" [style.--fondo]="propio(p.local.colorFondo)" [style.--tinta]="propio(p.local.colorFondo) ? tinta(p.local) : null">
         <header class="tienda-cabecera">
           <h1>{{ p.local.nombre }}</h1>
           <sc-tema [fijo]="false" />
@@ -129,6 +131,11 @@ export class PedidoTiendaComponent implements OnInit, OnDestroy {
   copiado = '';
   error = '';
   alias = '';
+  readonly tinta = tintaDe;
+
+  propio(color: string | null): string | null {
+    return colorSiClaro(this.tema.tema(), color);
+  }
   private codigo = '';
   private reintento?: ReturnType<typeof setTimeout>;
   private readonly tituloAnterior = document.title;
@@ -136,7 +143,8 @@ export class PedidoTiendaComponent implements OnInit, OnDestroy {
   constructor(
     private readonly ruta: ActivatedRoute,
     private readonly api: ApiService,
-    private readonly dialogo: DialogoService
+    private readonly dialogo: DialogoService,
+    readonly tema: TemaService
   ) {}
 
   ngOnInit(): void {

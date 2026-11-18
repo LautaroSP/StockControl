@@ -325,6 +325,14 @@ namespace StockControl.Infrastructure
             catch (SqliteException)
             {
             }
+            try
+            {
+                cmd.CommandText = "ALTER TABLE Productos ADD COLUMN PrecioPorKilo REAL NOT NULL DEFAULT 0;";
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException)
+            {
+            }
         }
     }
 }

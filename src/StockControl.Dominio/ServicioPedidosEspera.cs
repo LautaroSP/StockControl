@@ -10,6 +10,7 @@ public class LineaPedidoCargada
     public decimal Costo { get; set; }
     public bool Sector { get; set; }
     public bool Generico { get; set; }
+    public bool PorKilo { get; set; }
     public decimal? PrecioAnterior { get; set; }
 }
 
@@ -107,7 +108,9 @@ public static class ServicioPedidosEspera
 
     private static LineaPedidoCargada ArmarLinea(LineaPedidoEspera linea, Producto? producto)
     {
-        var precioLibre = producto == null || producto.ProductoSector;
+        var porKilo = producto != null && Balanza.EnListado(producto.PrecioPorKilo)
+            && linea.PrecioUnitario == producto.PrecioPorKilo;
+        var precioLibre = producto == null || producto.ProductoSector || porKilo;
         var precio = precioLibre ? linea.PrecioUnitario : producto!.Precio;
         return new LineaPedidoCargada
         {
@@ -119,6 +122,7 @@ public static class ServicioPedidosEspera
             Costo = producto?.Costo ?? 0,
             Sector = producto?.ProductoSector ?? false,
             Generico = producto == null,
+            PorKilo = porKilo,
             PrecioAnterior = precio != linea.PrecioUnitario ? linea.PrecioUnitario : null
         };
     }

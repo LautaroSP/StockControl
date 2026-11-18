@@ -990,6 +990,18 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasColumnType("character varying(22)")
                         .HasDefaultValue("");
 
+                    b.Property<string>("ColorFicha")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<string>("ColorFondo")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<string>("ColorMarca")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
                     b.Property<string>("Direccion")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1056,6 +1068,10 @@ namespace StockControl.Api.Datos.Migraciones
                     b.Property<decimal?>("Longitud")
                         .HasPrecision(9, 6)
                         .HasColumnType("numeric(9,6)");
+
+                    b.Property<string>("LogoTienda")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
@@ -1828,6 +1844,10 @@ namespace StockControl.Api.Datos.Migraciones
                         .HasColumnType("text");
 
                     b.Property<decimal>("Precio")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<decimal>("PrecioPorKilo")
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)");
 

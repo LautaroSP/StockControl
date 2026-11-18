@@ -20,13 +20,14 @@ import { cantidadCobrada, descuentoCombos, precioConOferta, precioUnitarioConOfe
 import { CarritoCaja, LineaCarritoPendiente, SesionService } from '../servicios/sesion.service';
 import { EstadoVistaCliente, VistaClienteService } from '../servicios/vista-cliente.service';
 import { TicketComponent } from './ticket.component';
+import { BalanzaCajaComponent } from './balanza-caja.component';
 
 const FIJOS = 4;
 
 @Component({
   selector: 'sc-caja',
   standalone: true,
-  imports: [FormsModule, RouterLink, TicketComponent],
+  imports: [FormsModule, RouterLink, TicketComponent, BalanzaCajaComponent],
   template: `
     <div class="topbar">
       <h1>Caja</h1>
@@ -42,8 +43,12 @@ const FIJOS = 4;
           autofocus
         />
         <button class="btn" type="button" (click)="agregarGenerico()">Genérico</button>
+        <button class="btn" type="button" [disabled]="bloqueada() || cobrando" (click)="abrirBalanza()">Modo balanza</button>
       </div>
     </div>
+    @if (balanzaAbierta) {
+      <sc-balanza-caja (aceptarPesadas)="aceptarBalanza($event)" (cerrar)="cerrarBalanza()" />
+    }
     @if (bloqueada()) {
       <section class="panel pad caja-bloqueada">
         <h2 style="margin:0 0 8px;font-size:18px">Local vencido</h2>
@@ -124,7 +129,7 @@ const FIJOS = 4;
                         <span class="meta">llevás {{ l.cantidad }}, pagás {{ cobradas(l) }}</span>
                       }
                     }
-                    @if (l.generico || l.sector) {
+                    @if (l.generico || l.sector || l.porKilo) {
                       <input
                         class="precio"
                         type="number"
@@ -144,7 +149,7 @@ const FIJOS = 4;
                       class="cant"
                       type="number"
                       min="0"
-                      step="1"
+                      [step]="l.sector || l.porKilo ? 0.001 : 1"
                       [(ngModel)]="l.cantidad"
                       (keydown.enter)="enterCantidad($event)"
                       (dblclick)="$event.stopPropagation()"
@@ -333,6 +338,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   umbralStockBajo = 5;
   gruposFiltro: { idGrupoProducto: number; nombreGrupo: string }[] = [];
   scanner = '';
+  balanzaAbierta = false;
   cobrando = false;
   mensaje = '';
   mpVinculado = false;
@@ -391,7 +397,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     const a = this.activo;
     if (a.sinOfertas || a.alCosto || this.descuentoCaja() > 0) return 0;
     const lineas = a.lineas
-      .filter((l) => !l.sector && !l.generico)
+      .filter((l) => !l.sector && !l.generico && !l.porKilo)
       .map((l) => ({ idProducto: l.idProducto, cantidad: Number(l.cantidad), subtotal: this.subtotalLinea(l) }));
     return descuentoCombos(this.combos, lineas);
   }
@@ -415,7 +421,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private ofertaVigente(l: LineaCarritoPendiente): OfertaVigenteDto | undefined {
-    return l.sector || l.generico ? undefined : this.ofertas.get(l.idProducto);
+    return l.sector || l.generico || l.porKilo ? undefined : this.ofertas.get(l.idProducto);
   }
 
   private descuentoCaja(): number {
@@ -431,7 +437,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   precioLinea(l: LineaCarritoPendiente): number {
-    if (l.sector || l.generico) return Number(l.precioUnitario);
+    if (l.sector || l.generico || l.porKilo) return Number(l.precioUnitario);
     if (this.activo.alCosto) return precioConOferta(this.ofertaDe(l), Number(l.costo));
     const desc = this.activo.usarDesc ? Math.min(100, Math.max(0, Number(this.activo.descuento) || 0)) : 0;
     const lista = precioUnitarioConOferta(this.ofertaDe(l), Number(l.precioUnitario), Number(l.cantidad));
@@ -721,6 +727,22 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  abrirBalanza(): void {
+    if (this.bloqueada() || this.cobrando) return;
+    this.balanzaAbierta = true;
+  }
+
+  aceptarBalanza(lineas: LineaCarritoPendiente[]): void {
+    this.activo.lineas.push(...lineas);
+    this.balanzaAbierta = false;
+    this.focoLector();
+  }
+
+  cerrarBalanza(): void {
+    this.balanzaAbierta = false;
+    this.focoLector();
+  }
+
   async agregarGenerico(): Promise<void> {
     const nombre = await this.dialogo.pedir('Nombre del genérico', 'Producto suelto');
     if (!nombre) {
@@ -968,7 +990,8 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
       codigo: l.codigo,
       nombre: l.nombre,
       cantidad: Number(l.cantidad),
-      precioUnitario: Number(l.precioUnitario)
+      precioUnitario: Number(l.precioUnitario),
+      porKilo: !!l.porKilo
     }));
   }
 

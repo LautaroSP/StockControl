@@ -5,6 +5,8 @@ import { ApiService, CotizacionTiendaDto, LugarEncontradoDto, MedioPagoTienda, T
 import { CarritoTiendaService, MAXIMO_POR_PRODUCTO } from '../servicios/carrito-tienda.service';
 import { MapaComponent, Ubicacion } from '../mapa.component';
 import { TemaComponent } from '../tema.component';
+import { TemaService } from '../servicios/tema.service';
+import { colorSiClaro, tintaDe } from '../servicios/paleta';
 import { NoEncontradaComponent } from './no-encontrada.component';
 import { PieTiendaComponent } from '../pie-tienda.component';
 
@@ -17,7 +19,7 @@ import { PieTiendaComponent } from '../pie-tienda.component';
       <sc-no-encontrada />
     }
     @if (tienda; as t) {
-      <div class="tienda">
+      <div class="tienda" [class.tienda-marca]="!!propio(t.colorMarca)" [class.tienda-fondo]="!!propio(t.colorFondo)" [style.--acento]="propio(t.colorMarca)" [style.--fondo]="propio(t.colorFondo)" [style.--tinta]="propio(t.colorFondo) ? tinta(t) : null">
         <header class="tienda-cabecera">
           <h1>{{ t.nombre }}</h1>
           <sc-tema [fijo]="false" />
@@ -179,13 +181,19 @@ export class CarritoTiendaComponent implements OnInit, OnDestroy {
   punto: Ubicacion | null = null;
   buscando = false;
   readonly maximo = MAXIMO_POR_PRODUCTO;
+  readonly tinta = tintaDe;
+
+  propio(color: string | null): string | null {
+    return colorSiClaro(this.tema.tema(), color);
+  }
   private readonly tituloAnterior = document.title;
 
   constructor(
     private readonly ruta: ActivatedRoute,
     private readonly router: Router,
     private readonly api: ApiService,
-    private readonly carrito: CarritoTiendaService
+    private readonly carrito: CarritoTiendaService,
+    readonly tema: TemaService
   ) {}
 
   medioPago: MedioPagoTienda = 'coordinar';

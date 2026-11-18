@@ -8,7 +8,7 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 
 ## Siguiente
 
-**#53 · 52 Actualizar Angular**. Pendientes de prueba en el navegador con la base: 40 Envío por km, 51 Gestión fuera de MP, 39 Transferencia, 38 Mercado Pago y gestión (con cuentas de prueba de MP), 37 Carrito y pedido, 41 Panel de pedidos (incluye Web Push), 36 Imágenes y 49 Categorías
+**#55 · 52 Actualizar Angular**. La 59 y la 60 de balanza están parcial (falta probar en pantalla / navegador). Pendientes de prueba en el navegador con la base: 40 Envío por km, 51 Gestión fuera de MP, 39 Transferencia, 38 Mercado Pago y gestión (con cuentas de prueba de MP), 37 Carrito y pedido, 41 Panel de pedidos (incluye Web Push), 36 Imágenes y 49 Categorías
 
 ## Tablero
 
@@ -66,12 +66,31 @@ Estados: **sí** · **no** · **parcial** (hay código, no cierra la tarjeta).
 | 50 | 44 | [Auditoría de seguridad](44-auditoria-seguridad.md) | sí | Informe en `44-auditoria-informe.md`. Freno de login, clave mínima 8, RLS, validación, costo, CSP, CORS y `/api`. Requiere migración `AuditoriaSeguridad`. Las altas de Angular 18 quedan en la 52 |
 | 51 | 47 | [Mejorar los tickets](47-mejorar-tickets.md) | parcial | Ahorros guardados por línea y ticket armado en `ServicioTicket`; diseño de impresión nuevo. Falta probar la impresión en POS-58, POS-80 y A4. Requiere migración `AhorrosVenta` |
 | 52 | 48 | [Legales](48-legales.md) | sí | Términos, privacidad, aceptación en el registro y al entrar, arrepentimiento con código para el admin, baja que no renueva el mes, pie de la tienda. El profesional y la AAIP quedan para cuando haya clientes. Requiere migración `LegalesBajaYArrepentimiento` |
-| 53 | 52 | [Actualizar Angular](52-actualizar-angular.md) | no | Las altas de `npm audit` en `@angular/*` 18 no tienen parche en esa línea. El arreglo publicado es la 22. No se forzó en la 44 |
-| 54 | 53 | [Tienda: QR para el comprador](53-qr-tienda.md) | sí | Afiche verde con TIENDA ONLINE y el QR. Abajo, StockControl. Chico, mediano y grande. En la POS, 50 mm |
-| 55 | 54 | [Tienda: paleta](54-tienda-paleta.md) | no | Color de marca en catálogo, carrito y pedido. Vacío = paleta de StockControl. Con color propio, esas pantallas quedan en claro y sin interruptor. El QR de la 53 sigue verde |
+| 53 | 59 | [Modo balanza](59-modo-balanza.md) | parcial | Botón en la caja abre pantalla de tres columnas; `PrecioPorKilo` en cualquier producto; Web Serial o lector; Aceptar pasa al carrito abierto. Tests de dominio. Requiere migración `PrecioPorKilo`. Falta probar en el navegador |
+| 54 | 60 | [Modo balanza (escritorio)](60-modo-balanza-escritorio.md) | parcial | `frmBalanza` maximizada desde `StockMain`: buscador y listado, Pesando… y Total, carrito con Aceptar/Salir. `PrecioPorKilo` en cualquier producto. Puerto serie 9600 recordado (`PuertoBalanza`). Sin test: es WinForms. Falta probar en pantalla |
+| 55 | 52 | [Actualizar Angular](52-actualizar-angular.md) | no | Las altas de `npm audit` en `@angular/*` 18 no tienen parche en esa línea. El arreglo publicado es la 22. No se forzó en la 44 |
+| 56 | 53 | [Tienda: QR para el comprador](53-qr-tienda.md) | sí | Afiche verde con TIENDA ONLINE y el QR. Abajo, StockControl. Chico, mediano y grande. En la POS, 50 mm |
+| 57 | 54 | [Tienda: paleta](54-tienda-paleta.md) | parcial | Fondo y botones en Tienda › Configuración, con vista previa. Vacío = paleta de StockControl. Las fichas siguen claras. Contraste del blanco en el botón y del texto sobre el fondo. El QR sigue verde. Requiere migraciones `PaletaTienda` y `FondoTienda`. Falta probar en el navegador |
+| 58 | 55 | [Tienda: pedido mínimo](55-tienda-pedido-minimo.md) | no | Importe en Tienda › Configuración; 0 = sin mínimo. Sobre el subtotal, sin envío ni gestión |
+| 59 | 56 | [Tiendas: cerca tuyo](56-tiendas-cerca.md) | no | Home pública `/tiendas` con mapa y lista por distancia. El dueño puede no aparecer |
+| 60 | 57 | [Tiendas: buscar producto](57-tiendas-buscar-producto.md) | no | Buscador en `/tiendas`: tienda · producto · precio, por precio o distancia. Agregar va al carrito de esa tienda |
+| 61 | 58 | [Tiendas: logo en el mapa](58-tiendas-logo-en-mapa.md) | no | Logo del local en un círculo en el mapa del catálogo y en `/tiendas`; sin logo, la gota. Usa el logo que ya se sube en Tienda › Configuración |
 
 ## Log
 
+- 2026-11-18 · 59 / 60 Modo balanza · ajuste · El precio por kilo es de cualquier producto (común o sector). El listado de la balanza filtra solo por `PrecioPorKilo` > 0. La pesada de un común descuenta kilos del stock; el sector no
+- 2026-11-18 · 59 Modo balanza · parcial · Pantalla de tres columnas en la caja; `PrecioPorKilo` en producto y migración; Web Serial o lector; Aceptar pasa al carrito abierto. Tests de `Balanza`. Falta probar en el navegador
+- 2026-11-18 · 60 Modo balanza (escritorio) · parcial · `frmBalanza` con las tres columnas; botón en la venta; `PrecioPorKilo` en `frmProducto` y columna en SQLite; puerto serie a 9600 guardado en Configuración; Aceptar pasa las pesadas al carrito abierto. Compila. Falta probar en pantalla
+- 2026-11-18 · 60 Modo balanza (escritorio) · ajuste · Misma pantalla que la 59 en `frmBalanza`, maximizada y modal sobre `StockMain`. El precio por kilo se carga en `frmProducto`
+- 2026-11-18 · 59 Modo balanza · ajuste · Pantalla aparte de tres columnas: buscador y listado a la izquierda, Pesando… y Total al centro, carrito de la balanza con Aceptar y Salir a la derecha. Clic o Enter agrega la pesada; Aceptar pasa todas al carrito abierto; Salir descarta y pregunta si había. Un producto común escaneado avisa y no se agrega
+- 2026-11-17 · 60 Modo balanza (escritorio) · no · alta de tarjeta (el mismo modo en `StockMain`: puerto serie recordado, listado a la derecha, Enter o Agregar al carrito)
+- 2026-11-17 · 59 Modo balanza · no · alta de tarjeta (botón en la caja; balanza digital o lector; con el peso se elige el producto sector a la derecha y el importe es kilos × precio por kilo)
+- 2026-11-16 · 58 Tiendas: logo en el mapa · no · alta de tarjeta (marcador con el logo del local en un círculo, en el catálogo y en `/tiendas`; sin logo o si no carga, la gota)
+- 2026-11-16 · 57 Tiendas: buscar producto · no · alta de tarjeta (buscador entre tiendas cercanas; cada palabra en el nombre, sin acentos; listado tienda · producto · precio; agregar al carrito de esa tienda)
+- 2026-11-16 · 56 Tiendas: cerca tuyo · no · alta de tarjeta (home pública del comprador en `/tiendas` con mapa y lista por distancia; ubicación del navegador o dirección; casilla para no aparecer)
+- 2026-11-16 · 55 Tienda: pedido mínimo · no · alta de tarjeta (importe mínimo del pedido online en Tienda › Configuración; puede ser 0)
+- 2026-11-14 · 54 Tienda: paleta · ajuste · También se elige el fondo de la página, con vista previa. Las fichas de producto siguen claras. Un fondo del medio, que no se lee, se rechaza. Requiere migración `FondoTienda`
+- 2026-11-14 · 54 Tienda: paleta · parcial · `ColorMarca` en el local. Vacío vuelve a la paleta de StockControl. Hex inválido o blanco ilegible (contraste menor a 4,5) se rechaza. Catálogo, carrito y pedido usan el acento y, si hay color, salen en claro sin escribir la preferencia del navegador. El QR no cambia. Requiere migración `PaletaTienda`. Falta probar en el navegador
 - 2026-11-11 · 48 Legales · sí · Arrepentimiento del abono con código, pendiente para el admin. Baja en Abono: el mes pagado sigue y el débito no renueva. Dueño y socio con versión vieja no operan hasta aceptar. Pie de la tienda con términos, datos del local y arrepentimiento. Aviso en contacto. Requiere migración `LegalesBajaYArrepentimiento`
 - 2026-11-11 · 48 Legales · parcial · `/terminos` y `/privacidad` con el borrador versión 1. El pie de la landing resume y enlaza; login, registro y contacto también. El registro y contratar otro local piden el tilde sin marcar; sin eso no se crea la cuenta ni el local. `Usuario` guarda `VersionTerminos` y `AceptoTerminosEn`. Requiere migración `TerminosAceptados`. Falta el pie de la tienda, reaceptar si cambia la versión, arrepentimiento y baja
 - 2026-11-11 · 48 Legales · ajuste · Domicilio legal: Avenida Rivadavia 15240, 4.º D, Haedo, Partido de Morón (la localidad sale de la altura, CP 1706). Borrador versión 1 en la tarjeta: términos del servicio, privacidad y términos de la tienda. Sin publicar

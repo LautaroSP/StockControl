@@ -70,6 +70,10 @@ public class AppDbContext : DbContext
             e.HasIndex(x => x.IdSuscripcionMp).IsUnique().HasFilter("\"IdSuscripcionMp\" IS NOT NULL");
             e.Property(x => x.EstadoSuscripcion).HasMaxLength(20).HasDefaultValue("");
             e.Property(x => x.AliasTienda).HasMaxLength(ServicioTienda.LargoMaximoAlias);
+            e.Property(x => x.ColorMarca).HasMaxLength(ServicioPaletaTienda.Largo);
+            e.Property(x => x.ColorFondo).HasMaxLength(ServicioPaletaTienda.Largo);
+            e.Property(x => x.ColorFicha).HasMaxLength(ServicioPaletaTienda.Largo);
+            e.Property(x => x.LogoTienda).HasMaxLength(ServicioImagenesTienda.LargoMaximoArchivo);
             e.HasIndex(x => x.AliasTienda).IsUnique().HasFilter("\"AliasTienda\" IS NOT NULL");
             e.Property(x => x.EstadoTienda).HasMaxLength(20).HasDefaultValue(ServicioTienda.Inactiva);
             e.Property(x => x.Direccion).HasMaxLength(ServicioTienda.LargoMaximoDato).HasDefaultValue("");
@@ -126,6 +130,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Cantidad).HasPrecision(14, 3);
             e.Property(x => x.Costo).HasPrecision(14, 2);
             e.Property(x => x.Precio).HasPrecision(14, 2);
+            e.Property(x => x.PrecioPorKilo).HasPrecision(14, 2);
             e.Property(x => x.ValorGanancia).HasPrecision(14, 2);
             e.Property(x => x.UsuarioModificacion).HasMaxLength(80);
             e.HasIndex(x => new { x.IdLocal, x.Publicado });

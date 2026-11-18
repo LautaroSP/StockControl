@@ -1,11 +1,26 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ApiService, ConfiguracionTiendaDto, LugarEncontradoDto, VistaTienda } from '../servicios/api.service';
+import { ApiService, ConfiguracionTiendaDto, ImagenTiendaDto, LugarEncontradoDto, ProductoTiendaDto, VistaTienda } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { IconoComponent } from '../icono.component';
 import { MapaComponent, Ubicacion } from '../mapa.component';
+import { BOTON_STOCK, FICHA_STOCK, FONDO_STOCK, hexDe, textoClaro } from '../servicios/paleta';
 
 const CENTRO_POR_DEFECTO: Ubicacion = { latitud: -34.603722, longitud: -58.381592 };
+const LADO_LOGO = 200;
+const MAXIMO_BYTES_LOGO = 20 * 1024 * 1024;
+
+async function achicarLogo(archivo: File): Promise<string> {
+  const imagen = await createImageBitmap(archivo);
+  const escala = Math.min(1, LADO_LOGO / imagen.width, LADO_LOGO / imagen.height);
+  const lienzo = document.createElement('canvas');
+  lienzo.width = Math.max(1, Math.round(imagen.width * escala));
+  lienzo.height = Math.max(1, Math.round(imagen.height * escala));
+  const contexto = lienzo.getContext('2d')!;
+  contexto.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+  imagen.close();
+  return lienzo.toDataURL('image/png');
+}
 
 const PLAZOS_TRANSFERENCIA: { horas: number | null; texto: string }[] = [
   { horas: 2, texto: '2 horas' },
@@ -104,6 +119,69 @@ const PLAZOS_TRANSFERENCIA: { horas: number | null; texto: string }[] = [
 
       <p class="meta">Productos publicados: {{ publicados }}. Se eligen en Productos.</p>
 
+      <h2>Logo</h2>
+      <p class="hint">Se achica para entrar en 200 × 200, sin deformarlo. Queda centrado en la ficha de dirección, arriba del texto y del botón.</p>
+      @if (logo && aliasGuardado) {
+        <img class="logo-previa" [src]="urlLogo()" alt="Logo de la tienda" />
+      }
+      <div class="row">
+        <label class="btn">
+          {{ subiendoLogo ? 'Subiendo…' : 'Subir logo' }}
+          <input type="file" accept="image/jpeg,image/png,image/webp" hidden (change)="subirLogo($event)" [disabled]="subiendoLogo" />
+        </label>
+        @if (logo) {
+          <button class="btn" type="button" (click)="quitarLogo()" [disabled]="subiendoLogo">Quitar logo</button>
+        }
+      </div>
+
+      <h2>Personalizar Tienda Online</h2>
+      <p class="hint paleta-ayuda">Vacío es la paleta de StockControl. El fondo es la página, la ficha es la carta del producto y el texto de esa carta se lee sobre ese color.</p>
+      <div class="paleta">
+        <div class="paleta-controles">
+          <div class="paleta-fila">
+            <label class="paleta-texto">Fondo
+              <input type="text" maxlength="7" placeholder="#f4efe4" [(ngModel)]="form.colorFondo" />
+            </label>
+            <input class="muestra-color" type="color" aria-label="Elegir fondo" [value]="hex(form.colorFondo) || fondoStock" (input)="elegirFondo($event)" />
+          </div>
+          <div class="paleta-fila">
+            <label class="paleta-texto">Ficha
+              <input type="text" maxlength="7" placeholder="#fffdf8" [(ngModel)]="form.colorFicha" />
+            </label>
+            <input class="muestra-color" type="color" aria-label="Elegir ficha" [value]="hex(form.colorFicha) || fichaStock" (input)="elegirFicha($event)" />
+          </div>
+          <div class="paleta-fila">
+            <label class="paleta-texto">Botones
+              <input type="text" maxlength="7" placeholder="#2a6b52" [(ngModel)]="form.colorMarca" />
+            </label>
+            <input class="muestra-color" type="color" aria-label="Elegir botones" [value]="hex(form.colorMarca) || botonStock" (input)="elegirBoton($event)" />
+          </div>
+        </div>
+        <div class="vista-paleta" [style.background]="hex(form.colorFondo) || fondoStock" [style.color]="textoDeFondo()">
+          <strong>Tu tienda</strong>
+          <div class="vista-ficha" [style.background]="hex(form.colorFicha) || fichaStock" [style.color]="textoDeFicha()">
+            @if (fotoMuestra(); as foto) {
+              <img class="vista-foto" [src]="urlFoto(foto.id)" [alt]="muestra!.nombre" />
+              @if (foto.origen === 'openfoodfacts') {
+                <span class="vista-atribucion">Foto: {{ foto.fuente }} · {{ foto.licencia }}</span>
+              }
+            } @else {
+              <span class="vista-foto vista-foto-vacia">Sin imagen</span>
+            }
+            <span class="vista-nombre">{{ muestra?.nombre ?? 'Producto' }}</span>
+            <span class="vista-precio" [style.color]="hex(form.colorMarca) || botonStock">{{ precioTienda(muestra?.precio ?? 1000) }}</span>
+            <span [class]="muestra && !muestra.hayStock ? 'vista-stock vista-stock-no' : 'vista-stock'">{{ muestra && !muestra.hayStock ? 'Sin stock' : 'Hay stock' }}</span>
+            <span class="row tienda-cantidad">
+              <button class="btn vista-cantidad" type="button" [style.background]="hex(form.colorMarca) || botonStock" [style.border-color]="hex(form.colorMarca) || botonStock">−</button>
+              <span>1</span>
+              <button class="btn vista-cantidad" type="button" [style.background]="hex(form.colorMarca) || botonStock" [style.border-color]="hex(form.colorMarca) || botonStock">+</button>
+            </span>
+          </div>
+          <p class="vista-pie">Dirección · horario</p>
+        </div>
+      </div>
+      <button class="btn" type="button" (click)="limpiarColores()">Paleta de StockControl</button>
+
       <h2>Pago con Mercado Pago</h2>
       @if (mercadoPago) {
         <p class="hint">El comprador puede pagar con la cuenta de Mercado Pago del local. La plata entra en esa cuenta.</p>
@@ -169,6 +247,42 @@ const PLAZOS_TRANSFERENCIA: { horas: number | null; texto: string }[] = [
     .ayuda-wrap:hover .ayuda-texto,
     .ayuda-wrap:focus-within .ayuda-texto,
     .ayuda-texto.visible { display: block; }
+    .paleta-ayuda { font-size: 12px; margin-top: 0; }
+    .paleta { display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap; margin: 8px 0 12px; }
+    .paleta-controles { display: grid; gap: 10px; }
+    .paleta-fila { display: grid; grid-template-columns: auto 32px; align-items: center; column-gap: 12px; }
+    .paleta-texto {
+      display: flex; align-items: center; gap: 8px; margin: 0;
+      font-size: 12px; color: var(--ink-soft);
+    }
+    .paleta-texto input { width: 108px; font-size: 13px; color: var(--ink); }
+    .muestra-color {
+      width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 8px;
+      background: transparent; cursor: pointer;
+    }
+    .vista-paleta { padding: 12px; border-radius: 10px; display: grid; gap: 8px; width: 220px; }
+    .vista-ficha {
+      background: #fffdf8; color: #1b241f; border: 1px solid #d9d0c0; border-radius: 10px;
+      padding: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    }
+    .vista-foto {
+      width: 100%; height: 120px; object-fit: contain; align-self: center;
+      border-radius: 8px; background: #f4efe4;
+    }
+    .vista-foto-vacia { display: flex; align-items: center; justify-content: center; color: #4a574f; font-size: 12px; }
+    .vista-atribucion { font-size: 11px; color: #4a574f; }
+    .vista-nombre { font-weight: 600; }
+    .vista-precio { font-size: 18px; font-variant-numeric: tabular-nums; }
+    .vista-stock {
+      display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 99px;
+      background: #e5f3ea; color: #2f7d57;
+    }
+    .vista-stock-no { background: #f7e4c4; color: #b33a2b; }
+    .vista-agregar, .vista-cantidad { color: #fff; }
+    .vista-ficha .vista-foto-vacia,
+    .vista-ficha .vista-atribucion { color: color-mix(in srgb, currentColor 72%, transparent); }
+    .vista-pie { margin: 0; padding-top: 8px; border-top: 1px solid color-mix(in srgb, currentColor 40%, transparent); font-size: 12px; }
+    .logo-previa { max-width: 200px; max-height: 200px; object-fit: contain; display: block; margin: 0 0 12px; }
   `
 })
 export class ConfigTiendaComponent implements OnInit {
@@ -176,13 +290,21 @@ export class ConfigTiendaComponent implements OnInit {
     alias: '', estado: 'inactiva', direccion: '', horario: '', whatsApp: '', haceEnvios: false,
     envioGratisSiempre: false, precioEnvioKm: null, envioMinimo: null, radioEnvioKm: null, envioGratisDesde: null,
     latitud: null, longitud: null,
-    gestionACargoComprador: false, cbu: '', aliasCbu: '', titular: '', plazoTransferenciaHoras: 24
+    gestionACargoComprador: false, cbu: '', aliasCbu: '', titular: '', plazoTransferenciaHoras: 24,
+    colorMarca: '', colorFondo: '', colorFicha: ''
   };
   readonly centroPorDefecto = CENTRO_POR_DEFECTO;
   readonly plazos = PLAZOS_TRANSFERENCIA;
+  readonly fondoStock = FONDO_STOCK;
+  readonly fichaStock = FICHA_STOCK;
+  readonly botonStock = BOTON_STOCK;
+  readonly hex = hexDe;
   aliasGuardado = '';
+  logo: string | null = null;
+  subiendoLogo = false;
   vista: VistaTienda | null = null;
   publicados = 0;
+  muestra: ProductoTiendaDto | null = null;
   mercadoPago = false;
   gestion = 0;
   busqueda = '';
@@ -201,15 +323,68 @@ export class ConfigTiendaComponent implements OnInit {
   ngOnInit(): void {
     this.api.configuracionTienda().subscribe({
       next: (r) => {
-        const { vista, publicados, conImagen, mercadoPago, gestion, ...form } = r;
-        this.form = form;
+        const { vista, publicados, conImagen, mercadoPago, gestion, logo, ...form } = r;
+        this.logo = logo;
+        this.form = { ...form, colorMarca: form.colorMarca ?? '', colorFondo: form.colorFondo ?? '', colorFicha: form.colorFicha ?? '' };
         this.aliasGuardado = form.alias;
         this.vista = vista;
         this.publicados = publicados;
         this.mercadoPago = mercadoPago;
         this.gestion = gestion;
+        this.cargarMuestra(form.alias);
       },
       error: (e) => (this.error = this.mensajeError(e, 'No se pudo cargar la tienda.'))
+    });
+  }
+
+  urlLogo(): string {
+    return this.logo && this.aliasGuardado ? this.api.urlLogoTienda(this.aliasGuardado, this.logo) : '';
+  }
+
+  async subirLogo(evento: Event): Promise<void> {
+    const input = evento.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    input.value = '';
+    if (!archivo) return;
+    if (archivo.size > MAXIMO_BYTES_LOGO) {
+      this.error = 'La imagen no puede superar 20 MB.';
+      return;
+    }
+    this.subiendoLogo = true;
+    this.error = '';
+    let imagen: string;
+    try {
+      imagen = await achicarLogo(archivo);
+    } catch {
+      this.subiendoLogo = false;
+      this.error = 'No se pudo leer la imagen. Probá con JPG o PNG.';
+      return;
+    }
+    this.api.subirLogoTienda(imagen).subscribe({
+      next: (r) => {
+        this.logo = r.logo;
+        this.subiendoLogo = false;
+        this.mensaje = 'Logo guardado.';
+      },
+      error: (e) => {
+        this.subiendoLogo = false;
+        this.error = this.mensajeError(e, 'No se pudo subir el logo.');
+      }
+    });
+  }
+
+  quitarLogo(): void {
+    this.subiendoLogo = true;
+    this.api.quitarLogoTienda().subscribe({
+      next: () => {
+        this.logo = null;
+        this.subiendoLogo = false;
+        this.mensaje = 'Logo quitado.';
+      },
+      error: (e) => {
+        this.subiendoLogo = false;
+        this.error = this.mensajeError(e, 'No se pudo quitar el logo.');
+      }
     });
   }
 
@@ -252,6 +427,60 @@ export class ConfigTiendaComponent implements OnInit {
 
   quitarUbicacion(): void {
     this.form = { ...this.form, latitud: null, longitud: null };
+  }
+
+  elegirBoton(evento: Event): void {
+    this.form = { ...this.form, colorMarca: (evento.target as HTMLInputElement).value };
+  }
+
+  elegirFondo(evento: Event): void {
+    this.form = { ...this.form, colorFondo: (evento.target as HTMLInputElement).value };
+  }
+
+  elegirFicha(evento: Event): void {
+    this.form = { ...this.form, colorFicha: (evento.target as HTMLInputElement).value };
+  }
+
+  limpiarColores(): void {
+    this.form = { ...this.form, colorMarca: '', colorFondo: '', colorFicha: '' };
+  }
+
+  textoDeFondo(): string {
+    const fondo = this.hex(this.form.colorFondo);
+    return fondo && textoClaro(fondo) ? '#ffffff' : '#1b241f';
+  }
+
+  textoDeFicha(): string {
+    const ficha = this.hex(this.form.colorFicha);
+    return ficha && textoClaro(ficha) ? '#ffffff' : '#1b241f';
+  }
+
+  fotoMuestra(): ImagenTiendaDto | null {
+    return this.muestra?.imagenes[0] ?? null;
+  }
+
+  urlFoto(id: number): string {
+    return this.api.urlImagenTienda(this.aliasGuardado, id);
+  }
+
+  precioTienda(n: number): string {
+    return `$ ${Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  private cargarMuestra(alias: string, pagina = 1): void {
+    if (!alias || this.vista !== 'catalogo' || pagina > 5) return;
+    this.api.productosTienda(alias, { pagina }).subscribe({
+      next: (r) => {
+        const conFoto = r.items.find((p) => p.imagenes.length > 0);
+        if (conFoto) {
+          this.muestra = conFoto;
+          return;
+        }
+        this.muestra ??= r.items[0] ?? null;
+        if (pagina * r.tamano < r.total) this.cargarMuestra(alias, pagina + 1);
+      },
+      error: () => { this.muestra ??= null; }
+    });
   }
 
   async guardar(): Promise<void> {

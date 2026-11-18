@@ -10,7 +10,13 @@ public static class ProcesadorImagen
 {
     private const int Calidad = 80;
 
-    public static ImagenPreparada Preparar(byte[] origen)
+    public static ImagenPreparada Preparar(byte[] origen) =>
+        Preparar(origen, ServicioImagenesTienda.Dimensiones);
+
+    public static ImagenPreparada PrepararLogo(byte[] origen) =>
+        Preparar(origen, ServicioLogoTienda.Dimensiones);
+
+    static ImagenPreparada Preparar(byte[] origen, Func<int, int, (int Ancho, int Alto)> medidas)
     {
         ServicioImagenesTienda.TipoReal(origen);
         using var datos = SKData.CreateCopy(origen);
@@ -19,7 +25,7 @@ public static class ProcesadorImagen
         var giro = codec.EncodedOrigin;
         using var leida = SKBitmap.Decode(codec) ?? throw new ErrorNegocio("No se pudo leer la imagen.");
         using var derecha = Orientar(leida, giro);
-        var (ancho, alto) = ServicioImagenesTienda.Dimensiones(derecha.Width, derecha.Height);
+        var (ancho, alto) = medidas(derecha.Width, derecha.Height);
         using var final = ancho == derecha.Width && alto == derecha.Height
             ? derecha.Copy()
             : derecha.Resize(new SKImageInfo(ancho, alto), SKFilterQuality.High);

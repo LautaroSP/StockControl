@@ -166,6 +166,8 @@ import { DialogoService } from '../servicios/dialogo.service';
           <label class="field">Costo <input class="wide" type="number" [ngModel]="form.costo" (ngModelChange)="cambiarCosto($event)" /></label>
           <label class="field">Precio <input class="wide" type="number" [(ngModel)]="form.precio" [disabled]="form.productoSector || !!form.idGrupoProducto" /></label>
           <label class="check"><input type="checkbox" [ngModel]="form.productoSector" (ngModelChange)="cambiarSector($event)" /> Producto sector</label>
+          <label class="field">Precio por kilo <input class="wide" type="number" min="0" step="0.01" [(ngModel)]="form.precioPorKilo" /></label>
+          <p class="meta">En 0 no aparece en el modo balanza. Sirve para común y sector.</p>
           @if (!form.productoSector) {
             <p class="meta" style="margin:8px 0 4px">Grupo: {{ form.nombreGrupo || 'Sin grupo' }}</p>
             <div class="row">
@@ -267,6 +269,7 @@ export class ProductosComponent implements OnInit {
     costo: 0,
     precio: 0,
     productoSector: false,
+    precioPorKilo: 0,
     idGrupoProducto: 0,
     nombreGrupo: null,
     idCategoria: 0
@@ -440,6 +443,7 @@ export class ProductosComponent implements OnInit {
       costo: 0,
       precio: 0,
       productoSector: false,
+      precioPorKilo: 0,
       idGrupoProducto: 0,
       nombreGrupo: null,
       idCategoria: 0

@@ -53,11 +53,13 @@ namespace StockControl
             lblGrupoSel = new Label();
             btnBuscarGrupo = new Button();
             btnSacarGrupo = new Button();
+            lblPrecioPorKilo = new Label();
+            txtPrecioPorKilo = new TextBox();
             SuspendLayout();
             // 
             // brnGrabar
             // 
-            brnGrabar.Location = new Point(12, 234);
+            brnGrabar.Location = new Point(12, 268);
             brnGrabar.Name = "brnGrabar";
             brnGrabar.Size = new Size(93, 23);
             brnGrabar.TabIndex = 0;
@@ -67,7 +69,7 @@ namespace StockControl
             // 
             // brnCancelar
             // 
-            brnCancelar.Location = new Point(111, 234);
+            brnCancelar.Location = new Point(111, 268);
             brnCancelar.Name = "brnCancelar";
             brnCancelar.Size = new Size(83, 23);
             brnCancelar.TabIndex = 1;
@@ -248,7 +250,7 @@ namespace StockControl
             // 
             btnBuscarGrupo.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
             btnBuscarGrupo.ForeColor = Color.DarkGreen;
-            btnBuscarGrupo.Location = new Point(12, 205);
+            btnBuscarGrupo.Location = new Point(12, 239);
             btnBuscarGrupo.Name = "btnBuscarGrupo";
             btnBuscarGrupo.Size = new Size(93, 23);
             btnBuscarGrupo.TabIndex = 25;
@@ -260,7 +262,7 @@ namespace StockControl
             // 
             btnSacarGrupo.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
             btnSacarGrupo.ForeColor = Color.Brown;
-            btnSacarGrupo.Location = new Point(111, 205);
+            btnSacarGrupo.Location = new Point(111, 239);
             btnSacarGrupo.Name = "btnSacarGrupo";
             btnSacarGrupo.Size = new Size(83, 23);
             btnSacarGrupo.TabIndex = 26;
@@ -268,11 +270,31 @@ namespace StockControl
             btnSacarGrupo.UseVisualStyleBackColor = true;
             btnSacarGrupo.Click += btnSacarGrupo_Click;
             // 
+            // lblPrecioPorKilo
+            // 
+            lblPrecioPorKilo.AutoSize = true;
+            lblPrecioPorKilo.Location = new Point(256, 210);
+            lblPrecioPorKilo.Name = "lblPrecioPorKilo";
+            lblPrecioPorKilo.Size = new Size(84, 15);
+            lblPrecioPorKilo.TabIndex = 27;
+            lblPrecioPorKilo.Text = "Precio por kilo";
+            // 
+            // txtPrecioPorKilo
+            // 
+            txtPrecioPorKilo.Location = new Point(346, 207);
+            txtPrecioPorKilo.Name = "txtPrecioPorKilo";
+            txtPrecioPorKilo.PlaceholderText = "00,00";
+            txtPrecioPorKilo.Size = new Size(80, 23);
+            txtPrecioPorKilo.TabIndex = 28;
+            txtPrecioPorKilo.KeyPress += txtPrecio_KeyPress;
+            // 
             // frmProducto
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(524, 267);
+            ClientSize = new Size(524, 303);
+            Controls.Add(txtPrecioPorKilo);
+            Controls.Add(lblPrecioPorKilo);
             Controls.Add(btnSacarGrupo);
             Controls.Add(btnBuscarGrupo);
             Controls.Add(lblGrupoSel);
@@ -327,5 +349,7 @@ namespace StockControl
         private Label lblGrupoSel;
         private Button btnBuscarGrupo;
         private Button btnSacarGrupo;
+        private Label lblPrecioPorKilo;
+        private TextBox txtPrecioPorKilo;
     }
 }

@@ -1,9 +1,11 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { ApiService, ImagenTiendaDto, ProductoTiendaDto, TiendaPublicaDto } from '../servicios/api.service';
+import { ApiService, CotizacionTiendaDto, ImagenTiendaDto, ProductoTiendaDto, TiendaPublicaDto } from '../servicios/api.service';
 import { CarritoTiendaService, MAXIMO_POR_PRODUCTO } from '../servicios/carrito-tienda.service';
 import { TemaComponent } from '../tema.component';
+import { TemaService } from '../servicios/tema.service';
+import { colorSiClaro, tintaDe, tintaDeFicha } from '../servicios/paleta';
 import { MapaComponent } from '../mapa.component';
 import { NoEncontradaComponent } from './no-encontrada.component';
 import { PieTiendaComponent } from '../pie-tienda.component';
@@ -17,12 +19,14 @@ import { PieTiendaComponent } from '../pie-tienda.component';
       <sc-no-encontrada />
     }
     @if (tienda; as t) {
-      <div class="tienda">
+      <div class="tienda" [class.tienda-marca]="!!propio(t.colorMarca)" [class.tienda-fondo]="!!propio(t.colorFondo)" [class.tienda-ficha]="!!propio(t.colorFicha)" [style.--acento]="propio(t.colorMarca)" [style.--fondo]="propio(t.colorFondo)" [style.--tinta]="propio(t.colorFondo) ? tinta(t) : null" [style.--ficha]="propio(t.colorFicha)" [style.--tinta-ficha]="propio(t.colorFicha) ? tintaFicha(t) : null">
         <header class="tienda-cabecera">
           <h1>{{ t.nombre }}</h1>
           <div class="row">
             @if (t.vista === 'catalogo') {
-              <a class="btn btn-primary" [routerLink]="['/tienda', alias, 'carrito']">Carrito ({{ unidades }})</a>
+              <button class="btn btn-primary" type="button" [attr.aria-expanded]="carritoAbierto" (click)="carritoAbierto = !carritoAbierto">
+                Carrito · {{ precio(totalCarrito) }}
+              </button>
             }
             <sc-tema [fijo]="false" />
           </div>
@@ -38,7 +42,10 @@ import { PieTiendaComponent } from '../pie-tienda.component';
           </section>
         } @else {
           <section class="tienda-datos">
-            <div class="panel pad">
+            <div class="panel pad tienda-presentacion">
+              @if (t.logo) {
+                <img class="tienda-logo" [src]="urlLogo(t.logo)" alt="" />
+              }
               @if (t.direccion) { <p><strong>Dirección:</strong> {{ t.direccion }}</p> }
               @if (t.horario) { <p><strong>Horario:</strong> {{ t.horario }}</p> }
               <p>{{ t.haceEnvios ? 'Hace envíos y retiro en el local.' : 'Solo retiro en el local.' }}</p>
@@ -99,7 +106,7 @@ import { PieTiendaComponent } from '../pie-tienda.component';
                     <button class="btn" type="button" [attr.aria-label]="'Sumar ' + p.nombre" [disabled]="n >= maximo" (click)="poner(p.id, n + 1)">+</button>
                   </span>
                 } @else {
-                  <button class="btn" type="button" [disabled]="!p.hayStock" (click)="poner(p.id, 1)">Agregar</button>
+                  <button class="btn btn-primary" type="button" [disabled]="!p.hayStock" (click)="poner(p.id, 1)">Agregar</button>
                 }
               </li>
             }
@@ -113,6 +120,42 @@ import { PieTiendaComponent } from '../pie-tienda.component';
           }
         }
         <sc-pie-tienda [alias]="alias" [nombre]="t.nombre" [direccion]="t.direccion" [horario]="t.horario" />
+        @if (t.vista === 'catalogo' && carritoAbierto) {
+          <button class="carrito-fondo" type="button" aria-label="Cerrar carrito" (click)="carritoAbierto = false"></button>
+          <aside class="carrito-panel" aria-label="Carrito">
+            <header class="carrito-panel-cabecera">
+              <h2>Tu carrito</h2>
+              <button class="btn" type="button" (click)="carritoAbierto = false">Cerrar</button>
+            </header>
+            <div class="carrito-panel-lista">
+              @if (!cotizacion || cotizacion.lineas.length === 0) {
+                <p class="meta">{{ unidades > 0 ? 'Cargando…' : 'El carrito está vacío.' }}</p>
+              } @else {
+                <ul>
+                  @for (l of cotizacion.lineas; track l.idProducto) {
+                    <li>
+                      <span class="carrito-nombre">{{ l.nombre }}</span>
+                      <span class="row tienda-cantidad">
+                        <button class="btn" type="button" [attr.aria-label]="'Restar ' + l.nombre" (click)="poner(l.idProducto, l.cantidad - 1)">−</button>
+                        <span>{{ l.cantidad }}</span>
+                        <button class="btn" type="button" [attr.aria-label]="'Sumar ' + l.nombre" [disabled]="l.cantidad >= maximo || l.maximo !== null" (click)="poner(l.idProducto, l.cantidad + 1)">+</button>
+                      </span>
+                      <span class="carrito-importe">{{ precio(l.subTotal) }}</span>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+            <footer class="carrito-panel-pie">
+              <span>Total <strong>{{ precio(totalCarrito) }}</strong></span>
+              @if (totalCarrito > 0) {
+                <a class="btn btn-primary" [routerLink]="['/tienda', alias, 'carrito']">Pedir</a>
+              } @else {
+                <button class="btn btn-primary" type="button" disabled>Pedir</button>
+              }
+            </footer>
+          </aside>
+        }
       </div>
     }
   `
@@ -131,14 +174,23 @@ export class TiendaComponent implements OnInit, OnDestroy {
   alias = '';
   unidades = 0;
   cantidades: Record<number, number> = {};
+  cotizacion: CotizacionTiendaDto | null = null;
+  carritoAbierto = false;
   readonly maximo = MAXIMO_POR_PRODUCTO;
+  readonly tinta = tintaDe;
+  readonly tintaFicha = tintaDeFicha;
+
+  propio(color: string | null): string | null {
+    return colorSiClaro(this.tema.tema(), color);
+  }
   private espera?: ReturnType<typeof setTimeout>;
   private readonly tituloAnterior = document.title;
 
   constructor(
     private readonly ruta: ActivatedRoute,
     private readonly api: ApiService,
-    private readonly carrito: CarritoTiendaService
+    private readonly carrito: CarritoTiendaService,
+    readonly tema: TemaService
   ) {}
 
   ngOnInit(): void {
@@ -214,19 +266,47 @@ export class TiendaComponent implements OnInit, OnDestroy {
     return this.cantidades[idProducto] ?? 0;
   }
 
+  get totalCarrito(): number {
+    return this.cotizacion?.total ?? 0;
+  }
+
   poner(idProducto: number, cantidad: number): void {
+    const eraNuevo = this.enCarrito(idProducto) === 0 && cantidad > 0;
     this.carrito.poner(this.alias, idProducto, cantidad);
     this.leerCarrito();
+    if (eraNuevo) this.carritoAbierto = true;
   }
 
   private leerCarrito(): void {
     const items = this.carrito.items(this.alias);
     this.cantidades = Object.fromEntries(items.map((i) => [i.idProducto, i.cantidad]));
     this.unidades = items.reduce((total, i) => total + i.cantidad, 0);
+    this.cotizar();
+  }
+
+  private cotizar(): void {
+    const items = this.carrito.items(this.alias);
+    if (items.length === 0) {
+      this.cotizacion = null;
+      return;
+    }
+    this.api.cotizarCarritoTienda(this.alias, items).subscribe({
+      next: (c) => {
+        c.noDisponibles.forEach((id) => this.carrito.sacar(this.alias, id));
+        const quedan = this.carrito.items(this.alias);
+        this.cantidades = Object.fromEntries(quedan.map((i) => [i.idProducto, i.cantidad]));
+        this.unidades = quedan.reduce((total, i) => total + i.cantidad, 0);
+        this.cotizacion = c;
+      }
+    });
   }
 
   urlFoto(idImagen: number): string {
     return this.api.urlImagenTienda(this.alias, idImagen);
+  }
+
+  urlLogo(logo: string): string {
+    return this.api.urlLogoTienda(this.alias, logo);
   }
 
   precio(n: number): string {

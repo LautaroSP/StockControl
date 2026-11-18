@@ -47,6 +47,34 @@ public class ServicioCobroTests
     }
 
     [Fact]
+    public void Por_kilo_usa_el_precio_cargado_y_descuenta_stock_del_comun()
+    {
+        var prod = Comun(precio: 1500, costo: 1000);
+        prod.PrecioPorKilo = 3500;
+        var r = ServicioCobro.Cobrar(new PedidoCobro
+        {
+            ProductosDelLocal = [prod],
+            Items =
+            [
+                new ItemCarrito
+                {
+                    IdProducto = 1,
+                    Codigo = "779",
+                    Nombre = "Coca",
+                    Cantidad = 0.350m,
+                    PrecioUnitario = 3500,
+                    PorKilo = true
+                }
+            ],
+            DescuentoPorcentaje = 50,
+            MetodoPago = "Efectivo"
+        });
+
+        Assert.Equal(9.650m, prod.Cantidad);
+        Assert.Equal(1225m, r.Total);
+    }
+
+    [Fact]
     public void Generico_no_mueve_stock()
     {
         var prod = Comun();

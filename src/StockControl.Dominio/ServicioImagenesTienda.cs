@@ -81,10 +81,14 @@ public static class ServicioImagenesTienda
     }
 
     /// <summary>Entra en 250 × 300 conservando la proporción. Una imagen más chica no se agranda.</summary>
-    public static (int Ancho, int Alto) Dimensiones(int ancho, int alto)
+    public static (int Ancho, int Alto) Dimensiones(int ancho, int alto) =>
+        Dimensiones(ancho, alto, AnchoMaximo, AltoMaximo);
+
+    /// <summary>Entra en el recuadro conservando la proporción. Una imagen más chica no se agranda.</summary>
+    public static (int Ancho, int Alto) Dimensiones(int ancho, int alto, int topeAncho, int topeAlto)
     {
-        if (ancho <= AnchoMaximo && alto <= AltoMaximo) return (ancho, alto);
-        var escala = Math.Min((double)AnchoMaximo / ancho, (double)AltoMaximo / alto);
+        if (ancho <= topeAncho && alto <= topeAlto) return (ancho, alto);
+        var escala = Math.Min((double)topeAncho / ancho, (double)topeAlto / alto);
         return (Math.Max(1, (int)Math.Round(ancho * escala)), Math.Max(1, (int)Math.Round(alto * escala)));
     }
 

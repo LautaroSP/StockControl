@@ -7,6 +7,7 @@ public class ItemCarrito
     public string Nombre { get; set; } = "";
     public decimal Cantidad { get; set; }
     public decimal PrecioUnitario { get; set; }
+    public bool PorKilo { get; set; }
 }
 
 public class LineaVenta : ILineaVendida

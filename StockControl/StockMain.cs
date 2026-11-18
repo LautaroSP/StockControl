@@ -132,6 +132,19 @@ namespace StockControl
             VolverAScanner();
         }
 
+        private void btnModoBalanza_Click(object sender, EventArgs e)
+        {
+            using var frm = new frmBalanza(_prodRepository, _configuracionRepository);
+            if (frm.ShowDialog(this) == DialogResult.OK)
+            {
+                foreach (var pesada in frm.Pesadas.Reverse())
+                    _carrito.Add(pesada);
+                dataGridView2.Refresh();
+                CalcularTotal();
+            }
+            VolverAScanner();
+        }
+
         private void ActualizarVistaCliente(decimal total)
         {
             if (_vistaCliente == null)
@@ -173,6 +186,7 @@ namespace StockControl
             lblTotal.TextAlign = ContentAlignment.MiddleLeft;
             dataGridView1.ReadOnly = true;
             dataGridView1.Columns["ProductoSector"].Visible = false;
+            dataGridView1.Columns["PrecioPorKilo"].Visible = false;
             dataGridView1.Columns["IdGrupoProducto"].Visible = false;
             dataGridView1.Columns["GananciaIndividual"].Visible = false;
             dataGridView1.Columns["ValorGanancia"].Visible = false;
@@ -1283,7 +1297,7 @@ namespace StockControl
                 if (producto == null)
                     continue;
 
-                if (producto.ProductoSector == 1)
+                if (producto.ProductoSector == 1 || item.PorKilo)
                     continue;
 
                 decimal precioLista = producto.Precio;

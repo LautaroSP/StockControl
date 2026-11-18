@@ -24,6 +24,10 @@ public class ProductoPedido
     public decimal Costo { get; set; }
     public decimal Precio { get; set; }
     public bool ProductoSector { get; set; }
+
+    [Range(0, 999999)]
+    public decimal PrecioPorKilo { get; set; }
+
     public int? IdGrupoProducto { get; set; }
 
     /// <summary>null no la toca; 0 la saca (hereda la del grupo).</summary>
@@ -395,6 +399,8 @@ public class ItemVentaPedido
     public decimal Cantidad { get; set; }
 
     public decimal PrecioUnitario { get; set; }
+
+    public bool PorKilo { get; set; }
 }
 
 public class CerrarCajaPedido
@@ -545,6 +551,18 @@ public class TiendaPedido
 {
     [MaxLength(ServicioTienda.LargoMaximoAlias)]
     public string? Alias { get; set; }
+
+    /// <summary>Vacío: los botones usan el verde de StockControl.</summary>
+    [MaxLength(ServicioPaletaTienda.Largo)]
+    public string? ColorMarca { get; set; }
+
+    /// <summary>Vacío: el fondo de la tienda es el crema de StockControl.</summary>
+    [MaxLength(ServicioPaletaTienda.Largo)]
+    public string? ColorFondo { get; set; }
+
+    /// <summary>Vacío: la ficha de producto queda clara.</summary>
+    [MaxLength(ServicioPaletaTienda.Largo)]
+    public string? ColorFicha { get; set; }
 
     [Required, MaxLength(20)]
     public string Estado { get; set; } = ServicioTienda.Inactiva;

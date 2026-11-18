@@ -744,6 +744,7 @@ app.MapGet("/productos", async (AppDbContext db, SesionActual sesion, [AsParamet
             Costo = Permisos.CostoVisible(sesion.Rol ?? "", p.Costo),
             p.Precio,
             p.ProductoSector,
+            p.PrecioPorKilo,
             p.IdGrupoProducto,
             p.FechaModificacion,
             p.UsuarioModificacion,
@@ -781,6 +782,7 @@ app.MapPost("/productos", async (ProductoPedido pedido, AppDbContext db, SesionA
         Costo = pedido.Costo,
         Precio = PrecioVenta.PrecioAlCrear(pedido.Costo, pedido.Precio, pedido.ProductoSector, tieneGrupo, config.FactorGanancia, config.Iva),
         ProductoSector = pedido.ProductoSector,
+        PrecioPorKilo = Math.Round(Math.Max(0, pedido.PrecioPorKilo), 2),
         FechaModificacion = DateTimeOffset.UtcNow,
         UsuarioModificacion = sesion.NombreUsuario ?? "sistema"
     };
@@ -815,6 +817,7 @@ app.MapPut("/productos/{id:int}", async (int id, ProductoPedido pedido, AppDbCon
     p.Costo = pedido.Costo;
     p.Precio = pedido.Precio;
     p.ProductoSector = pedido.ProductoSector;
+    p.PrecioPorKilo = Math.Round(Math.Max(0, pedido.PrecioPorKilo), 2);
     if (!ServicioCatalogoTienda.PuedePublicar(p))
         p.Publicado = false;
     p.FechaModificacion = DateTimeOffset.UtcNow;
@@ -1275,6 +1278,10 @@ app.MapGet("/configuracion/tienda", async (AppDbContext db, SesionActual sesion)
     return Results.Ok(new
     {
         alias = local.AliasTienda ?? "",
+        colorMarca = local.ColorMarca,
+        colorFondo = local.ColorFondo,
+        colorFicha = local.ColorFicha,
+        logo = local.LogoTienda,
         estado = local.EstadoTienda,
         vista = ServicioTienda.Vista(local, ahoraTienda, gestionVencida),
         motivoCierre = ServicioTienda.MotivoCierre(local, ahoraTienda, gestionVencida),
@@ -1316,6 +1323,7 @@ app.MapPut("/configuracion/tienda", async (TiendaPedido pedido, AppDbContext db,
         ServicioEnvioTienda.Asignar(local, pedido.EnvioGratisSiempre, pedido.PrecioEnvioKm, pedido.EnvioMinimo, pedido.RadioEnvioKm, pedido.EnvioGratisDesde);
         ServicioTienda.AsignarUbicacion(local, pedido.Latitud, pedido.Longitud);
         ServicioTienda.CambiarEstado(local, pedido.Estado);
+        ServicioPaletaTienda.Asignar(local, pedido.ColorMarca, pedido.ColorFondo, pedido.ColorFicha);
         local.GestionACargoComprador = pedido.GestionACargoComprador;
         ServicioTransferenciaTienda.AsignarDatos(local, pedido.Cbu, pedido.AliasCbu, pedido.Titular, pedido.PlazoTransferenciaHoras);
         await db.SaveChangesAsync();
@@ -1407,6 +1415,12 @@ app.MapGet("/tienda/{alias}", async (string alias, AppDbContext db, AlcanceDatos
     return Results.Ok(new
     {
         alias = local.AliasTienda,
+        colorMarca = local.ColorMarca,
+        colorFondo = local.ColorFondo,
+        colorFicha = local.ColorFicha,
+        logo = local.LogoTienda,
+        textoClaro = ServicioPaletaTienda.TextoClaro(local.ColorFondo),
+        textoClaroFicha = ServicioPaletaTienda.TextoClaro(local.ColorFicha),
         nombre = local.Nombre,
         vista,
         horario = local.Horario,
@@ -1461,6 +1475,7 @@ app.MapGet("/tienda/{alias}/imagenes/{idImagen:int}", async (string alias, int i
 }).RequireRateLimiting("tienda-imagenes");
 
 app.MapImagenesProducto();
+app.MapLogoTienda();
 app.MapPedidosTienda();
 app.MapPanelPedidos();
 app.MapAvisos();
@@ -2534,7 +2549,8 @@ app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual 
                 Codigo = i.Codigo,
                 Nombre = i.Nombre,
                 Cantidad = i.Cantidad,
-                PrecioUnitario = i.PrecioUnitario
+                PrecioUnitario = i.PrecioUnitario,
+                PorKilo = i.PorKilo
             }).ToList(),
             DescuentoPorcentaje = pedido.DescuentoPorcentaje,
             CobrarAlCosto = pedido.CobrarAlCosto,
@@ -2630,7 +2646,8 @@ app.MapPost("/pedidos-espera", async (PedidoEsperaPedido pedido, AppDbContext db
                 Codigo = i.Codigo,
                 Nombre = i.Nombre,
                 Cantidad = i.Cantidad,
-                PrecioUnitario = i.PrecioUnitario
+                PrecioUnitario = i.PrecioUnitario,
+                PorKilo = i.PorKilo
             }).ToList(),
             Math.Clamp(pedido.DescuentoPorcentaje, 0, 100),
             pedido.AlCosto);
@@ -2883,7 +2900,8 @@ app.MapPost("/cuentas", async (CuentaPedido pedido, AppDbContext db, SesionActua
                 Codigo = i.Codigo,
                 Nombre = i.Nombre,
                 Cantidad = i.Cantidad,
-                PrecioUnitario = i.PrecioUnitario
+                PrecioUnitario = i.PrecioUnitario,
+                PorKilo = i.PorKilo
             }).ToList(),
             DescuentoPorcentaje = pedido.DescuentoPorcentaje,
             CobrarAlCosto = pedido.CobrarAlCosto,
@@ -3131,7 +3149,8 @@ app.MapPost("/ventas/mercadopago", async (VentaPedido pedido, AppDbContext db, S
                 Codigo = i.Codigo,
                 Nombre = i.Nombre,
                 Cantidad = i.Cantidad,
-                PrecioUnitario = i.PrecioUnitario
+                PrecioUnitario = i.PrecioUnitario,
+                PorKilo = i.PorKilo
             }).ToList(),
             DescuentoPorcentaje = pedido.DescuentoPorcentaje,
             CobrarAlCosto = pedido.CobrarAlCosto,
@@ -3155,7 +3174,8 @@ app.MapPost("/ventas/mercadopago", async (VentaPedido pedido, AppDbContext db, S
                     Codigo = i.Codigo,
                     Nombre = i.Nombre,
                     Cantidad = i.Cantidad,
-                    PrecioUnitario = i.PrecioUnitario
+                    PrecioUnitario = i.PrecioUnitario,
+                    PorKilo = i.PorKilo
                 }).ToList(),
                 Pagos = pagos,
                 DescuentoPorcentaje = pedido.DescuentoPorcentaje,

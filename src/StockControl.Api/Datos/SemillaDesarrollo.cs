@@ -63,7 +63,8 @@ public static class SemillaDesarrollo
                 Codigo = "SEC-FIAMBRE",
                 Nombre = "Fiambre (sector)",
                 Cantidad = 1,
-                ProductoSector = true
+                ProductoSector = true,
+                PrecioPorKilo = 4500
             });
 
         db.Configuracion.Add(new Configuracion

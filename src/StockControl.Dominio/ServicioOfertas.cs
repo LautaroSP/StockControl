@@ -18,6 +18,13 @@ public static class ServicioOfertas
     public static Oferta? Vigente(IEnumerable<Oferta> ofertas, int idProducto, DateOnly hoy) =>
         ofertas.FirstOrDefault(o => o.IdProducto == idProducto && o.FechaDesde <= hoy && hoy <= o.FechaHasta);
 
+    /// <summary>En la tienda corre la vigente solo si el dueño la marcó «también en la tienda». Las opciones de caja no cuentan.</summary>
+    public static Oferta? AplicableEnTienda(IEnumerable<Oferta> ofertas, int idProducto, DateOnly hoy)
+    {
+        var oferta = Vigente(ofertas, idProducto, hoy);
+        return oferta is { EnTienda: true } ? oferta : null;
+    }
+
     public static Oferta? Aplicable(PedidoCobro pedido, int idProducto)
     {
         var oferta = Vigente(pedido.Ofertas, idProducto, pedido.Hoy);

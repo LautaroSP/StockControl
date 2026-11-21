@@ -141,8 +141,8 @@ public class ServicioTransferenciaTiendaTests
     {
         var pedido = Crear(Tienda(aCargoComprador: true));
 
-        Assert.Equal(1000, pedido.Gestion);
-        Assert.Equal(4000, pedido.Total);
+        Assert.Equal(500, pedido.Gestion);
+        Assert.Equal(3500, pedido.Total);
     }
 
     [Fact]
@@ -246,7 +246,7 @@ public class ServicioTransferenciaTiendaTests
         var confirmado = Confirmado();
         var aConfirmar = Crear();
 
-        Assert.Equal(1000, ServicioGestionTienda.Pendiente([confirmado, aConfirmar]));
+        Assert.Equal(500, ServicioGestionTienda.Pendiente([confirmado, aConfirmar]));
         Assert.Equal(0, ServicioGestionTienda.Cobrada([confirmado]));
     }
 

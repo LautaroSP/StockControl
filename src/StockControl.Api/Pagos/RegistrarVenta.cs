@@ -12,7 +12,8 @@ public static class RegistrarVenta
         int? idUsuario,
         int nroCaja,
         ResultadoCobro resultado,
-        IReadOnlyList<PagoSolicitado> pagos)
+        IReadOnlyList<PagoSolicitado> pagos,
+        bool esTiendaOnline = false)
     {
         var ids = pagos.Select(p => p.IdMetodoPago).Distinct().ToList();
         var medios = await db.MetodosPago.IgnoreQueryFilters()
@@ -31,9 +32,12 @@ public static class RegistrarVenta
             MetodoPago = string.Join(", ", pagos.Select(p => medios[p.IdMetodoPago].Descripcion).Distinct()),
             MultipleMetodoDePago = pagos.Select(p => p.IdMetodoPago).Distinct().Count() > 1,
             Descuento = resultado.Descuento,
+            DescuentoMedio = resultado.DescuentoMedio,
+            DescuentoMedioPorcentaje = resultado.DescuentoMedioPorcentaje,
             PrecioCosto = resultado.PrecioCosto,
             DetalleAdjunto = true,
-            NroCaja = nroCaja
+            NroCaja = nroCaja,
+            EsTiendaOnline = esTiendaOnline
         };
         venta.Detalles.AddRange(resultado.Lineas.Select(l => InformeVentaDetalle.Desde(l, idLocal)));
         venta.Pagos.AddRange(pagos.Select(p => new PagoVenta

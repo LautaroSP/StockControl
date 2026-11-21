@@ -57,7 +57,7 @@ public class ServicioPagoPedidoTiendaTests
     {
         var pedido = Crear(Tienda(aCargoComprador: false));
 
-        Assert.Equal(1000, pedido.Gestion);
+        Assert.Equal(500, pedido.Gestion);
         Assert.Equal(3000, pedido.Subtotal);
         Assert.Equal(3000, pedido.Total);
     }
@@ -67,24 +67,24 @@ public class ServicioPagoPedidoTiendaTests
     {
         var pedido = Crear(Tienda(aCargoComprador: true));
 
-        Assert.Equal(1000, pedido.Gestion);
+        Assert.Equal(500, pedido.Gestion);
         Assert.True(pedido.GestionACargoComprador);
-        Assert.Equal(4000, pedido.Total);
+        Assert.Equal(3500, pedido.Total);
     }
 
     [Fact]
     public void La_gestion_es_la_misma_sin_importar_el_tamano_del_carrito()
     {
-        Assert.Equal(1000, Crear(precio: 50_000, cantidad: 10).Gestion);
+        Assert.Equal(500, Crear(precio: 50_000, cantidad: 10).Gestion);
     }
 
     [Fact]
     public void Si_el_subtotal_es_menor_que_el_importe_la_gestion_es_el_subtotal()
     {
-        var pedido = Crear(Tienda(aCargoComprador: true), precio: 300, cantidad: 2);
+        var pedido = Crear(Tienda(aCargoComprador: true), precio: 200, cantidad: 2);
 
-        Assert.Equal(600, pedido.Gestion);
-        Assert.Equal(1200, pedido.Total);
+        Assert.Equal(400, pedido.Gestion);
+        Assert.Equal(800, pedido.Total);
     }
 
     [Fact]
@@ -97,6 +97,39 @@ public class ServicioPagoPedidoTiendaTests
     }
 
     [Fact]
+    public void El_importe_de_gestion_lo_configura_el_admin_por_local()
+    {
+        var local = Tienda(aCargoComprador: true);
+        ServicioGestionTienda.Configurar(local, 200, exento: false);
+
+        var pedido = Crear(local);
+
+        Assert.Equal(200, pedido.Gestion);
+        Assert.Equal(3200, pedido.Total);
+    }
+
+    [Fact]
+    public void Configurar_no_cobrar_deja_el_importe_guardado()
+    {
+        var local = Tienda();
+        ServicioGestionTienda.Configurar(local, 750, exento: true);
+
+        Assert.Equal(750, local.ImporteGestion);
+        Assert.True(local.ExentoGestion);
+        Assert.Equal(0, ServicioGestionTienda.ImporteVigente(local));
+    }
+
+    [Fact]
+    public void Configurar_rechaza_centavos_o_fuera_de_rango()
+    {
+        var local = Tienda();
+
+        Assert.Throws<ErrorNegocio>(() => ServicioGestionTienda.Configurar(local, 10.5m, false));
+        Assert.Throws<ErrorNegocio>(() => ServicioGestionTienda.Configurar(local, -1, false));
+        Assert.Throws<ErrorNegocio>(() => ServicioGestionTienda.Configurar(local, 100_001, false));
+    }
+
+    [Fact]
     public void La_gestion_queda_congelada_en_el_pedido()
     {
         var local = Tienda(aCargoComprador: true);
@@ -105,18 +138,23 @@ public class ServicioPagoPedidoTiendaTests
         local.ExentoGestion = true;
         local.GestionACargoComprador = false;
 
-        Assert.Equal(1000, pedido.Gestion);
-        Assert.Equal(4000, pedido.Total);
+        Assert.Equal(500, pedido.Gestion);
+        Assert.Equal(3500, pedido.Total);
     }
 
     [Fact]
-    public void Coordinar_con_el_local_no_espera_pago_ni_cobra_gestion_por_MP()
+    public void Coordinar_congela_gestion_sin_esperar_pago_de_MP()
     {
-        var pedido = Crear(Tienda(aCargoComprador: true), medio: ServicioPagoPedidoTienda.Coordinar);
+        var aCargoComprador = Crear(Tienda(aCargoComprador: true), medio: ServicioPagoPedidoTienda.Coordinar);
+        var aCargoLocal = Crear(Tienda(aCargoComprador: false), medio: ServicioPagoPedidoTienda.Coordinar);
 
-        Assert.Equal(ServicioPagoPedidoTienda.SinPago, pedido.EstadoPago);
-        Assert.Equal(0, pedido.Gestion);
-        Assert.Equal(3000, pedido.Total);
+        Assert.Equal(ServicioPagoPedidoTienda.SinPago, aCargoComprador.EstadoPago);
+        Assert.Equal(500, aCargoComprador.Gestion);
+        Assert.Equal(3500, aCargoComprador.Total);
+        Assert.Equal(ServicioPagoPedidoTienda.SinPago, aCargoLocal.EstadoPago);
+        Assert.Equal(500, aCargoLocal.Gestion);
+        Assert.False(aCargoLocal.GestionACargoComprador);
+        Assert.Equal(3000, aCargoLocal.Total);
     }
 
     [Fact]
@@ -299,7 +337,7 @@ public class ServicioPagoPedidoTiendaTests
     public void Cancelar_con_reembolso_libera_el_stock_y_no_cobra_gestion()
     {
         var pedido = Pagado();
-        Assert.Equal(1000, ServicioGestionTienda.Cobrada([pedido]));
+        Assert.Equal(500, ServicioGestionTienda.Cobrada([pedido]));
 
         ServicioPagoPedidoTienda.CancelarConReembolso(pedido, Ahora);
 
@@ -331,7 +369,7 @@ public class ServicioPagoPedidoTiendaTests
 
         var venta = ServicioEntregaPedidoTienda.Entregar(pedido, [Producto()], Ahora);
 
-        Assert.Equal(4000, pedido.Total);
+        Assert.Equal(3500, pedido.Total);
         Assert.Equal(3000, venta.Total);
         Assert.Equal(3000, venta.Subtotal);
     }
@@ -343,6 +381,6 @@ public class ServicioPagoPedidoTiendaTests
         var pendiente = Crear();
         var coordinado = Crear(medio: ServicioPagoPedidoTienda.Coordinar);
 
-        Assert.Equal(1000, ServicioGestionTienda.Cobrada([pagado, pendiente, coordinado]));
+        Assert.Equal(500, ServicioGestionTienda.Cobrada([pagado, pendiente, coordinado]));
     }
 }

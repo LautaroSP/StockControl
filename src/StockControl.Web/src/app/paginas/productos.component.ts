@@ -2,7 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ApiService, CategoriaDto, FiltroProductos, GrupoListaDto, ProductoDto } from '../servicios/api.service';
+import { ApiService, CategoriaDto, FiltroProductos, GrupoListaDto, PedidoAumento, ProductoDto, ProveedorListaDto, RevisionListaDto, UltimoAumentoDto, VistaPreviaAumentoDto } from '../servicios/api.service';
+import { descargar } from '../servicios/descargar';
 import { SesionService } from '../servicios/sesion.service';
 import { DialogoService } from '../servicios/dialogo.service';
 
@@ -16,6 +17,13 @@ import { DialogoService } from '../servicios/dialogo.service';
       <div class="row">
         @if (sesion.esDueno()) {
           <button class="btn btn-primary" type="button" (click)="nuevo()">Nuevo producto</button>
+          <button class="btn" type="button" (click)="abrirAumento()">Aumentar</button>
+          <button class="btn" type="button" [disabled]="marcados.size === 0" (click)="abrirAsignarCategoria()">
+            Asignar categoría{{ marcados.size > 0 ? ' (' + marcados.size + ')' : '' }}
+          </button>
+          @if (ultimoAumento && !ultimoAumento.deshecho) {
+            <button class="btn" type="button" (click)="deshacerUltimoAumento()">Deshacer último aumento</button>
+          }
           <a class="btn" routerLink="/carteles">Carteles</a>
         }
         <button class="btn" type="button" [disabled]="!elegido" (click)="abrirStock()">Sumar stock</button>
@@ -48,7 +56,7 @@ import { DialogoService } from '../servicios/dialogo.service';
       }
       <span class="meta">{{ total }} en lista</span>
     </div>
-    @if (sesion.puedeConfigurarLocal()) {
+      @if (sesion.puedeConfigurarLocal()) {
       <div class="row" style="margin-bottom:12px">
         <button class="btn" type="button" [disabled]="publicablesVisibles().length === 0 && !hayMasQueLaPantalla()" (click)="publicarLista(true)">Publicar la lista en la tienda</button>
         <button class="btn" type="button" [disabled]="visibles.length === 0" (click)="publicarLista(false)">Ocultar la lista de la tienda</button>
@@ -59,6 +67,9 @@ import { DialogoService } from '../servicios/dialogo.service';
       <table class="data">
         <thead>
           <tr>
+            @if (sesion.esDueno()) {
+              <th><input type="checkbox" [checked]="todosVisiblesMarcados()" (change)="marcarVisibles($any($event.target).checked)" aria-label="Marcar los de la pantalla" /></th>
+            }
             <th>Código</th>
             <th>Nombre</th>
             <th class="num">Stock</th>
@@ -80,7 +91,7 @@ import { DialogoService } from '../servicios/dialogo.service';
         <tbody>
           @if (agrupar && sesion.esDueno()) {
             @for (seccion of secciones; track seccion.nombre) {
-              <tr><th colspan="10"><button class="colapsar" type="button" (click)="alternarSeccion(seccion.nombre)"><span class="flecha" [class.abierta]="!seccionesCerradas.has(seccion.nombre)">▸</span>{{ seccion.nombre }} ({{ seccion.productos.length }})</button></th></tr>
+              <tr><th colspan="11"><button class="colapsar" type="button" (click)="alternarSeccion(seccion.nombre)"><span class="flecha" [class.abierta]="!seccionesCerradas.has(seccion.nombre)">▸</span>{{ seccion.nombre }} ({{ seccion.productos.length }})</button></th></tr>
               @if (!seccionesCerradas.has(seccion.nombre)) {
                 @for (p of seccion.productos; track p.id) {
                   <ng-container [ngTemplateOutlet]="filaProducto" [ngTemplateOutletContext]="{ p: p }" />
@@ -96,6 +107,9 @@ import { DialogoService } from '../servicios/dialogo.service';
               (click)="elegido = p"
               (dblclick)="editar(p)"
             >
+              @if (sesion.esDueno()) {
+                <td (click)="$event.stopPropagation()"><input type="checkbox" [checked]="marcada(p.id)" (change)="marcar(p.id, $any($event.target).checked)" [attr.aria-label]="'Marcar ' + p.nombre" /></td>
+              }
               <td>{{ p.codigo }}</td>
               <td>{{ p.nombre }}</td>
               <td class="num">{{ p.productoSector ? '—' : p.cantidad }}</td>
@@ -119,6 +133,9 @@ import { DialogoService } from '../servicios/dialogo.service';
       </table>
       <ng-template #filaProducto let-p="p">
         <tr class="clickable" [class.low]="!p.productoSector && p.cantidad <= umbralStockBajo" [class.selected]="elegido?.id === p.id" (click)="elegido = p" (dblclick)="editar(p)">
+          @if (sesion.esDueno()) {
+            <td (click)="$event.stopPropagation()"><input type="checkbox" [checked]="marcada(p.id)" (change)="marcar(p.id, $any($event.target).checked)" [attr.aria-label]="'Marcar ' + p.nombre" /></td>
+          }
           <td>{{ p.codigo }}</td><td>{{ p.nombre }}</td><td class="num">{{ p.productoSector ? '—' : p.cantidad }}</td>
           @if (sesion.esDueno()) { <td class="num">{{ dinero(p.costo) }}</td> }
           <td class="num">{{ p.productoSector ? 'en caja' : dinero(p.precio) }}</td><td>{{ p.productoSector ? 'Sector' : 'Común' }}</td>
@@ -148,7 +165,7 @@ import { DialogoService } from '../servicios/dialogo.service';
       </ng-template>
     </section>
     @if (sesion.esDueno()) {
-      <p class="meta" style="margin-top:12px">Dueño: alta y edición (doble clic). Empleado: lista y sumar stock.</p>
+      <p class="meta" style="margin-top:12px">Dueño: alta, edición (doble clic) y aumento de precio o costo. Empleado: lista y sumar stock.</p>
     } @else {
       <p class="meta" style="margin-top:12px">Podés sumar stock. No cambiás precios ni creás productos.</p>
     }
@@ -168,6 +185,9 @@ import { DialogoService } from '../servicios/dialogo.service';
           <label class="check"><input type="checkbox" [ngModel]="form.productoSector" (ngModelChange)="cambiarSector($event)" /> Producto sector</label>
           <label class="field">Precio por kilo <input class="wide" type="number" min="0" step="0.01" [(ngModel)]="form.precioPorKilo" /></label>
           <p class="meta">En 0 no aparece en el modo balanza. Sirve para común y sector.</p>
+          <label class="field">Descripción para la tienda (opcional)
+            <textarea class="wide" rows="3" maxlength="500" [(ngModel)]="form.descripcion"></textarea>
+          </label>
           @if (!form.productoSector) {
             <p class="meta" style="margin:8px 0 4px">Grupo: {{ form.nombreGrupo || 'Sin grupo' }}</p>
             <div class="row">
@@ -233,6 +253,175 @@ import { DialogoService } from '../servicios/dialogo.service';
         </div>
       </div>
     </div>
+    <div class="modal-back" [class.show]="asignarCategoriaAbierto">
+      <div class="modal">
+        <h2 style="margin:0 0 8px;font-size:18px">Asignar categoría</h2>
+        <p class="meta">{{ marcados.size }} producto{{ marcados.size === 1 ? '' : 's' }} seleccionado{{ marcados.size === 1 ? '' : 's' }}.</p>
+        <label class="field">
+          Categoría
+          <select class="wide" [(ngModel)]="idCategoriaAsignar">
+            <option [ngValue]="0">Sin categoría</option>
+            @for (c of categorias; track c.id) {
+              <option [ngValue]="c.id">{{ etiquetaCategoria(c) }}</option>
+            }
+          </select>
+        </label>
+        @if (error) {
+          <p class="error">{{ error }}</p>
+        }
+        <div class="row" style="margin-top:12px">
+          <button class="btn btn-primary grow" type="button" (click)="asignarCategoria()">Asignar</button>
+          <button class="btn" type="button" (click)="asignarCategoriaAbierto = false">Cancelar</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-back" [class.show]="aumentoAbierto">
+      <div class="modal">
+        <h2 style="margin:0 0 8px;font-size:18px">Aumentar precio y costo</h2>
+        @if (listaRevision) {
+          <p class="meta">Lista del proveedor: {{ listaRevision.encontrados.length }} se actualizan, {{ listaRevision.noEncontrados.length }} no se encontraron, {{ listaRevision.salteados.length }} se saltean. Todavía no se guardó nada.</p>
+          <div style="max-height:45vh;overflow:auto">
+            <table class="data">
+              <thead><tr><th>Producto</th><th class="num">Costo antes</th><th class="num">Costo nuevo</th><th class="num">Precio antes</th><th class="num">Precio nuevo</th></tr></thead>
+              <tbody>
+                @for (f of listaRevision.encontrados; track f.fila) {
+                  <tr>
+                    <td>{{ f.nombre }}@if (f.unidadesPack > 1) { <span class="meta"> (pack de {{ f.unidadesPack }})</span> }@if (f.aviso) { <span class="meta"> {{ f.aviso }}</span> }</td>
+                    <td class="num">{{ dinero(f.costoAntes) }}</td>
+                    <td class="num">{{ dinero(f.costoNuevo) }}</td>
+                    <td class="num">{{ dinero(f.precioAntes) }}</td>
+                    <td class="num">{{ dinero(f.precioNuevo) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (listaRevision.noEncontrados.length > 0) {
+            <p class="meta"><strong>No encontrados</strong> (no se crean): {{ codigosNoEncontrados }}</p>
+          }
+          @if (listaRevision.salteados.length > 0) {
+            <p class="meta"><strong>Salteados:</strong></p>
+            <ul class="meta">
+              @for (s of listaRevision.salteados; track s.fila) {
+                <li>Fila {{ s.fila }} {{ s.codigo }}: {{ s.motivo }}</li>
+              }
+            </ul>
+          }
+        } @else if (!vistaPrevia) {
+        <label class="field">
+          Alcance
+          <select class="wide" [(ngModel)]="alcance">
+            <option value="marcados">Productos marcados ({{ marcados.size }})</option>
+            <option value="categoria">Toda una categoría</option>
+            <option value="proveedor">Todo un proveedor</option>
+          </select>
+        </label>
+        @if (alcance === 'proveedor') {
+          <label class="field">
+            Proveedor
+            <select class="wide" [(ngModel)]="idProveedorAumento">
+              <option [ngValue]="0">Elegí</option>
+              @for (v of proveedores; track v.id) {
+                <option [ngValue]="v.id">{{ v.nombre }}</option>
+              }
+            </select>
+          </label>
+          <div class="row" style="margin-bottom:8px">
+            <button class="btn" type="button" (click)="bajarPlantillaLista()">Plantilla de lista</button>
+            <label class="btn">
+              Subir lista en Excel
+              <input type="file" accept=".xlsx" hidden (change)="subirLista($event)" />
+            </label>
+          </div>
+          <p class="meta">Con el Excel (código de barras y costo) se actualizan costo y precio. No crea productos ni suma stock. Para un aumento por porcentaje o pesos, usá las opciones de abajo.</p>
+        }
+        @if (alcance === 'categoria') {
+          <label class="field">
+            Categoría
+            <select class="wide" [(ngModel)]="idCategoriaAumento">
+              <option [ngValue]="0">Elegí</option>
+              @for (c of categorias; track c.id) {
+                <option [ngValue]="c.id">{{ c.nombre }}</option>
+              }
+            </select>
+          </label>
+        }
+        <label class="field">
+          Precio
+          <select class="wide" [(ngModel)]="tipoPrecio">
+            <option value="ninguno">No cambiar</option>
+            <option value="porcentaje">Porcentaje</option>
+            <option value="importe">Pesos</option>
+          </select>
+        </label>
+        @if (tipoPrecio !== 'ninguno') {
+          <label class="field">{{ tipoPrecio === 'porcentaje' ? 'Porcentaje de precio' : 'Pesos de precio' }}
+            <input class="wide" type="number" min="0" step="0.01" [(ngModel)]="valorPrecio" />
+          </label>
+        }
+        <label class="field">
+          Costo
+          <select class="wide" [(ngModel)]="tipoCosto">
+            <option value="ninguno">No cambiar</option>
+            <option value="porcentaje">Porcentaje</option>
+            <option value="importe">Pesos</option>
+          </select>
+        </label>
+        @if (tipoCosto !== 'ninguno') {
+          <label class="field">{{ tipoCosto === 'porcentaje' ? 'Porcentaje de costo' : 'Pesos de costo' }}
+            <input class="wide" type="number" min="0" step="0.01" [(ngModel)]="valorCosto" />
+          </label>
+        }
+        <label class="field">
+          Redondear precio hacia arriba
+          <select class="wide" [(ngModel)]="redondeoPrecio">
+            <option [ngValue]="0">No redondear</option>
+            <option [ngValue]="10">A $ 10</option>
+            <option [ngValue]="50">A $ 50</option>
+            <option [ngValue]="100">A $ 100</option>
+          </select>
+        </label>
+        <p class="meta">El precio y el costo se aumentan por separado. Si el producto está en un grupo, sube el grupo y todos sus miembros. El sector no tiene precio de lista: solo sube el costo. El precio por kilo no cambia.</p>
+        } @else {
+          <p class="meta">Vista previa: {{ vistaPrevia.total === 1 ? "se cambia 1 producto o grupo" : "se cambian " + vistaPrevia.total + " productos o grupos" }}. Todavía no se guardó nada.</p>
+          <div style="max-height:50vh;overflow:auto">
+            <table class="data">
+              <thead><tr><th>Producto</th><th class="num">Precio antes</th><th class="num">Precio después</th><th class="num">Costo antes</th><th class="num">Costo después</th></tr></thead>
+              <tbody>
+                @for (f of vistaPrevia.filas; track $index) {
+                  <tr>
+                    <td>{{ f.nombre }}@if (f.idGrupoProducto) { <span class="meta"> (grupo)</span> }</td>
+                    <td class="num">{{ dinero(f.precioAntes) }}</td>
+                    <td class="num">{{ dinero(f.precioDespues) }}</td>
+                    <td class="num">{{ dinero(f.costoAntes) }}</td>
+                    <td class="num">{{ dinero(f.costoDespues) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (vistaPrevia.total > vistaPrevia.filas.length) {
+            <p class="meta">Se muestran las primeras {{ vistaPrevia.filas.length }} de {{ vistaPrevia.total }}.</p>
+          }
+        }
+        @if (error) {
+          <p class="error">{{ error }}</p>
+        }
+        <div class="row" style="margin-top:12px">
+          @if (listaRevision) {
+            <button class="btn btn-primary grow" type="button" [disabled]="listaRevision.encontrados.length === 0" (click)="confirmarLista()">Confirmar lista</button>
+            <button class="btn" type="button" (click)="listaRevision = null">Volver</button>
+          } @else if (!vistaPrevia) {
+            <button class="btn grow" type="button" (click)="verVistaPrevia()">Ver vista previa</button>
+            <button class="btn btn-primary grow" type="button" (click)="aplicarAumento()">Aumentar</button>
+            <button class="btn" type="button" (click)="aumentoAbierto = false">Cancelar</button>
+          } @else {
+            <button class="btn btn-primary grow" type="button" (click)="aplicarAumento()">Aplicar</button>
+            <button class="btn" type="button" (click)="vistaPrevia = null">Volver</button>
+          }
+        </div>
+      </div>
+    </div>
     <div class="toast" [class.show]="toast">{{ toast }}</div>
   `
 })
@@ -257,6 +446,23 @@ export class ProductosComponent implements OnInit {
   toast = '';
   formAbierto = false;
   stockAbierto = false;
+  aumentoAbierto = false;
+  asignarCategoriaAbierto = false;
+  idCategoriaAsignar = 0;
+  marcados = new Set<number>();
+  alcance: 'marcados' | 'categoria' | 'proveedor' = 'marcados';
+  idCategoriaAumento = 0;
+  idProveedorAumento = 0;
+  proveedores: ProveedorListaDto[] = [];
+  listaRevision: RevisionListaDto | null = null;
+  private archivoLista = '';
+  tipoPrecio = 'porcentaje';
+  valorPrecio = 0;
+  tipoCosto = 'ninguno';
+  valorCosto = 0;
+  redondeoPrecio = 0;
+  vistaPrevia: VistaPreviaAumentoDto | null = null;
+  ultimoAumento: UltimoAumentoDto | null = null;
   gruposAbiertos = false;
   editando: ProductoDto | null = null;
   cantidadStock = 1;
@@ -293,6 +499,8 @@ export class ProductosComponent implements OnInit {
       });
       this.api.categorias().subscribe({ next: (r) => (this.categorias = r) });
       this.api.grupos().subscribe({ next: (r) => (this.grupos = r) });
+      this.api.proveedores().subscribe({ next: (r) => (this.proveedores = r.filter((v) => v.activo)) });
+      this.cargarUltimoAumento();
     }
     this.cargar();
   }
@@ -523,6 +731,215 @@ export class ProductosComponent implements OnInit {
     });
   }
 
+  marcada(id: number): boolean {
+    return this.marcados.has(id);
+  }
+
+  marcar(id: number, on: boolean): void {
+    if (on) this.marcados.add(id);
+    else this.marcados.delete(id);
+    this.marcados = new Set(this.marcados);
+  }
+
+  todosVisiblesMarcados(): boolean {
+    return this.visibles.length > 0 && this.visibles.every((p) => this.marcados.has(p.id));
+  }
+
+  marcarVisibles(on: boolean): void {
+    for (const p of this.visibles) {
+      if (on) this.marcados.add(p.id);
+      else this.marcados.delete(p.id);
+    }
+    this.marcados = new Set(this.marcados);
+  }
+
+  abrirAumento(): void {
+    this.alcance = this.marcados.size > 0 ? 'marcados' : 'categoria';
+    this.tipoPrecio = 'porcentaje';
+    this.valorPrecio = 0;
+    this.tipoCosto = 'ninguno';
+    this.valorCosto = 0;
+    this.idCategoriaAumento = 0;
+    this.idProveedorAumento = 0;
+    this.listaRevision = null;
+    this.redondeoPrecio = 0;
+    this.vistaPrevia = null;
+    this.error = '';
+    this.aumentoAbierto = true;
+  }
+
+  abrirAsignarCategoria(): void {
+    this.idCategoriaAsignar = 0;
+    this.error = '';
+    this.asignarCategoriaAbierto = true;
+  }
+
+  etiquetaCategoria(c: CategoriaDto): string {
+    if (!c.idPadre) return c.nombre;
+    const padre = this.categorias.find((x) => x.id === c.idPadre);
+    return padre ? `${padre.nombre} › ${c.nombre}` : c.nombre;
+  }
+
+  asignarCategoria(): void {
+    if (this.marcados.size === 0) {
+      this.error = 'Marcá al menos un producto.';
+      return;
+    }
+    const ids = [...this.marcados];
+    this.api.asignarCategoriaProductos(ids, this.idCategoriaAsignar).subscribe({
+      next: (r) => {
+        this.asignarCategoriaAbierto = false;
+        this.marcados = new Set();
+        this.error = '';
+        this.mostrar(r.actualizados === 1 ? 'Categoría asignada a 1 producto' : `Categoría asignada a ${r.actualizados} productos`);
+        this.cargar();
+      },
+      error: (err) => (this.error = typeof err.error === 'string' ? err.error : 'No se pudo asignar la categoría.')
+    });
+  }
+
+  private armarPedidoAumento(): PedidoAumento | null {
+    const precio = Number(this.valorPrecio) || 0;
+    const costo = Number(this.valorCosto) || 0;
+    const subePrecio = this.tipoPrecio !== 'ninguno' && precio > 0;
+    const subeCosto = this.tipoCosto !== 'ninguno' && costo > 0;
+    if (!subePrecio && !subeCosto) {
+      this.error = 'Indicá un aumento de precio o de costo.';
+      return null;
+    }
+    const pedido: PedidoAumento = {
+      tipoPrecio: subePrecio ? this.tipoPrecio : 'ninguno',
+      valorPrecio: subePrecio ? precio : 0,
+      tipoCosto: subeCosto ? this.tipoCosto : 'ninguno',
+      valorCosto: subeCosto ? costo : 0,
+      redondeoPrecio: subePrecio ? this.redondeoPrecio : 0
+    };
+    if (this.alcance === 'proveedor') {
+      if (!this.idProveedorAumento) {
+        this.error = 'Elegí un proveedor.';
+        return null;
+      }
+      pedido.idProveedor = this.idProveedorAumento;
+      return pedido;
+    }
+    if (this.alcance === 'categoria') {
+      if (!this.idCategoriaAumento) {
+        this.error = 'Elegí una categoría.';
+        return null;
+      }
+      pedido.idCategoria = this.idCategoriaAumento;
+      return pedido;
+    }
+    if (this.marcados.size === 0) {
+      this.error = 'Marcá al menos un producto.';
+      return null;
+    }
+    pedido.ids = [...this.marcados];
+    return pedido;
+  }
+
+  verVistaPrevia(): void {
+    const pedido = this.armarPedidoAumento();
+    if (!pedido) return;
+    this.api.vistaPreviaAumento(pedido).subscribe({
+      next: (r) => {
+        this.vistaPrevia = r;
+        this.error = '';
+      },
+      error: (err) => (this.error = typeof err.error === 'string' ? err.error : 'No se pudo armar la vista previa.')
+    });
+  }
+
+  aplicarAumento(): void {
+    const pedido = this.armarPedidoAumento();
+    if (!pedido) return;
+    this.api.aumentarProductos(pedido).subscribe({
+      next: (r) => {
+        this.aumentoAbierto = false;
+        this.vistaPrevia = null;
+        this.marcados = new Set();
+        this.error = '';
+        this.mostrar(r.cantidad === 1 ? 'Aumentaste 1 producto' : `Aumentaste ${r.cantidad} productos`);
+        this.cargarUltimoAumento();
+        this.cargar();
+      },
+      error: (err) => (this.error = typeof err.error === 'string' ? err.error : 'No se pudo aumentar.')
+    });
+  }
+
+  get codigosNoEncontrados(): string {
+    return (this.listaRevision?.noEncontrados ?? []).map((n) => n.codigo || `fila ${n.fila}`).join(', ');
+  }
+
+  bajarPlantillaLista(): void {
+    this.api.plantillaListaProveedor().subscribe({
+      next: (archivo) => descargar(archivo, 'plantilla-lista-costos.xlsx'),
+      error: () => (this.error = 'No se pudo bajar la plantilla.')
+    });
+  }
+
+  subirLista(evento: Event): void {
+    const input = evento.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    input.value = '';
+    if (!archivo) return;
+    if (!this.idProveedorAumento) {
+      this.error = 'Elegí un proveedor.';
+      return;
+    }
+    if (archivo.size > 2 * 1024 * 1024) {
+      this.error = 'El Excel no puede pesar más de 2 MB.';
+      return;
+    }
+    this.error = '';
+    const lector = new FileReader();
+    lector.onload = () => {
+      this.archivoLista = String(lector.result);
+      this.api.revisarListaProveedor(this.idProveedorAumento, this.archivoLista).subscribe({
+        next: (r) => (this.listaRevision = r),
+        error: (err) => (this.error = typeof err.error === 'string' ? err.error : 'No se pudo leer el Excel.')
+      });
+    };
+    lector.readAsDataURL(archivo);
+  }
+
+  confirmarLista(): void {
+    if (!this.listaRevision) return;
+    this.api.aplicarListaProveedor(this.idProveedorAumento, this.archivoLista).subscribe({
+      next: (r) => {
+        this.aumentoAbierto = false;
+        this.listaRevision = null;
+        this.archivoLista = '';
+        this.error = '';
+        this.mostrar(r.actualizados === 1 ? 'Actualizaste 1 producto' : `Actualizaste ${r.actualizados} productos`);
+        this.cargar();
+      },
+      error: (err) => (this.error = typeof err.error === 'string' ? err.error : 'No se pudo aplicar la lista.')
+    });
+  }
+
+  private cargarUltimoAumento(): void {
+    this.api.ultimoAumento().subscribe({ next: (u) => (this.ultimoAumento = u) });
+  }
+
+  async deshacerUltimoAumento(): Promise<void> {
+    const u = this.ultimoAumento;
+    if (!u || u.deshecho) return;
+    const cuando = new Date(u.fecha).toLocaleString('es-AR');
+    if (!await this.dialogo.confirmar(`¿Deshacer el aumento del ${cuando} hecho por ${u.usuario}? Solo vuelven los productos que nadie tocó después.`)) return;
+    this.api.deshacerAumento().subscribe({
+      next: (r) => {
+        const omitidos = r.omitidos.map((o) => o.nombre);
+        const aviso = omitidos.length > 0
+          ? `Se restauraron ${r.restaurados}. No se tocaron por haber cambiado después: ${omitidos.join(', ')}`
+          : `Se restauraron ${r.restaurados}`;
+        this.mostrar(aviso);
+        this.cargarUltimoAumento();
+        this.cargar();
+      },
+      error: (err) => this.mostrar(typeof err.error === 'string' ? err.error : 'No se pudo deshacer.')
+    });
+  }
   abrirStock(): void {
     if (!this.elegido) return;
     this.cantidadStock = 1;

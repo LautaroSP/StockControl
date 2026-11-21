@@ -25,6 +25,12 @@ interface Estado {
             <a class="btn btn-primary" routerLink="/mi-tienda/configuracion">Ir a Configuración</a>
           </div>
         } @else {
+          @if (avisoCierre) {
+            <div class="aviso-abono aviso-abono-vencido" role="alert">
+              {{ avisoCierre }}
+              <a class="btn btn-primary" routerLink="/activar">Pagar el abono</a>
+            </div>
+          }
           <h2><sc-icono nombre="tienda" /> Estado <span class="badge {{ estado().clase }}">{{ estado().texto }}</span></h2>
           @if (estadoTienda === 'inactiva') {
             <p class="hint">Apagada: el link no abre hasta que la actives en Configuración.</p>
@@ -66,6 +72,7 @@ export class TiendaResumenComponent implements OnInit {
   estadoTienda: EstadoTienda = 'inactiva';
   vista: VistaTienda | null = null;
   motivoCierre: 'abono' | 'gestion' | null = null;
+  avisoCierre: string | null = null;
   publicados = 0;
   conImagen = 0;
   cargada = false;
@@ -82,6 +89,7 @@ export class TiendaResumenComponent implements OnInit {
         this.estadoTienda = r.estado;
         this.vista = r.vista;
         this.motivoCierre = r.motivoCierre;
+        this.avisoCierre = r.avisoCierre;
         this.publicados = r.publicados;
         this.conImagen = r.conImagen;
         this.cargada = true;

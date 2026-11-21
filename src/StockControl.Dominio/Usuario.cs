@@ -9,6 +9,8 @@ public class Usuario
     public bool EmailConfirmado { get; set; } = true;
     public string? TokenConfirmacion { get; set; }
     public DateTimeOffset? VenceConfirmacion { get; set; }
+    public string? TokenRecuperacion { get; set; }
+    public DateTimeOffset? VenceRecuperacion { get; set; }
     public string HashClave { get; set; } = "";
     public int IntentosFallidos { get; set; }
     public DateTimeOffset? BloqueadoHasta { get; set; }

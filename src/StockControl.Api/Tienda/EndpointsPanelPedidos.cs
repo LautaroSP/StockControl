@@ -149,7 +149,7 @@ public static class EndpointsPanelPedidos
             var deuda = ServicioGestionTienda.Nacer(entregado, local.Vence, ahora, yaExiste);
             if (deuda != null) db.GestionesTienda.Add(deuda);
             var venta = await RegistrarVenta.Guardar(db, idLocal, sesion.IdUsuario, nroCaja, resultado,
-                [new PagoSolicitado(medio.Id, resultado.Total)]);
+                [new PagoSolicitado(medio.Id, resultado.Total)], esTiendaOnline: true);
             await db.SaveChangesAsync();
             entregado.IdInformeVenta = venta.IdInformeVenta;
             await db.SaveChangesAsync();

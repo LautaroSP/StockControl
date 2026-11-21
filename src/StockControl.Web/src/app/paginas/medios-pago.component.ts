@@ -17,7 +17,7 @@ import { SesionService } from '../servicios/sesion.service';
     @if (error) { <p class="error">{{ error }}</p> }
     <section class="panel">
       <table class="data">
-        <thead><tr><th>Descripción</th><th>Cobro</th><th>Estado</th><th></th></tr></thead>
+        <thead><tr><th>Descripción</th><th>Cobro</th><th>Descuento %</th><th>Estado</th><th></th></tr></thead>
         <tbody>
           @for (medio of medios; track medio.id) {
             <tr>
@@ -29,6 +29,9 @@ import { SesionService } from '../servicios/sesion.service';
                   <option value="qr_pantalla">QR en pantalla</option>
                   <option value="point">Point</option>
                 </select>
+              </td>
+              <td>
+                <input type="number" min="0" max="99" style="width:72px" [ngModel]="medio.descuentoPorcentaje || 0" (change)="descuento(medio, $event)" />
               </td>
               <td>{{ medio.activo ? 'Activo' : 'Inactivo' }}</td>
               <td class="num">
@@ -73,7 +76,7 @@ export class MediosPagoComponent implements OnInit {
   async editar(medio: MetodoPagoDto): Promise<void> {
     const descripcion = (await this.dialogo.pedir('Descripción del medio de pago', medio.descripcion))?.trim();
     if (!descripcion || descripcion === medio.descripcion) return;
-    this.api.editarMedioPago(medio.id, descripcion, medio.integracion || 'manual').subscribe({ next: () => this.cargar(), error: (e) => (this.error = this.mensaje(e)) });
+    this.api.editarMedioPago(medio.id, descripcion, medio.integracion || 'manual', medio.descuentoPorcentaje || 0).subscribe({ next: () => this.cargar(), error: (e) => (this.error = this.mensaje(e)) });
   }
 
   async desactivar(medio: MetodoPagoDto): Promise<void> {
@@ -83,7 +86,16 @@ export class MediosPagoComponent implements OnInit {
 
   integracion(medio: MetodoPagoDto, integracion: string): void {
     if (integracion === medio.integracion) return;
-    this.api.editarMedioPago(medio.id, medio.descripcion, integracion).subscribe({
+    this.api.editarMedioPago(medio.id, medio.descripcion, integracion, medio.descuentoPorcentaje || 0).subscribe({
+      next: () => this.cargar(),
+      error: (e) => (this.error = this.mensaje(e))
+    });
+  }
+
+  descuento(medio: MetodoPagoDto, evento: Event): void {
+    const valor = Number((evento.target as HTMLInputElement).value);
+    if (!Number.isInteger(valor) || valor < 0 || valor > 99 || valor === (medio.descuentoPorcentaje || 0)) return;
+    this.api.editarMedioPago(medio.id, medio.descripcion, medio.integracion || 'manual', valor).subscribe({
       next: () => this.cargar(),
       error: (e) => (this.error = this.mensaje(e))
     });

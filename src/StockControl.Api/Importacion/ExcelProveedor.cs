@@ -11,6 +11,7 @@ public static class ExcelProveedor
     public const int MaxFilas = 2000;
 
     private static readonly string[] Encabezados = { "Codigo", "Nombre de producto", "Costo", "Cantidad" };
+    private const string EncabezadoCodigoLista = "Codigo de barras";
     private static readonly CultureInfo Ar = new("es-AR");
 
     public static byte[] Plantilla()
@@ -49,6 +50,44 @@ public static class ExcelProveedor
                 Costo = Numero(fila.Cell(3), vacio: null),
                 Cantidad = Numero(fila.Cell(4), vacio: 0m)
             });
+        }
+        return filas;
+    }
+
+    public static byte[] PlantillaLista()
+    {
+        using var libro = new XLWorkbook();
+        var hoja = libro.AddWorksheet("Lista");
+        hoja.Cell(1, 1).Value = EncabezadoCodigoLista;
+        hoja.Cell(1, 2).Value = "Costo";
+        hoja.Row(1).Style.Font.Bold = true;
+        hoja.Column(1).Style.NumberFormat.Format = "@";
+        hoja.Columns().AdjustToContents();
+        return Guardar(libro);
+    }
+
+    /// <summary>Lista de costos: código de barras + costo. Otras columnas se ignoran.</summary>
+    public static List<FilaLista> LeerLista(byte[] archivo)
+    {
+        if (archivo.Length > MaxBytes)
+            throw new ErrorNegocio("El Excel no puede pesar más de 2 MB.");
+        using var libro = Abrir(archivo);
+        var hoja = libro.Worksheets.First();
+        var codigo = Texto(hoja.Cell(1, 1));
+        var esCodigo = codigo.Equals(EncabezadoCodigoLista, StringComparison.OrdinalIgnoreCase)
+            || codigo.Equals("Codigo", StringComparison.OrdinalIgnoreCase);
+        if (!esCodigo || !Texto(hoja.Cell(1, 2)).Equals("Costo", StringComparison.OrdinalIgnoreCase))
+            throw new ErrorNegocio("Usá dos columnas: Código de barras y Costo.");
+
+        var filas = new List<FilaLista>();
+        var ultima = hoja.LastRowUsed()?.RowNumber() ?? 1;
+        for (var nro = 2; nro <= ultima; nro++)
+        {
+            var fila = hoja.Row(nro);
+            if (fila.Cells(1, 2).All(c => c.IsEmpty())) continue;
+            if (filas.Count == MaxFilas)
+                throw new ErrorNegocio($"El Excel no puede tener más de {MaxFilas} filas.");
+            filas.Add(new FilaLista { Fila = nro, Codigo = Texto(fila.Cell(1)), Costo = Numero(fila.Cell(2), vacio: null) });
         }
         return filas;
     }

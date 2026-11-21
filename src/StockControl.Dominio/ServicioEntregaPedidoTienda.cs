@@ -50,6 +50,6 @@ public static class ServicioEntregaPedidoTienda
         Precio = linea.PrecioUnitario,
         Costo = producto?.Costo,
         SubTotal = linea.SubTotal,
-        PrecioBase = linea.PrecioUnitario
+        PrecioBase = linea.PrecioLista > 0 ? linea.PrecioLista : linea.PrecioUnitario
     };
 }

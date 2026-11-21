@@ -1,7 +1,7 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { ApiService, CotizacionTiendaDto, ImagenTiendaDto, ProductoTiendaDto, TiendaPublicaDto } from '../servicios/api.service';
+import { ApiService, CotizacionTiendaDto, ImagenTiendaDto, OrdenTienda, ProductoTiendaDto, TiendaPublicaDto } from '../servicios/api.service';
 import { CarritoTiendaService, MAXIMO_POR_PRODUCTO } from '../servicios/carrito-tienda.service';
 import { TemaComponent } from '../tema.component';
 import { TemaService } from '../servicios/tema.service';
@@ -9,23 +9,30 @@ import { colorSiClaro, tintaDe, tintaDeFicha } from '../servicios/paleta';
 import { MapaComponent } from '../mapa.component';
 import { NoEncontradaComponent } from './no-encontrada.component';
 import { PieTiendaComponent } from '../pie-tienda.component';
+import { ContactoTiendaComponent } from '../contacto-tienda.component';
+import { IconoComponent } from '../icono.component';
+import { PanelCarritoTiendaComponent } from '../panel-carrito-tienda.component';
+
+const FILAS_POR_CARGA = 4;
+const ANCHO_MIN_TARJETA = 200;
+const GAP_GRILLA = 12;
 
 @Component({
   selector: 'sc-tienda',
   standalone: true,
-  imports: [FormsModule, RouterLink, TemaComponent, MapaComponent, NoEncontradaComponent, PieTiendaComponent],
+  imports: [FormsModule, RouterLink, TemaComponent, MapaComponent, NoEncontradaComponent, PieTiendaComponent, ContactoTiendaComponent, IconoComponent, PanelCarritoTiendaComponent],
   template: `
     @if (noEncontrada) {
       <sc-no-encontrada />
     }
     @if (tienda; as t) {
-      <div class="tienda" [class.tienda-marca]="!!propio(t.colorMarca)" [class.tienda-fondo]="!!propio(t.colorFondo)" [class.tienda-ficha]="!!propio(t.colorFicha)" [style.--acento]="propio(t.colorMarca)" [style.--fondo]="propio(t.colorFondo)" [style.--tinta]="propio(t.colorFondo) ? tinta(t) : null" [style.--ficha]="propio(t.colorFicha)" [style.--tinta-ficha]="propio(t.colorFicha) ? tintaFicha(t) : null">
+      <div class="tienda" [class.tienda-con-carrito]="t.vista === 'catalogo' && carritoAbierto" [class.tienda-marca]="!!propio(t.colorMarca)" [class.tienda-fondo]="!!propio(t.colorFondo)" [class.tienda-ficha]="!!propio(t.colorFicha)" [style.--acento]="propio(t.colorMarca)" [style.--fondo]="propio(t.colorFondo)" [style.--tinta]="propio(t.colorFondo) ? tinta(t) : null" [style.--ficha]="propio(t.colorFicha)" [style.--tinta-ficha]="propio(t.colorFicha) ? tintaFicha(t) : null">
         <header class="tienda-cabecera">
           <h1>{{ t.nombre }}</h1>
           <div class="row">
             @if (t.vista === 'catalogo') {
               <button class="btn btn-primary" type="button" [attr.aria-expanded]="carritoAbierto" (click)="carritoAbierto = !carritoAbierto">
-                Carrito · {{ precio(totalCarrito) }}
+                <sc-icono nombre="carrito" /> {{ precio(totalCarrito) }}
               </button>
             }
             <sc-tema [fijo]="false" />
@@ -49,9 +56,7 @@ import { PieTiendaComponent } from '../pie-tienda.component';
               @if (t.direccion) { <p><strong>Dirección:</strong> {{ t.direccion }}</p> }
               @if (t.horario) { <p><strong>Horario:</strong> {{ t.horario }}</p> }
               <p>{{ t.haceEnvios ? 'Hace envíos y retiro en el local.' : 'Solo retiro en el local.' }}</p>
-              @if (t.whatsApp) {
-                <a class="btn btn-primary" [href]="'https://wa.me/' + t.whatsApp" target="_blank" rel="noopener">Escribir por WhatsApp</a>
-              }
+              <sc-contacto-tienda [whatsApp]="t.whatsApp" [correo]="t.correo" [instagram]="t.instagram" />
             </div>
             @if (t.latitud !== null && t.longitud !== null) {
               <div class="panel tienda-mapa">
@@ -64,97 +69,115 @@ import { PieTiendaComponent } from '../pie-tienda.component';
           <section class="toolbar tienda-filtros">
             <input class="grow" type="search" placeholder="Buscar por nombre o código" maxlength="80" aria-label="Buscar productos"
                    [(ngModel)]="busqueda" (ngModelChange)="buscarEnUnRato()" (keydown.enter)="buscar()" />
+            <select aria-label="Ordenar productos" [ngModel]="orden" (ngModelChange)="cambiarOrden($event)">
+              <option value="nombre|asc">Nombre A-Z</option>
+              <option value="nombre|desc">Nombre Z-A</option>
+              <option value="precio|asc">Menor precio</option>
+              <option value="precio|desc">Mayor precio</option>
+            </select>
           </section>
-          @if (t.categorias.length > 0) {
+          @if (t.categorias.length > 0 && t.filtroCategorias !== 'menu') {
             <div class="tienda-categorias" role="group" aria-label="Filtrar por categoría">
               <button class="chip" type="button" [attr.aria-pressed]="categorias.size === 0" (click)="todas()">Todas</button>
-              @for (c of t.categorias; track c.id) {
+              @for (c of categoriasChips; track c.id) {
                 <button class="chip" type="button" [attr.aria-pressed]="categorias.has(c.id)" (click)="alternarCategoria(c.id)">{{ c.nombre }}</button>
               }
             </div>
           }
 
-          @if (error) { <p class="error">{{ error }}</p> }
-          @if (productos.length === 0 && !cargando) {
-            <p class="meta">{{ busqueda || categorias.size ? 'No hay productos con esa búsqueda.' : 'Todavía no hay productos publicados.' }}</p>
-          }
-          <ul class="tienda-productos">
-            @for (p of productos; track p.id) {
-              <li class="panel">
-                @if (fotoActual(p); as foto) {
-                  <img class="tienda-foto" [src]="urlFoto(foto.id)" [alt]="p.nombre" width="250" height="300" loading="lazy" />
-                  @if (p.imagenes.length > 1) {
-                    <span class="tienda-miniaturas">
-                      @for (i of p.imagenes; track i.id; let n = $index) {
-                        <button type="button" [class.activa]="i.id === foto.id" [attr.aria-label]="'Ver imagen ' + (n + 1)" (click)="elegirFoto(p.id, n)">{{ n + 1 }}</button>
+          <div class="tienda-cuerpo" [class.tienda-cuerpo-menu]="t.filtroCategorias === 'menu' && t.categorias.length > 0">
+            @if (t.filtroCategorias === 'menu' && t.categorias.length > 0) {
+              <aside class="tienda-menu-categorias" aria-label="Categorías">
+                <button type="button" class="menu-cat" [class.activa]="categorias.size === 0" (click)="todas()">Todas</button>
+                @for (padre of categoriasRaiz; track padre.id) {
+                  <div class="menu-bloque">
+                    <button type="button" class="menu-cat" [class.activa]="categorias.has(padre.id)" (click)="elegirCategoria(padre.id)">
+                      {{ padre.nombre }} <span class="meta">({{ padre.cantidad }})</span>
+                    </button>
+                    @if (hijosDe(padre.id); as hijos) {
+                      @if (hijos.length) {
+                        <button type="button" class="menu-toggle" (click)="alternarAbierta(padre.id)" [attr.aria-expanded]="abierta(padre.id)">{{ abierta(padre.id) ? '−' : '+' }}</button>
+                        @if (abierta(padre.id) || categorias.has(padre.id) || hijoActivo(padre.id)) {
+                          <div class="menu-hijos">
+                            @for (h of hijos; track h.id) {
+                              <button type="button" class="menu-cat menu-hijo" [class.activa]="categorias.has(h.id)" (click)="elegirCategoria(h.id)">
+                                {{ h.nombre }} <span class="meta">({{ h.cantidad }})</span>
+                              </button>
+                            }
+                          </div>
+                        }
                       }
-                    </span>
-                  }
-                  @if (foto.origen === 'openfoodfacts') {
-                    <span class="tienda-atribucion">Foto: <a [href]="foto.enlace" target="_blank" rel="noopener">{{ foto.fuente }}</a> · {{ foto.licencia }}</span>
-                  }
-                } @else {
-                  <span class="tienda-foto tienda-foto-vacia">Sin imagen</span>
+                    }
+                  </div>
                 }
-                <span class="tienda-nombre">{{ p.nombre }}</span>
-                <span class="tienda-precio">{{ precio(p.precio) }}</span>
-                <span [class]="p.hayStock ? 'badge' : 'badge badge-vencido'">{{ p.hayStock ? 'Hay stock' : 'Sin stock' }}</span>
-                @if (enCarrito(p.id); as n) {
-                  <span class="row tienda-cantidad">
-                    <button class="btn" type="button" [attr.aria-label]="'Restar ' + p.nombre" (click)="poner(p.id, n - 1)">−</button>
-                    <span aria-live="polite">{{ n }}</span>
-                    <button class="btn" type="button" [attr.aria-label]="'Sumar ' + p.nombre" [disabled]="n >= maximo" (click)="poner(p.id, n + 1)">+</button>
-                  </span>
-                } @else {
-                  <button class="btn btn-primary" type="button" [disabled]="!p.hayStock" (click)="poner(p.id, 1)">Agregar</button>
-                }
-              </li>
+              </aside>
             }
-          </ul>
-          @if (paginas > 1) {
-            <nav class="row tienda-paginas" aria-label="Páginas">
-              <button class="btn" type="button" [disabled]="pagina <= 1" (click)="irA(pagina - 1)">Anterior</button>
-              <span class="meta">Página {{ pagina }} de {{ paginas }}</span>
-              <button class="btn" type="button" [disabled]="pagina >= paginas" (click)="irA(pagina + 1)">Siguiente</button>
-            </nav>
-          }
-        }
-        <sc-pie-tienda [alias]="alias" [nombre]="t.nombre" [direccion]="t.direccion" [horario]="t.horario" />
-        @if (t.vista === 'catalogo' && carritoAbierto) {
-          <button class="carrito-fondo" type="button" aria-label="Cerrar carrito" (click)="carritoAbierto = false"></button>
-          <aside class="carrito-panel" aria-label="Carrito">
-            <header class="carrito-panel-cabecera">
-              <h2>Tu carrito</h2>
-              <button class="btn" type="button" (click)="carritoAbierto = false">Cerrar</button>
-            </header>
-            <div class="carrito-panel-lista">
-              @if (!cotizacion || cotizacion.lineas.length === 0) {
-                <p class="meta">{{ unidades > 0 ? 'Cargando…' : 'El carrito está vacío.' }}</p>
-              } @else {
-                <ul>
-                  @for (l of cotizacion.lineas; track l.idProducto) {
-                    <li>
-                      <span class="carrito-nombre">{{ l.nombre }}</span>
+            <div class="tienda-listado" [class.tienda-listado-cargando]="cargando && reiniciando">
+              @if (error) { <p class="error">{{ error }}</p> }
+              @if (productos.length === 0 && !cargando) {
+                <p class="meta">{{ busqueda || categorias.size ? 'No hay productos con esa búsqueda.' : 'Todavía no hay productos publicados.' }}</p>
+              }
+              <ul class="tienda-productos">
+                @for (p of productos; track p.id) {
+                  <li class="panel">
+                    @if (fotoActual(p); as foto) {
+                      @if (fotoRota(foto.id)) {
+                        <span class="tienda-foto tienda-foto-vacia">Sin imagen</span>
+                      } @else {
+                        <img class="tienda-foto" [src]="urlFoto(foto.id)" [alt]="p.nombre" width="250" height="300" loading="lazy" (error)="marcarFotoRota(foto.id)" />
+                      }
+                      @if (p.imagenes.length > 1) {
+                        <span class="tienda-miniaturas">
+                          @for (i of p.imagenes; track i.id; let n = $index) {
+                            <button type="button" [class.activa]="i.id === foto.id" [attr.aria-label]="'Ver imagen ' + (n + 1)" (click)="elegirFoto(p.id, n)">{{ n + 1 }}</button>
+                          }
+                        </span>
+                      }
+                      @if (foto.origen === 'openfoodfacts' && !fotoRota(foto.id)) {
+                        <span class="tienda-atribucion">Foto: <a [href]="foto.enlace" target="_blank" rel="noopener">{{ foto.fuente }}</a> · {{ foto.licencia }}</span>
+                      }
+                    } @else {
+                      <span class="tienda-foto tienda-foto-vacia">Sin imagen</span>
+                    }
+                    <a class="tienda-nombre" [routerLink]="['/tienda', alias, 'producto', p.id]">{{ p.nombre }}</a>
+                    <span class="tienda-precio">
+                      @if (p.precioLista > p.precio) { <s class="precio-tachado">{{ precio(p.precioLista) }}</s> }
+                      {{ precio(p.precio) }}
+                    </span>
+                    @if (p.oferta) {
+                      <span class="badge badge-oferta"><sc-icono nombre="promocion" /> Promociones!</span>
+                      <span class="badge badge-oferta">{{ p.oferta }}</span>
+                    }
+                    <span [class]="p.hayStock ? 'badge' : 'badge badge-vencido'">{{ p.hayStock ? 'Hay stock' : 'Sin stock' }}</span>
+                    @if (enCarrito(p.id); as n) {
                       <span class="row tienda-cantidad">
-                        <button class="btn" type="button" [attr.aria-label]="'Restar ' + l.nombre" (click)="poner(l.idProducto, l.cantidad - 1)">−</button>
-                        <span>{{ l.cantidad }}</span>
-                        <button class="btn" type="button" [attr.aria-label]="'Sumar ' + l.nombre" [disabled]="l.cantidad >= maximo || l.maximo !== null" (click)="poner(l.idProducto, l.cantidad + 1)">+</button>
+                        <button class="btn" type="button" [attr.aria-label]="'Restar ' + p.nombre" (click)="poner(p.id, n - 1)">−</button>
+                        <span aria-live="polite">{{ n }}</span>
+                        <button class="btn" type="button" [attr.aria-label]="'Sumar ' + p.nombre" [disabled]="n >= maximo" (click)="poner(p.id, n + 1)">+</button>
                       </span>
-                      <span class="carrito-importe">{{ precio(l.subTotal) }}</span>
-                    </li>
-                  }
-                </ul>
+                    } @else {
+                      <button class="btn btn-primary" type="button" [disabled]="!p.hayStock" (click)="poner(p.id, 1)">Agregar</button>
+                    }
+                  </li>
+                }
+              </ul>
+              @if (cargando && productos.length > 0) {
+                <p class="meta" style="text-align:center">Cargando más…</p>
               }
             </div>
-            <footer class="carrito-panel-pie">
-              <span>Total <strong>{{ precio(totalCarrito) }}</strong></span>
-              @if (totalCarrito > 0) {
-                <a class="btn btn-primary" [routerLink]="['/tienda', alias, 'carrito']">Pedir</a>
-              } @else {
-                <button class="btn btn-primary" type="button" disabled>Pedir</button>
-              }
-            </footer>
-          </aside>
+          </div>
+        }
+        <sc-pie-tienda [alias]="alias" [nombre]="t.nombre" [direccion]="t.direccion" [horario]="t.horario" />
+        @if (t.vista === 'catalogo') {
+          <sc-panel-carrito-tienda
+            [alias]="alias"
+            [cotizacion]="cotizacion"
+            [unidades]="unidades"
+            [total]="totalCarrito"
+            [abierto]="carritoAbierto"
+            (abiertoChange)="carritoAbierto = $event"
+            (cambiar)="poner($event.idProducto, $event.cantidad)"
+          />
         }
       </div>
     }
@@ -165,20 +188,64 @@ export class TiendaComponent implements OnInit, OnDestroy {
   noEncontrada = false;
   productos: ProductoTiendaDto[] = [];
   fotoElegida: Record<number, number> = {};
+  private fotosRotas = new Set<number>();
   busqueda = '';
+  orden = 'nombre|asc';
   categorias = new Set<number>();
+  private abiertas = new Set<number>();
   pagina = 1;
-  paginas = 1;
+  tamano = 24;
+  total = 0;
   cargando = false;
+  reiniciando = false;
   error = '';
   alias = '';
   unidades = 0;
   cantidades: Record<number, number> = {};
   cotizacion: CotizacionTiendaDto | null = null;
-  carritoAbierto = false;
+  carritoAbierto = true;
   readonly maximo = MAXIMO_POR_PRODUCTO;
   readonly tinta = tintaDe;
   readonly tintaFicha = tintaDeFicha;
+  private cargaId = 0;
+
+  get hayMas(): boolean {
+    return this.productos.length < this.total;
+  }
+
+  get categoriasRaiz() {
+    return (this.tienda?.categorias ?? []).filter((c) => !c.idPadre);
+  }
+
+  /** En chips: raíces (y hojas sueltas sin padre). */
+  get categoriasChips() {
+    return (this.tienda?.categorias ?? []).filter((c) => !c.idPadre);
+  }
+
+  hijosDe(idPadre: number) {
+    return (this.tienda?.categorias ?? []).filter((c) => c.idPadre === idPadre);
+  }
+
+  hijoActivo(idPadre: number): boolean {
+    return this.hijosDe(idPadre).some((h) => this.categorias.has(h.id));
+  }
+
+  abierta(id: number): boolean {
+    return this.abiertas.has(id);
+  }
+
+  alternarAbierta(id: number): void {
+    if (this.abiertas.has(id)) this.abiertas.delete(id);
+    else this.abiertas.add(id);
+    this.abiertas = new Set(this.abiertas);
+  }
+
+  elegirCategoria(id: number): void {
+    this.categorias = new Set([id]);
+    const padre = this.tienda?.categorias.find((c) => c.id === id);
+    if (padre && !padre.idPadre) this.abiertas.add(id);
+    this.buscar();
+  }
 
   propio(color: string | null): string | null {
     return colorSiClaro(this.tema.tema(), color);
@@ -221,8 +288,12 @@ export class TiendaComponent implements OnInit, OnDestroy {
 
   buscar(): void {
     clearTimeout(this.espera);
-    this.pagina = 1;
-    this.cargar();
+    this.cargar(true);
+  }
+
+  cambiarOrden(valor: string): void {
+    this.orden = valor;
+    this.buscar();
   }
 
   todas(): void {
@@ -239,10 +310,11 @@ export class TiendaComponent implements OnInit, OnDestroy {
     this.buscar();
   }
 
-  irA(pagina: number): void {
-    this.pagina = pagina;
-    this.cargar();
-    window.scrollTo({ top: 0 });
+  @HostListener('window:scroll')
+  alScroll(): void {
+    if (this.cargando || !this.hayMas) return;
+    const resto = document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
+    if (resto < 480) this.cargar(false);
   }
 
   mensajePausada(horario: string): string {
@@ -258,6 +330,14 @@ export class TiendaComponent implements OnInit, OnDestroy {
     return p.imagenes[this.fotoElegida[p.id] ?? 0] ?? p.imagenes[0];
   }
 
+  fotoRota(idImagen: number): boolean {
+    return this.fotosRotas.has(idImagen);
+  }
+
+  marcarFotoRota(idImagen: number): void {
+    this.fotosRotas.add(idImagen);
+  }
+
   elegirFoto(idProducto: number, posicion: number): void {
     this.fotoElegida = { ...this.fotoElegida, [idProducto]: posicion };
   }
@@ -271,10 +351,8 @@ export class TiendaComponent implements OnInit, OnDestroy {
   }
 
   poner(idProducto: number, cantidad: number): void {
-    const eraNuevo = this.enCarrito(idProducto) === 0 && cantidad > 0;
     this.carrito.poner(this.alias, idProducto, cantidad);
     this.leerCarrito();
-    if (eraNuevo) this.carritoAbierto = true;
   }
 
   private leerCarrito(): void {
@@ -313,19 +391,66 @@ export class TiendaComponent implements OnInit, OnDestroy {
     return `$ ${Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
-  private cargar(): void {
+  private cargar(reiniciar = true): void {
+    if (!reiniciar) {
+      if (this.cargando || !this.hayMas) return;
+    }
+    const id = reiniciar ? ++this.cargaId : this.cargaId;
+    if (reiniciar) {
+      this.pagina = 1;
+      this.tamano = this.tamanoPorFilas();
+      this.reiniciando = true;
+    } else {
+      this.pagina += 1;
+    }
     this.cargando = true;
-    this.api.productosTienda(this.alias, { q: this.busqueda.trim(), categorias: [...this.categorias], pagina: this.pagina }).subscribe({
+    const [orden, sentido] = this.orden.split('|') as [OrdenTienda, 'asc' | 'desc'];
+    this.api.productosTienda(this.alias, {
+      q: this.busqueda.trim(),
+      categorias: [...this.categorias],
+      pagina: this.pagina,
+      tamano: this.tamano,
+      orden,
+      sentido
+    }).subscribe({
       next: (r) => {
-        this.productos = r.items;
-        this.paginas = Math.max(1, Math.ceil(r.total / r.tamano));
+        if (id !== this.cargaId) return;
+        this.total = r.total;
+        this.tamano = r.tamano;
+        this.productos = reiniciar ? r.items : [...this.productos, ...r.items];
         this.cargando = false;
+        this.reiniciando = false;
         this.error = '';
+        if (reiniciar) {
+          this.mantenerVistaListado();
+          setTimeout(() => this.alScroll());
+        }
       },
       error: (e) => {
+        if (id !== this.cargaId) return;
+        if (!reiniciar) this.pagina = Math.max(1, this.pagina - 1);
         this.cargando = false;
+        this.reiniciando = false;
         this.error = e.status === 429 ? 'Demasiadas consultas. Esperá un minuto.' : 'No se pudieron cargar los productos.';
       }
     });
+  }
+
+  /** Evita el salto al tope cuando el listado se achica al filtrar. */
+  private mantenerVistaListado(): void {
+    const listado = document.querySelector('.tienda-listado') as HTMLElement | null;
+    if (!listado) return;
+    const top = listado.getBoundingClientRect().top + window.scrollY - 16;
+    if (window.scrollY > top) window.scrollTo(0, top);
+  }
+
+  /** columnas × 4 filas, según el ancho de la grilla (mismo criterio que CSS auto-fill 200px). */
+  private tamanoPorFilas(): number {
+    const lista = document.querySelector('.tienda-productos') as HTMLElement | null;
+    const ancho = lista?.clientWidth || Math.max(320, window.innerWidth - (this.carritoAbierto ? 360 : 48));
+    const columnas = window.matchMedia('(max-width: 600px)').matches
+      ? 2
+      : Math.max(2, Math.floor((ancho + GAP_GRILLA) / (ANCHO_MIN_TARJETA + GAP_GRILLA)));
+    return Math.min(48, Math.max(8, columnas * FILAS_POR_CARGA));
   }
 }

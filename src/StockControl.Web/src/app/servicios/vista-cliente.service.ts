@@ -13,6 +13,7 @@ export interface EstadoVistaCliente {
   lineas: LineaVistaCliente[];
   descuentoPorcentaje: number;
   ahorroCombos: number;
+  descuentoMedio: string;
   total: number;
   ultimaLinea: number;
   marcaUltima: number;

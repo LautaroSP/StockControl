@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using StockControl.Api.Contratos;
 using StockControl.Api.Datos;
@@ -9,6 +10,43 @@ namespace StockControl.Api.Tienda;
 public static class EndpointsImagenes
 {
     private const string ErrorFuente = "No pudimos consultar Open Food Facts. Podés subir tu propia imagen.";
+    private static readonly ConcurrentDictionary<int, DateTimeOffset> FallosDeReponer = new();
+    private static readonly TimeSpan EsperaTrasFallo = TimeSpan.FromMinutes(10);
+
+    /// <summary>Si el archivo de Open Food Facts ya no está en el disco, lo baja de nuevo al nombre que tiene la fila.</summary>
+    public static async Task<string?> ReponerOpenFoodFacts(
+        Producto producto, ImagenProducto imagen, ClienteOpenFoodFacts fuente, AlmacenImagenes almacen, CancellationToken cancelar)
+    {
+        if (imagen.Origen != ServicioImagenesTienda.OrigenOpenFoodFacts) return null;
+        var presente = almacen.Ruta(imagen);
+        if (presente != null) return presente;
+        if (FalloReciente(imagen.Id)) return null;
+        var propuesta = await fuente.Consultar(producto.Codigo, cancelar);
+        if (propuesta.Url == null)
+        {
+            AnotarFallo(imagen.Id);
+            return null;
+        }
+        try
+        {
+            var preparada = ProcesadorImagen.Preparar(await fuente.Descargar(propuesta.Url, cancelar));
+            var ruta = await almacen.Reponer(imagen, preparada.Datos, cancelar);
+            if (ruta == null) AnotarFallo(imagen.Id);
+            else FallosDeReponer.TryRemove(imagen.Id, out _);
+            return ruta;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or ErrorNegocio
+            or TaskCanceledException && !cancelar.IsCancellationRequested)
+        {
+            AnotarFallo(imagen.Id);
+            return null;
+        }
+    }
+
+    private static bool FalloReciente(int id) =>
+        FallosDeReponer.TryGetValue(id, out var cuando) && DateTimeOffset.UtcNow - cuando < EsperaTrasFallo;
+
+    private static void AnotarFallo(int id) => FallosDeReponer[id] = DateTimeOffset.UtcNow;
 
     public static void MapImagenesProducto(this WebApplication app)
     {

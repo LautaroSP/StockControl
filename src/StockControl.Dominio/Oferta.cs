@@ -26,6 +26,8 @@ public class Oferta
     public bool AnulaConDescuentoCaja { get; set; }
     public bool AnulaConAlCosto { get; set; } = true;
     public bool PermiteNoAplicarEnCaja { get; set; }
+    /// <summary>«También en la tienda»: solo estas ofertas corren en la tienda pública.</summary>
+    public bool EnTienda { get; set; }
 
     public bool SinFin => FechaHasta == DateOnly.MaxValue;
 }

@@ -68,6 +68,15 @@ public sealed partial class AlmacenImagenes
         return File.Exists(anterior) ? anterior : null;
     }
 
+    /// <summary>Vuelve a dejar los bytes en el archivo que ya nombra la fila. El nombre no cambia.</summary>
+    public async Task<string?> Reponer(ImagenProducto imagen, byte[] datos, CancellationToken cancelar)
+    {
+        if (datos.Length == 0 || !FormatoNombre().IsMatch(imagen.Archivo)) return null;
+        var ruta = RutaDe(CarpetaDe(imagen), imagen.Archivo);
+        await Escribir(ruta, datos, cancelar);
+        return File.Exists(ruta) ? ruta : null;
+    }
+
     /// <summary>Solo se borra lo propio y sin uso: el caché de la API se queda para la próxima vez.</summary>
     public void BorrarPropia(ImagenProducto imagen)
     {

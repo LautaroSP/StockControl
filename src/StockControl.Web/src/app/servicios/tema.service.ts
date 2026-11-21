@@ -18,6 +18,17 @@ export class TemaService {
     document.documentElement.setAttribute('data-tema', this.tema());
   }
 
+  elegido(): boolean {
+    const guardado = localStorage.getItem(CLAVE);
+    return guardado === 'claro' || guardado === 'oscuro';
+  }
+
+  /** Cambia lo que se ve sin guardarlo como elección de la persona. */
+  mostrar(tema: 'claro' | 'oscuro'): void {
+    this.tema.set(tema);
+    document.documentElement.setAttribute('data-tema', tema);
+  }
+
   alternar(): void {
     const siguiente = this.tema() === 'oscuro' ? 'claro' : 'oscuro';
     this.tema.set(siguiente);

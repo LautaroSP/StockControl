@@ -5,15 +5,32 @@ public record DesgloseGestion(decimal Subtotal, decimal Gestion, bool ACargoComp
 /// <summary>Gestión de la plataforma por pedido de la tienda. No depende del tamaño del carrito.</summary>
 public static class ServicioGestionTienda
 {
-    public const decimal ImportePorPedido = 1_000m;
+    /// <summary>Valor por defecto al crear un local. El admin puede cambiarlo por local.</summary>
+    public const decimal ImportePorDefecto = 500m;
+    /// <summary>Alias del valor por defecto (pantallas y migraciones viejas).</summary>
+    public const decimal ImportePorPedido = ImportePorDefecto;
+    public const decimal ImporteMaximo = 100_000m;
     public const int DiasParaPagar = 7;
 
-    /// <summary>Si el subtotal es menor que el importe, la gestión es el subtotal.</summary>
+    /// <summary>Importe configurado del local, o 0 si está exento.</summary>
+    public static decimal ImporteVigente(Local local) =>
+        local.ExentoGestion ? 0 : Math.Max(0, local.ImporteGestion);
+
+    /// <summary>Si el subtotal es menor que el importe del local, la gestión es el subtotal.</summary>
     public static DesgloseGestion Desglose(Local local, decimal subtotal)
     {
-        var gestion = local.ExentoGestion ? 0 : Math.Min(ImportePorPedido, Math.Max(0, subtotal));
+        var gestion = Math.Min(ImporteVigente(local), Math.Max(0, subtotal));
         var total = local.GestionACargoComprador ? subtotal + gestion : subtotal;
         return new DesgloseGestion(subtotal, gestion, local.GestionACargoComprador, total);
+    }
+
+    /// <summary>Admin: importe en pesos enteros y casilla de no cobrar.</summary>
+    public static void Configurar(Local local, decimal importe, bool exento)
+    {
+        if (importe < 0 || importe > ImporteMaximo || decimal.Round(importe, 0) != importe)
+            throw new ErrorNegocio($"El importe de gestión va de 0 a {ImporteMaximo:0} pesos enteros.");
+        local.ImporteGestion = importe;
+        local.ExentoGestion = exento;
     }
 
     /// <summary>Pagado por MP y no reembolsado: es lo que MP separó como marketplace_fee.</summary>

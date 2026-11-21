@@ -7,6 +7,8 @@ public static class ServicioTienda
     public const string Inactiva = "inactiva";
     public const string Activa = "activa";
     public const string Pausada = "pausada";
+    public const string FiltroChips = "chips";
+    public const string FiltroMenu = "menu";
 
     public const string VistaCatalogo = "catalogo";
     public const string VistaPausada = "pausada";
@@ -15,8 +17,12 @@ public static class ServicioTienda
     public const int LargoMinimoAlias = 3;
     public const int LargoMaximoAlias = 40;
     public const int LargoMaximoDato = 200;
+    public const int LargoMaximoCorreo = 200;
+    public const int LargoMaximoInstagram = 120;
 
     private static readonly Regex FormatoAlias = new("^[a-z0-9]+(-[a-z0-9]+)*$", RegexOptions.Compiled);
+    private static readonly Regex FormatoCorreo = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
+    private static readonly Regex FormatoUsuarioInstagram = new(@"^[A-Za-z0-9._]{1,30}$", RegexOptions.Compiled);
 
     public static readonly IReadOnlySet<string> AliasReservados = new HashSet<string>
     {
@@ -26,6 +32,13 @@ public static class ServicioTienda
     };
 
     private static readonly string[] Estados = [Inactiva, Activa, Pausada];
+    private static readonly string[] FiltrosCategoria = [FiltroChips, FiltroMenu];
+
+    public static string NormalizarFiltroCategorias(string? valor)
+    {
+        var limpio = (valor ?? "").Trim().ToLowerInvariant();
+        return FiltrosCategoria.Contains(limpio) ? limpio : FiltroChips;
+    }
 
     /// <summary>Vacío = sin alias. Minúsculas, números y guiones; sin guion al principio ni al final.</summary>
     public static string? NormalizarAlias(string? alias)
@@ -58,13 +71,51 @@ public static class ServicioTienda
         local.EstadoTienda = valor;
     }
 
-    public static void AsignarDatos(Local local, string? direccion, string? horario, string? whatsApp, bool haceEnvios)
+    public static void AsignarDatos(Local local, string? direccion, string? horario, string? whatsApp, string? correo, string? instagram, bool haceEnvios)
     {
         local.Direccion = Recortar(direccion, "La dirección");
         local.Horario = Recortar(horario, "El horario");
         local.WhatsApp = string.IsNullOrWhiteSpace(whatsApp) ? "" : ServicioOrdenCompra.NormalizarTelefono(whatsApp);
+        local.Correo = NormalizarCorreo(correo);
+        local.Instagram = NormalizarInstagram(instagram);
         local.HaceEnvios = haceEnvios;
     }
+
+    /// <summary>Vacío = sin mail. Opcional.</summary>
+    public static string NormalizarCorreo(string? correo)
+    {
+        var valor = (correo ?? "").Trim();
+        if (valor.Length == 0) return "";
+        if (valor.Length > LargoMaximoCorreo || !FormatoCorreo.IsMatch(valor))
+            throw new ErrorNegocio("El mail de la tienda no es válido.");
+        return valor.ToLowerInvariant();
+    }
+
+    /// <summary>Vacío = sin Instagram. Acepta @usuario, usuario o el link de Instagram.</summary>
+    public static string NormalizarInstagram(string? instagram)
+    {
+        var valor = (instagram ?? "").Trim();
+        if (valor.Length == 0) return "";
+        if (valor.Length > LargoMaximoInstagram)
+            throw new ErrorNegocio("El Instagram es demasiado largo.");
+        if (Uri.TryCreate(valor, UriKind.Absolute, out var url)
+            && (url.Host.Equals("instagram.com", StringComparison.OrdinalIgnoreCase)
+                || url.Host.Equals("www.instagram.com", StringComparison.OrdinalIgnoreCase)))
+        {
+            var usuario = url.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+            if (!FormatoUsuarioInstagram.IsMatch(usuario))
+                throw new ErrorNegocio("El Instagram no es válido.");
+            return usuario;
+        }
+
+        valor = valor.TrimStart('@');
+        if (!FormatoUsuarioInstagram.IsMatch(valor))
+            throw new ErrorNegocio("El Instagram no es válido. Usá el usuario o el link del perfil.");
+        return valor;
+    }
+
+    public static string UrlInstagram(string usuario) =>
+        string.IsNullOrEmpty(usuario) ? "" : $"https://www.instagram.com/{usuario}/";
 
     /// <summary>Las dos o ninguna. Latitud entre -90 y 90; longitud entre -180 y 180.</summary>
     public static void AsignarUbicacion(Local local, decimal? latitud, decimal? longitud)
@@ -97,6 +148,11 @@ public static class ServicioTienda
         if (Vista(local, ahora, gestionVencida) != VistaCerrada) return null;
         return ServicioAbono.Estado(local, ahora).PuedeOperarCaja ? "gestion" : "abono";
     }
+
+    /// <summary>Texto para el dueño en Tienda online. Solo si la tienda está cerrada por el abono vencido.</summary>
+    public static string? AvisoDueno(string? motivoCierre) => motivoCierre == "abono"
+        ? "Tu tienda está cerrada porque el abono venció. Los compradores no pueden pedir hasta que lo pagues."
+        : null;
 
     private static string Recortar(string? valor, string campo)
     {

@@ -89,6 +89,8 @@ public class PedidoGuardado
     public List<ItemCarrito> Items { get; set; } = new();
     public List<PagoSolicitado> Pagos { get; set; } = new();
     public int DescuentoPorcentaje { get; set; }
+    /// <summary>Porcentaje del medio, fijado al crear la orden. 0 si no corre.</summary>
+    public int DescuentoMedioPorcentaje { get; set; }
     public bool CobrarAlCosto { get; set; }
     public int? IdPedidoEspera { get; set; }
     public bool SinOfertas { get; set; }

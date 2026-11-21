@@ -24,7 +24,11 @@ export interface ProductoDto {
   puedeModificarPrecio?: boolean;
   publicado?: boolean;
   publicable?: boolean;
+  /** Texto de la ficha de la tienda. Al guardar: vacío la borra. */
+  descripcion?: string | null;
 }
+
+export type OrdenTienda = 'nombre' | 'precio';
 
 export type EstadoTienda = 'inactiva' | 'activa' | 'pausada';
 
@@ -36,6 +40,10 @@ export interface ConfiguracionTiendaDto {
   direccion: string;
   horario: string;
   whatsApp: string;
+  /** Opcional. Vacío: no se muestra en la tienda. */
+  correo: string;
+  /** Usuario de Instagram, sin @. */
+  instagram: string;
   haceEnvios: boolean;
   envioGratisSiempre: boolean;
   precioEnvioKm: number | null;
@@ -45,6 +53,10 @@ export interface ConfiguracionTiendaDto {
   latitud: number | null;
   longitud: number | null;
   gestionACargoComprador: boolean;
+  /** chips = pocas; menu = lateral con subcategorías. */
+  filtroCategorias: 'chips' | 'menu';
+  /** Solo al guardar: acepta los términos de la tienda online. */
+  aceptaTerminosTienda?: boolean;
   cbu: string;
   aliasCbu: string;
   titular: string;
@@ -77,10 +89,13 @@ export interface TiendaPublicaDto {
   horario: string;
   direccion: string;
   whatsApp: string;
+  correo: string;
+  instagram: string;
   haceEnvios: boolean;
   latitud: number | null;
   longitud: number | null;
-  categorias: { id: number; nombre: string }[];
+  filtroCategorias: 'chips' | 'menu';
+  categorias: { id: number; nombre: string; idPadre: number | null; cantidad: number }[];
 }
 
 export interface ImagenTiendaDto {
@@ -99,6 +114,11 @@ export interface ProductoTiendaDto {
   idCategoria: number | null;
   hayStock: boolean;
   imagenes: ImagenTiendaDto[];
+  descripcion: string;
+  /** Precio de lista. `precio` ya trae la oferta. */
+  precioLista: number;
+  oferta: string;
+  ahorro: number;
 }
 
 export interface FiltroProductos {
@@ -126,11 +146,13 @@ export interface EnvioTiendaDto {
 }
 
 export interface CotizacionTiendaDto {
-  lineas: { idProducto: number; nombre: string; cantidad: number; precioUnitario: number; subTotal: number; maximo: number | null }[];
+  lineas: { idProducto: number; nombre: string; cantidad: number; precioUnitario: number; subTotal: number; maximo: number | null; precioLista: number; oferta: string; ahorro: number }[];
   noDisponibles: number[];
   total: number;
+  /** Gestión a cargo del comprador (0 si la absorbe el local) y total de productos + gestión. El envío se suma aparte. */
+  comprador: { gestion: number; total: number };
   envio: EnvioTiendaDto;
-  /** Null si el local no conectó Mercado Pago. La gestión es la que paga el comprador (0 si va incluida). El envío se suma aparte. */
+  /** Null si el local no conectó Mercado Pago. */
   mercadoPago: { gestion: number; total: number } | null;
   /** Null si el local no cargó CBU o alias y titular. */
   transferencia: { gestion: number; total: number } | null;
@@ -235,8 +257,8 @@ export interface PedidoTiendaDto {
   venceElPago: string | null;
   /** Solo mientras el local no confirmó la transferencia. */
   transferencia: { cbu: string; alias: string; titular: string } | null;
-  lineas: { nombre: string; cantidad: number; precioUnitario: number; subTotal: number }[];
-  local: { nombre: string; direccion: string; horario: string; whatsApp: string; colorMarca: string | null; colorFondo: string | null; colorFicha: string | null; logo: string | null; textoClaro: boolean; textoClaroFicha: boolean };
+  lineas: { nombre: string; cantidad: number; precioUnitario: number; subTotal: number; precioLista: number; oferta: string | null; ahorro: number }[];
+  local: { nombre: string; direccion: string; horario: string; whatsApp: string; correo: string; instagram: string; colorMarca: string | null; colorFondo: string | null; colorFicha: string | null; logo: string | null; textoClaro: boolean; textoClaroFicha: boolean };
 }
 
 export interface ImagenProductoDto {
@@ -304,6 +326,7 @@ export interface LocalPlataformaDto {
   estado: string;
   vence: string | null;
   exentoGestion: boolean;
+  importeGestion: number;
   empleados: number;
 }
 
@@ -376,6 +399,20 @@ export interface RegistroPedidoDto {
   aceptaTerminos: boolean;
 }
 
+/** Venta que se manda a POST /ventas. Con IdVentaCliente, reenviarla no la duplica. */
+export interface VentaPedidoDto {
+  items: ItemVenta[];
+  pagos: PagoVenta[];
+  descuentoPorcentaje: number;
+  cobrarAlCosto: boolean;
+  idPedidoEspera?: number;
+  sinOfertas: boolean;
+  idVentaCliente: string;
+  fechaCobro?: string;
+  desdeSinConexion?: boolean;
+  totalVisto?: number;
+}
+
 export interface ItemVenta {
   idProducto: number;
   codigo: string;
@@ -426,6 +463,7 @@ export interface MetodoPagoDto {
   descripcion: string;
   activo: boolean;
   integracion: string;
+  descuentoPorcentaje: number;
 }
 
 export interface CuentaMercadoPagoDto {
@@ -439,6 +477,8 @@ export interface OpcionesOfertaDto {
   anulaConDescuentoCaja: boolean;
   anulaConAlCosto: boolean;
   permiteNoAplicarEnCaja: boolean;
+  /** «También en la tienda»: la tienda pública aplica solo estas. */
+  enTienda: boolean;
 }
 
 export interface OfertaVigenteDto extends OpcionesOfertaDto {
@@ -536,6 +576,60 @@ export interface CobroMercadoPagoDto {
   idInformeVenta: number | null;
 }
 
+export interface FilaListaEncontradaDto {
+  fila: number;
+  codigo: string;
+  nombre: string;
+  costoPack: number;
+  unidadesPack: number;
+  costoAntes: number;
+  costoNuevo: number;
+  precioAntes: number;
+  precioNuevo: number;
+  aviso: string;
+}
+
+export interface RevisionListaDto {
+  encontrados: FilaListaEncontradaDto[];
+  noEncontrados: { fila: number; codigo: string }[];
+  salteados: { fila: number; codigo: string; motivo: string }[];
+}
+
+export interface PedidoAumento {
+  idCategoria?: number;
+  idProveedor?: number;
+  ids?: number[];
+  tipoPrecio: string;
+  valorPrecio: number;
+  tipoCosto: string;
+  valorCosto: number;
+  redondeoPrecio: number;
+}
+
+export interface FilaAumentoDto {
+  idProducto: number | null;
+  idGrupoProducto: number | null;
+  nombre: string;
+  precioAntes: number;
+  precioDespues: number;
+  costoAntes: number;
+  costoDespues: number;
+}
+
+export interface VistaPreviaAumentoDto {
+  cantidad: number;
+  total: number;
+  filas: FilaAumentoDto[];
+}
+
+export interface UltimoAumentoDto {
+  fecha: string;
+  usuario: string;
+  cantidad: number;
+  redondeo: number;
+  deshecho: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly base = environment.apiUrl;
@@ -605,8 +699,8 @@ export class ApiService {
     return this.http.post(`${this.base}/admin/locales/${idLocal}/activar`, { clave });
   }
 
-  eximirGestionAdmin(idLocal: number, exento: boolean, clave: string) {
-    return this.http.post(`${this.base}/admin/locales/${idLocal}/gestion`, { exento, clave });
+  configurarGestionAdmin(idLocal: number, importe: number, exento: boolean, clave: string) {
+    return this.http.post(`${this.base}/admin/locales/${idLocal}/gestion`, { importe, exento, clave });
   }
 
   saldarGestionAdmin(idLocal: number, clave: string) {
@@ -701,6 +795,14 @@ export class ApiService {
     return this.http.post<{ confirmado: boolean }>(`${this.base}/registro/confirmar`, { token });
   }
 
+  recuperarClave(identificador: string) {
+    return this.http.post<{ mensaje: string }>(`${this.base}/auth/recuperar`, { identificador });
+  }
+
+  nuevaClave(token: string, clave: string) {
+    return this.http.post<{ cambiada: boolean }>(`${this.base}/auth/recuperar/clave`, { token, clave });
+  }
+
   abonoActual() {
     return this.http.get<AbonoDto>(`${this.base}/locales/actual/abono`);
   }
@@ -723,6 +825,12 @@ export class ApiService {
 
   entrar(id: number) {
     return this.http.post<{ token: string }>(`${this.base}/locales/${id}/entrar`, {});
+  }
+
+  /** Una página del catálogo completo (tope 100 por página), para guardarlo en el navegador. */
+  productosPagina(pagina: number) {
+    const params = new HttpParams().set('tamano', 100).set('pagina', pagina);
+    return this.http.get<{ total: number; umbralStockBajo: number; items: ProductoDto[] }>(`${this.base}/productos`, { params });
   }
 
   productos(q = '', opts?: FiltroProductos) {
@@ -785,8 +893,10 @@ export class ApiService {
       costo: p.costo ?? 0,
       precio: p.precio ?? 0,
       productoSector: p.productoSector ?? false,
+      precioPorKilo: p.precioPorKilo ?? 0,
       idGrupoProducto: p.idGrupoProducto ?? 0,
-      idCategoria: p.idCategoria ?? undefined
+      idCategoria: p.idCategoria ?? undefined,
+      descripcion: p.descripcion ?? ''
     });
   }
 
@@ -798,8 +908,10 @@ export class ApiService {
       costo: p.costo ?? 0,
       precio: p.precio ?? 0,
       productoSector: p.productoSector ?? false,
+      precioPorKilo: p.precioPorKilo ?? 0,
       idGrupoProducto: p.idGrupoProducto ?? 0,
-      idCategoria: p.idCategoria ?? undefined
+      idCategoria: p.idCategoria ?? undefined,
+      descripcion: p.descripcion ?? ''
     });
   }
 
@@ -807,15 +919,8 @@ export class ApiService {
     return this.http.post<ProductoDto>(`${this.base}/productos/${id}/stock`, { cantidad });
   }
 
-  cobrar(items: ItemVenta[], pagos: PagoVenta[], descuentoPorcentaje: number, cobrarAlCosto: boolean, idPedidoEspera?: number, sinOfertas = false) {
-    return this.http.post<{ idInformeVenta: number; total: number }>(`${this.base}/ventas`, {
-      items,
-      pagos,
-      descuentoPorcentaje,
-      cobrarAlCosto,
-      idPedidoEspera,
-      sinOfertas
-    });
+  cobrar(pedido: VentaPedidoDto) {
+    return this.http.post<{ idInformeVenta: number; total: number; yaRecibida?: boolean }>(`${this.base}/ventas`, pedido);
   }
 
   permisosCuentas() {
@@ -919,16 +1024,44 @@ export class ApiService {
     return this.http.put<ProductoDto>(`${this.base}/productos/${id}/precio`, { precio });
   }
 
+  aumentarProductos(body: PedidoAumento) {
+    return this.http.post<{ cantidad: number }>(`${this.base}/productos/aumentar`, body);
+  }
+
+  vistaPreviaAumento(body: PedidoAumento) {
+    return this.http.post<VistaPreviaAumentoDto>(`${this.base}/productos/aumentar/vista-previa`, body);
+  }
+
+  plantillaListaProveedor() {
+    return this.http.get(`${this.base}/productos/aumentar/lista/plantilla`, { responseType: 'blob' });
+  }
+
+  revisarListaProveedor(id: number, archivo: string) {
+    return this.http.post<RevisionListaDto>(`${this.base}/productos/aumentar/proveedor/${id}/lista/revisar`, { archivo });
+  }
+
+  aplicarListaProveedor(id: number, archivo: string) {
+    return this.http.post<{ actualizados: number }>(`${this.base}/productos/aumentar/proveedor/${id}/lista/aplicar`, { archivo });
+  }
+
+  ultimoAumento() {
+    return this.http.get<UltimoAumentoDto | null>(`${this.base}/productos/aumentar/ultimo`);
+  }
+
+  deshacerAumento() {
+    return this.http.post<{ restaurados: number; omitidos: { nombre: string }[] }>(`${this.base}/productos/aumentar/deshacer`, {});
+  }
+
   mediosPago() {
     return this.http.get<MetodoPagoDto[]>(`${this.base}/medios-pago`);
   }
 
   crearMedioPago(descripcion: string, integracion: string) {
-    return this.http.post<MetodoPagoDto>(`${this.base}/medios-pago`, { descripcion, integracion });
+    return this.http.post<MetodoPagoDto>(`${this.base}/medios-pago`, { descripcion, integracion, descuentoPorcentaje: 0 });
   }
 
-  editarMedioPago(id: number, descripcion: string, integracion: string) {
-    return this.http.put<MetodoPagoDto>(`${this.base}/medios-pago/${id}`, { descripcion, integracion });
+  editarMedioPago(id: number, descripcion: string, integracion: string, descuentoPorcentaje: number) {
+    return this.http.put<MetodoPagoDto>(`${this.base}/medios-pago/${id}`, { descripcion, integracion, descuentoPorcentaje });
   }
 
   cuentaMercadoPago() {
@@ -973,13 +1106,14 @@ export class ApiService {
     return this.http.post<MetodoPagoDto>(`${this.base}/medios-pago/${id}/activar`, {});
   }
 
-  ventas(opts: { desde?: string; hasta?: string; medio?: string; nroCaja?: number; idCierre?: number; pagina?: number; tamano?: number } = {}) {
+  ventas(opts: { desde?: string; hasta?: string; medio?: string; nroCaja?: number; idCierre?: number; soloRevisar?: boolean; pagina?: number; tamano?: number } = {}) {
     let params = new HttpParams().set('tamano', String(opts.tamano ?? 100));
     if (opts.desde) params = params.set('desde', opts.desde);
     if (opts.hasta) params = params.set('hasta', opts.hasta);
     if (opts.medio) params = params.set('medio', opts.medio);
     if (opts.nroCaja) params = params.set('nroCaja', String(opts.nroCaja));
     if (opts.idCierre) params = params.set('idCierre', String(opts.idCierre));
+    if (opts.soloRevisar) params = params.set('soloRevisar', 'true');
     if (opts.pagina) params = params.set('pagina', String(opts.pagina));
     return this.http.get<{
       total: number;
@@ -988,6 +1122,10 @@ export class ApiService {
       tamano: number;
       items: VentaListaDto[];
     }>(`${this.base}/ventas`, { params });
+  }
+
+  marcarVentaRevisada(id: number) {
+    return this.http.put<void>(`${this.base}/ventas/${id}/revisada`, {});
   }
 
   venta(id: number) {
@@ -1036,6 +1174,31 @@ export class ApiService {
     }>(`${this.base}/cajas/unificar`, { idsCierre });
   }
 
+  fiscalConfiguracion() {
+    return this.http.get<ConfiguracionFiscalDto>(`${this.base}/fiscal/configuracion`);
+  }
+
+  guardarFiscalConfiguracion(c: { cuit: string; puntoVenta: number; activa: boolean; facturaGlobalPorDefecto: boolean }) {
+    return this.http.put<void>(`${this.base}/fiscal/configuracion`, c);
+  }
+
+  fiscalComprobantes(pagina = 1) {
+    const params = new HttpParams().set('pagina', String(pagina)).set('tamano', '20');
+    return this.http.get<{ total: number; items: ComprobanteFiscalDto[] }>(`${this.base}/fiscal/comprobantes`, { params });
+  }
+
+  reintentarComprobante(id: number) {
+    return this.http.post<ComprobanteFiscalDto>(`${this.base}/fiscal/comprobantes/${id}/reintentar`, {});
+  }
+
+  estadoFiscalCaja(idCierre: number) {
+    return this.http.get<EstadoFiscalCajaDto>(`${this.base}/cajas/${idCierre}/fiscal`);
+  }
+
+  facturarCaja(idCierre: number, modo: 'venta' | 'global') {
+    return this.http.post<{ comprobantes: ComprobanteFiscalDto[]; omitidas: { idInformeVenta: number; motivo: string }[] }>(
+      `${this.base}/cajas/${idCierre}/facturar`, { modo });
+  }
   filtrosCajas() {
     return this.http.get<{ personas: string[]; medios: string[] }>(`${this.base}/cajas/filtros`);
   }
@@ -1084,7 +1247,7 @@ export class ApiService {
   }
 
   configuracionTienda() {
-    return this.http.get<ConfiguracionTiendaDto & { vista: VistaTienda | null; motivoCierre: 'abono' | 'gestion' | null; publicados: number; conImagen: number; mercadoPago: boolean; gestion: number; logo: string | null }>(`${this.base}/configuracion/tienda`);
+    return this.http.get<ConfiguracionTiendaDto & { vista: VistaTienda | null; motivoCierre: 'abono' | 'gestion' | null; avisoCierre: string | null; publicados: number; conImagen: number; mercadoPago: boolean; gestion: number; terminosTiendaVigentes: boolean; logo: string | null }>(`${this.base}/configuracion/tienda`);
   }
 
   subirLogoTienda(imagen: string) {
@@ -1109,6 +1272,10 @@ export class ApiService {
 
   publicarProductos(ids: number[], publicado: boolean) {
     return this.http.put<{ actualizados: number }>(`${this.base}/productos/publicados`, { ids, publicado });
+  }
+
+  asignarCategoriaProductos(ids: number[], idCategoria: number) {
+    return this.http.put<{ actualizados: number }>(`${this.base}/productos/categoria`, { ids, idCategoria });
   }
 
   imagenesProducto(id: number) {
@@ -1139,14 +1306,20 @@ export class ApiService {
     return this.http.get<TiendaPublicaDto>(`${this.base}/tienda/${encodeURIComponent(alias)}`);
   }
 
-  productosTienda(alias: string, opts: { q?: string; categorias?: number[]; pagina?: number }) {
+  productosTienda(alias: string, opts: { q?: string; categorias?: number[]; pagina?: number; tamano?: number; orden?: OrdenTienda; sentido?: 'asc' | 'desc' }) {
     let params = new HttpParams().set('pagina', String(opts.pagina ?? 1));
+    if (opts.tamano) params = params.set('tamano', String(opts.tamano));
+    if (opts.orden) params = params.set('orden', opts.orden).set('sentido', opts.sentido ?? 'asc');
     if (opts.q) params = params.set('q', opts.q);
     if (opts.categorias?.length) params = params.set('categorias', opts.categorias.join(','));
     return this.http.get<{ total: number; pagina: number; tamano: number; items: ProductoTiendaDto[] }>(
       `${this.base}/tienda/${encodeURIComponent(alias)}/productos`,
       { params }
     );
+  }
+
+  productoTienda(alias: string, id: number) {
+    return this.http.get<ProductoTiendaDto>(`${this.base}/tienda/${encodeURIComponent(alias)}/productos/${id}`);
   }
 
   cotizarCarritoTienda(alias: string, items: ItemCarritoTienda[], punto?: { latitud: number; longitud: number } | null) {
@@ -1273,8 +1446,16 @@ export class ApiService {
     return this.http.get<CategoriaDto[]>(`${this.base}/categorias`);
   }
 
-  crearCategoria(nombre: string) {
-    return this.http.post<CategoriaDto>(`${this.base}/categorias`, { nombre });
+  plantillasCategoria() {
+    return this.http.get<PlantillaCategoriaDto[]>(`${this.base}/categorias/plantillas`);
+  }
+
+  aplicarPlantillaCategoria(clave: string) {
+    return this.http.post<{ creadas: number; clave: string; titulo: string }>(`${this.base}/categorias/plantilla`, { clave });
+  }
+
+  crearCategoria(nombre: string, idPadre?: number | null) {
+    return this.http.post<CategoriaDto>(`${this.base}/categorias`, { nombre, idPadre: idPadre || null });
   }
 
   editarCategoria(id: number, nombre: string) {
@@ -1507,8 +1688,17 @@ export interface RevisionCatalogoDto {
 export interface CategoriaDto {
   id: number;
   nombre: string;
+  idPadre: number | null;
   cantidadProductos: number;
   cantidadGrupos: number;
+  cantidadHijos: number;
+}
+
+export interface PlantillaCategoriaDto {
+  clave: string;
+  titulo: string;
+  descripcion: string;
+  raices: { nombre: string; hijos: string[] }[];
 }
 
 export interface GrupoListaDto {
@@ -1537,7 +1727,10 @@ export interface VentaListaDto {
   descuento: number;
   precioCosto: string;
   nroCaja?: number | null;
+  esTiendaOnline?: boolean;
   idCierre?: number | null;
+  stockEnConflicto?: boolean;
+  notaRevision?: string | null;
 }
 
 export interface VentaDetalleDto {
@@ -1549,7 +1742,10 @@ export interface VentaDetalleDto {
   descuento: number;
   precioCosto: string;
   nroCaja?: number | null;
+  esTiendaOnline?: boolean;
   idCierre?: number | null;
+  stockEnConflicto?: boolean;
+  notaRevision?: string | null;
   pagos: { idMetodoPago: number; descripcionMetodoPago: string; importe: number }[];
   items: {
     idInformeVentaDetalle: number;
@@ -1688,6 +1884,10 @@ export interface ResumenEstadisticasDto {
   totalVendido: number;
   cantidadTickets: number;
   ticketPromedio: number;
+  totalMostrador: number;
+  ticketsMostrador: number;
+  totalTiendaOnline: number;
+  ticketsTiendaOnline: number;
   margenEstimado: number;
   porcentajeMargen: number;
   gananciaDelDia: number;
@@ -1745,3 +1945,37 @@ export interface CuentaDto extends CuentaListaDto {
   ticket?: TicketDto | null;
 }
 
+export interface ConfiguracionFiscalDto {
+  cuit: string;
+  puntoVenta: number;
+  activa: boolean;
+  facturaGlobalPorDefecto: boolean;
+  arcaDisponible: boolean;
+  ambiente: string;
+  tope: number;
+}
+
+export interface ComprobanteFiscalDto {
+  id: number;
+  tipo: string;
+  alcance: string;
+  estado: string;
+  puntoVenta: number;
+  numero: number;
+  importe: number;
+  cae: string;
+  vencimientoCae: string | null;
+  fecha: string;
+  idCierre: number | null;
+  nroCaja: number;
+  observacion: string;
+  cantidadVentas: number;
+}
+
+export interface EstadoFiscalCajaDto {
+  ventas: number;
+  facturadas: number;
+  sinFacturar: number;
+  totalSinFacturar: number;
+  comprobantes: ComprobanteFiscalDto[];
+}

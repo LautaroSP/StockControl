@@ -19,6 +19,8 @@ public class Producto
     public DateTimeOffset? FechaModificacion { get; set; }
     public string UsuarioModificacion { get; set; } = "";
     public bool Publicado { get; set; }
+    /// <summary>Texto plano opcional para la ficha de la tienda. Hasta ServicioCatalogoTienda.LargoMaximoDescripcion.</summary>
+    public string? Descripcion { get; set; }
 
     public bool EsGenerico => Codigo.StartsWith("GENERIC-", StringComparison.OrdinalIgnoreCase);
 }

@@ -31,7 +31,11 @@ export class MapaComponent implements AfterViewInit, OnChanges, OnDestroy {
     const L = typeof modulo.map === 'function' ? modulo : modulo.default!;
     const punto: [number, number] = [this.latitud, this.longitud];
     this.mapa = L.map(this.contenedor.nativeElement, { scrollWheelZoom: false }).setView(punto, 16);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: ATRIBUCION }).addTo(this.mapa);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: ATRIBUCION,
+      referrerPolicy: 'strict-origin-when-cross-origin'
+    }).addTo(this.mapa);
     const icono = L.divIcon({ className: 'marcador-tienda', html: '<span></span>', iconSize: [22, 22], iconAnchor: [11, 22] });
     this.marcador = L.marker(punto, { icon: icono, draggable: this.editable, title: this.etiqueta }).addTo(this.mapa);
     requestAnimationFrame(() => this.mapa?.invalidateSize());

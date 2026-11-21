@@ -2,12 +2,19 @@ import { Component, HostListener } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { DialogoService } from './servicios/dialogo.service';
 import { TemaService } from './servicios/tema.service';
+import { VersionService } from './servicios/version.service';
 
 @Component({
   selector: 'sc-root',
   standalone: true,
   imports: [RouterOutlet],
   template: `
+    @if (version.hayActualizacion()) {
+      <div class="aviso-version" role="status">
+        <span>Hay una actualización disponible.</span>
+        <button class="btn btn-primary" type="button" (click)="version.actualizar()">Actualizar</button>
+      </div>
+    }
     <router-outlet />
     @if (dialogo.visible()) {
       <div class="dialogo-fondo">
@@ -29,8 +36,9 @@ import { TemaService } from './servicios/tema.service';
   `
 })
 export class AppComponent {
-  constructor(tema: TemaService, readonly dialogo: DialogoService) {
+  constructor(tema: TemaService, readonly dialogo: DialogoService, readonly version: VersionService) {
     tema.aplicar();
+    version.iniciar();
   }
 
   @HostListener('document:keydown.escape')

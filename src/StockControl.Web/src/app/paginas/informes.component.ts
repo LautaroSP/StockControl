@@ -8,6 +8,7 @@ import {
   VentaDetalleDto,
   VentaListaDto
 } from '../servicios/api.service';
+import { ColaVentasService } from '../servicios/cola-ventas.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
 import { DetalleVentaComponent } from './detalle-venta.component';
@@ -25,11 +26,14 @@ import { TicketComponent } from './ticket.component';
           <option value="medio">Desglose: medio</option>
           <option value="usuario">Desglose: usuario</option>
         </select>
-        <button class="btn btn-primary" type="button" (click)="cerrarHoy()">Cerrar caja de hoy</button>
+        <button class="btn btn-primary" type="button" [disabled]="cola.bloqueaCierre()" (click)="cerrarHoy()">Cerrar caja de hoy</button>
         <input type="text" inputmode="numeric" placeholder="dd/mm/aaaa" [(ngModel)]="fechaAnterior" />
-        <button class="btn" type="button" (click)="cerrarAnterior()">Cerrar caja anterior</button>
+        <button class="btn" type="button" [disabled]="cola.bloqueaCierre()" (click)="cerrarAnterior()">Cerrar caja anterior</button>
       </div>
     </div>
+    @if (cola.bloqueaCierre()) {
+      <p class="error">{{ cola.textoBloqueo() }}</p>
+    }
     <div class="kpis">
       <div class="panel kpi">
         <div class="n">{{ dinero(pendientes.total) }}</div>
@@ -92,6 +96,7 @@ import { TicketComponent } from './ticket.component';
           <option>Efectivo</option>
           <option>Mercado Pago</option>
         </select>
+        <label class="check"><input type="checkbox" [(ngModel)]="soloRevisar" (ngModelChange)="cargarVentas()" /> Para revisar</label>
         <span class="meta">{{ totalVentas }} tickets · {{ dinero(sumaVentas) }}</span>
       </div>
       @if (ventasAbiertas) {
@@ -123,9 +128,19 @@ import { TicketComponent } from './ticket.component';
       <div class="modal-back show">
         <div class="modal" style="max-width:520px">
           <h2 style="margin:0 0 8px;font-size:18px">Venta {{ hora(detalle.fecha) }}</h2>
-           <p class="meta">{{ detalle.metodoPago }} · {{ dinero(detalle.total) }}</p>
+           <p class="meta">
+             {{ detalle.metodoPago }} · {{ dinero(detalle.total) }}
+             @if (detalle.nroCaja) { · Caja {{ detalle.nroCaja }} }
+             @if (detalle.esTiendaOnline) { · <span class="badge">Tienda online</span> }
+           </p>
            @if (detalle.pagos.length > 0) {
              <p class="meta">{{ pagosTexto(detalle) }}</p>
+           }
+           @if (detalle.notaRevision) {
+             <p class="error">{{ detalle.notaRevision }}</p>
+             @if (sesion.puedeConfigurarLocal()) {
+               <button class="btn" type="button" (click)="marcarRevisada()">Marcar como revisada</button>
+             }
            }
           <sc-detalle-venta [venta]="detalle" [verCosto]="sesion.esDueno()" />
           <div class="row" style="margin-top:12px">
@@ -152,6 +167,7 @@ export class InformesComponent implements OnInit {
   fechaAnterior = hoyYmd();
   medio = '';
   puesto = 0;
+  soloRevisar = false;
   puestos: number[] = [];
   desglose: 'medio' | 'usuario' = 'medio';
   ventas: VentaListaDto[] = [];
@@ -170,7 +186,8 @@ export class InformesComponent implements OnInit {
     private readonly api: ApiService,
     private readonly router: Router,
     readonly sesion: SesionService,
-    private readonly dialogo: DialogoService
+    private readonly dialogo: DialogoService,
+    readonly cola: ColaVentasService
   ) {}
 
   ngOnInit(): void {
@@ -202,8 +219,10 @@ export class InformesComponent implements OnInit {
 
   notas(v: VentaListaDto): string {
     const bits: string[] = [];
+    if (v.esTiendaOnline) bits.push('Tienda online');
     if (v.descuento > 0) bits.push(`Desc. ${v.descuento}%`);
     if ((v.precioCosto || '').toUpperCase() === 'SI') bits.push('Al costo');
+    if (v.stockEnConflicto) bits.push('Revisar stock');
     if (v.idCierre) bits.push('Cerrada');
     return bits.join(' · ');
   }
@@ -219,7 +238,8 @@ export class InformesComponent implements OnInit {
       desde: dia,
       hasta: dia,
       medio: this.medio || undefined,
-      nroCaja: this.puesto || undefined
+      nroCaja: this.puesto || undefined,
+      soloRevisar: this.soloRevisar
     }).subscribe({
       next: (r) => {
         this.ventas = r.items;
@@ -244,6 +264,17 @@ export class InformesComponent implements OnInit {
     this.api.venta(id).subscribe({
       next: (d) => (this.detalle = d),
       error: () => (this.error = 'No se pudo abrir la venta.')
+    });
+  }
+
+  marcarRevisada(): void {
+    if (!this.detalle) return;
+    this.api.marcarVentaRevisada(this.detalle.idInformeVenta).subscribe({
+      next: () => {
+        this.detalle = null;
+        this.cargarVentas();
+      },
+      error: () => (this.error = 'No se pudo marcar la venta como revisada.')
     });
   }
 
@@ -305,6 +336,10 @@ export class InformesComponent implements OnInit {
   }
 
   private cerrar(fecha?: string): void {
+    if (this.cola.bloqueaCierre()) {
+      this.error = this.cola.textoBloqueo();
+      return;
+    }
     const cerrar = (todas: boolean, confirmado = false) => this.ejecutarCierre(fecha, todas, confirmado);
     if (!this.sesion.esDueno()) {
       cerrar(false);

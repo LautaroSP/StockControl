@@ -14,6 +14,7 @@ using Microsoft.IdentityModel.Tokens;
 using StockControl.Api.Auth;
 using StockControl.Api.Avisos;
 using StockControl.Api.Contratos;
+using StockControl.Api.Fiscal;
 using StockControl.Api.Datos;
 using StockControl.Api.Importacion;
 using StockControl.Api.Pagos;
@@ -94,6 +95,12 @@ builder.Services.AddHttpClient<ClienteOpenFoodFacts>(c =>
 builder.Services.AddHttpClient(EnviadorPush.Cliente, c => c.Timeout = TimeSpan.FromSeconds(10))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddSingleton<ColaPush>();
+builder.Services.AddSingleton<OpcionesArca>();
+builder.Services.AddHttpClient(ClienteSoap.Cliente, c => c.Timeout = TimeSpan.FromSeconds(30))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddSingleton<ClienteWsaa>();
+builder.Services.AddSingleton<ClienteWsfe>();
+builder.Services.AddSingleton<IClienteArca>(sp => sp.GetRequiredService<ClienteWsfe>());
 builder.Services.AddHostedService<EnviadorPush>();
 builder.Services.AddHostedService<VencedorPedidosTienda>();
 builder.Services.AddSingleton(new AlmacenImagenes(
@@ -132,6 +139,9 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("registro", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    o.AddPolicy("recuperar", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 }));
     o.AddPolicy("contacto", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 3, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
@@ -296,6 +306,49 @@ app.MapPost("/auth/login", async (LoginPedido pedido, AppDbContext db, PasswordH
         terminosVigentes = !ServicioTerminos.DebeAceptar(u.Rol) || ServicioTerminos.Vigente(u)
     });
 }).RequireRateLimiting("login");
+
+app.MapPost("/auth/recuperar", async (RecuperarClavePedido pedido, AppDbContext db, IConfiguration config, IHttpClientFactory clientes, ILoggerFactory logs) =>
+{
+    var apiKey = config["Correo:ApiKey"];
+    var desde = config["Correo:Desde"];
+    var urlWeb = config["App:UrlWeb"];
+    if (!ServicioConfirmacionCorreo.HayQueConfirmar(apiKey, desde, urlWeb))
+        return Results.BadRequest("Hoy no podemos mandar mails. Escribinos desde Contacto.");
+    var buscado = pedido.Identificador.Trim();
+    var mail = buscado.ToLowerInvariant();
+    var usuario = await db.Usuarios.IgnoreQueryFilters()
+        .FirstOrDefaultAsync(u => u.NombreUsuario == buscado || u.Email.ToLower() == mail);
+    var token = ServicioRecuperarClave.Iniciar(usuario, DateTimeOffset.UtcNow);
+    if (token != null)
+    {
+        await db.SaveChangesAsync();
+        var enlace = urlWeb!.TrimEnd('/') + "/recuperar?token=" + token;
+        var texto = $"Abrí este link para elegir una contraseña nueva. Vence en {ServicioRecuperarClave.MinutosDeVigencia} minutos.\n\n{enlace}\n\nSi no lo pediste, ignorá este mail: tu contraseña sigue igual.\n";
+        if (!await EnviarCorreo(clientes, apiKey!, desde!, usuario!.Email, "Recuperar la contraseña de StockControl", texto))
+            logs.CreateLogger("Correo").LogWarning("No se pudo mandar el mail de recuperación del usuario {IdUsuario}", usuario.Id);
+    }
+    return Results.Ok(new { mensaje = ServicioRecuperarClave.Respuesta });
+}).RequireRateLimiting("recuperar");
+
+app.MapPost("/auth/recuperar/clave", async (NuevaClavePedido pedido, AppDbContext db, PasswordHasher<Usuario> hasher) =>
+{
+    var hash = ServicioConfirmacionCorreo.Hash(pedido.Token);
+    var usuario = await db.Usuarios.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.TokenRecuperacion == hash);
+    var rechazo = ServicioRecuperarClave.Rechazo(pedido.Token, usuario, DateTimeOffset.UtcNow);
+    if (rechazo != null) return Results.BadRequest(rechazo);
+    try
+    {
+        ServicioRecuperarClave.ExigirClave(pedido.Clave);
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+    usuario!.HashClave = hasher.HashPassword(usuario, pedido.Clave);
+    ServicioRecuperarClave.Completar(usuario);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { cambiada = true });
+}).RequireRateLimiting("recuperar");
 
 app.MapGet("/auth/terminos", async (AppDbContext db, SesionActual sesion) =>
 {
@@ -749,6 +802,7 @@ app.MapGet("/productos", async (AppDbContext db, SesionActual sesion, [AsParamet
             p.FechaModificacion,
             p.UsuarioModificacion,
             p.Publicado,
+            p.Descripcion,
             publicable = ServicioCatalogoTienda.PuedePublicar(p),
             nombreGrupo = p.IdGrupoProducto == 0
                 ? null
@@ -788,6 +842,7 @@ app.MapPost("/productos", async (ProductoPedido pedido, AppDbContext db, SesionA
     };
     try
     {
+        p.Descripcion = ServicioCatalogoTienda.NormalizarDescripcion(pedido.Descripcion);
         if (pedido.IdGrupoProducto is int idG && idG > 0)
         {
             var g = await db.GrupoProductos.FirstOrDefaultAsync(x => x.IdGrupoProducto == idG);
@@ -824,6 +879,8 @@ app.MapPut("/productos/{id:int}", async (int id, ProductoPedido pedido, AppDbCon
     p.UsuarioModificacion = sesion.NombreUsuario ?? "sistema";
     try
     {
+        if (pedido.Descripcion != null)
+            p.Descripcion = ServicioCatalogoTienda.NormalizarDescripcion(pedido.Descripcion);
         if (pedido.IdGrupoProducto is int idG)
         {
             if (idG == 0)
@@ -865,6 +922,161 @@ app.MapPut("/productos/{id:int}/precio", async (int id, PrecioProductoPedido ped
     producto.UsuarioModificacion = sesion.NombreUsuario ?? "sistema";
     await db.SaveChangesAsync();
     return Results.Ok(producto);
+}).RequireAuthorization().RequireRateLimiting("api");
+
+const int MaximoFilasVistaPrevia = 200;
+
+async Task<List<int>> IdsDeAumento(AumentoPedido pedido, AppDbContext db, List<Producto> productos, List<GrupoProductos> grupos)
+{
+    if (pedido.IdProveedor is > 0)
+    {
+        if (!await db.Proveedores.AnyAsync(p => p.Id == pedido.IdProveedor))
+            throw new ErrorNegocio("El proveedor no existe.");
+        var delProveedor = ServicioAumento.IdsDeProveedor(pedido.IdProveedor.Value, productos);
+        if (delProveedor.Count == 0)
+            throw new ErrorNegocio("Ese proveedor no tiene productos.");
+        return delProveedor;
+    }
+    if (pedido.IdCategoria is not > 0)
+        return pedido.Ids.Distinct().ToList();
+    if (!await db.Categorias.AnyAsync(c => c.Id == pedido.IdCategoria))
+        throw new ErrorNegocio("La categoría no existe.");
+    var ids = ServicioAumento.IdsDeCategoria(pedido.IdCategoria.Value, productos, grupos);
+    if (ids.Count == 0)
+        throw new ErrorNegocio("Esa categoría no tiene productos.");
+    return ids;
+}
+
+app.MapPost("/productos/aumentar", async (AumentoPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeEditarProducto(sesion.Rol ?? "")) return Results.Forbid();
+    try
+    {
+        var precio = ServicioAumento.Normalizar(pedido.TipoPrecio, pedido.ValorPrecio);
+        var costo = ServicioAumento.Normalizar(pedido.TipoCosto, pedido.ValorCosto);
+        var redondeo = ServicioAumento.NormalizarRedondeo(pedido.RedondeoPrecio);
+        var usuario = sesion.NombreUsuario ?? "sistema";
+        var productos = await db.Productos.ToListAsync();
+        var grupos = await db.GrupoProductos.ToListAsync();
+        var ids = await IdsDeAumento(pedido, db, productos, grupos);
+        var resultado = ServicioAumento.Aplicar(productos, grupos, ids, precio, costo, usuario, redondeo);
+        db.AumentosHistorial.Add(ServicioDeshacerAumento.Registrar(
+            sesion.IdLocal.Value, usuario, precio, costo, precio.EsNada ? 0 : redondeo, resultado, DateTimeOffset.UtcNow));
+        await db.SaveChangesAsync();
+        return Results.Ok(new { cantidad = resultado.Cantidad });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/productos/aumentar/vista-previa", async (AumentoPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeEditarProducto(sesion.Rol ?? "")) return Results.Forbid();
+    try
+    {
+        var precio = ServicioAumento.Normalizar(pedido.TipoPrecio, pedido.ValorPrecio);
+        var costo = ServicioAumento.Normalizar(pedido.TipoCosto, pedido.ValorCosto);
+        var redondeo = ServicioAumento.NormalizarRedondeo(pedido.RedondeoPrecio);
+        var productos = await db.Productos.AsNoTracking().ToListAsync();
+        var grupos = await db.GrupoProductos.AsNoTracking().ToListAsync();
+        var ids = await IdsDeAumento(pedido, db, productos, grupos);
+        var resultado = ServicioAumento.Simular(productos, grupos, ids, precio, costo, redondeo);
+        return Results.Ok(new
+        {
+            cantidad = resultado.Cantidad,
+            total = resultado.Cambios.Count,
+            filas = resultado.Cambios.Take(MaximoFilasVistaPrevia)
+        });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/productos/aumentar/ultimo", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeEditarProducto(sesion.Rol ?? "")) return Results.Forbid();
+    var ultimo = await db.AumentosHistorial
+        .OrderByDescending(h => h.Fecha)
+        .Select(h => new
+        {
+            h.Fecha,
+            h.Usuario,
+            cantidad = h.Items.Count,
+            redondeo = h.RedondeoPrecio,
+            h.Deshecho
+        })
+        .FirstOrDefaultAsync();
+    return ultimo == null ? Results.NoContent() : Results.Ok(ultimo);
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/productos/aumentar/deshacer", async (AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeEditarProducto(sesion.Rol ?? "")) return Results.Forbid();
+    try
+    {
+        var ultimo = await db.AumentosHistorial.Include(h => h.Items)
+            .OrderByDescending(h => h.Fecha).Take(1).ToListAsync();
+        var productos = await db.Productos.ToListAsync();
+        var grupos = await db.GrupoProductos.ToListAsync();
+        var resultado = ServicioDeshacerAumento.Deshacer(ultimo, productos, grupos, sesion.NombreUsuario ?? "sistema");
+        await db.SaveChangesAsync();
+        return Results.Ok(new { restaurados = resultado.Restaurados, omitidos = resultado.Omitidos.Select(n => new { nombre = n }) });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+app.MapGet("/productos/aumentar/lista/plantilla", (SesionActual sesion) =>
+    Permisos.PuedeEditarProducto(sesion.Rol ?? "")
+        ? Results.File(ExcelProveedor.PlantillaLista(), ExcelProveedor.TipoContenido, "plantilla-lista-costos.xlsx")
+        : Results.Forbid()).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/productos/aumentar/proveedor/{id:int}/lista/revisar", async (int id, ArchivoExcelPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeEditarProducto(sesion.Rol ?? "")) return Results.Forbid();
+    if (!await db.Proveedores.AnyAsync(p => p.Id == id)) return Results.NotFound();
+    try
+    {
+        var filas = ExcelProveedor.LeerLista(DecodificarBase64(pedido.Archivo));
+        var datos = await CargarListaProveedor(db, sesion, id, filas);
+        var revision = ServicioListaProveedor.Revisar(filas, datos.Productos, datos.Grupos, datos.Vinculos, id, datos.Config.FactorGanancia, datos.Config.Iva);
+        return Results.Ok(new { revision.Encontrados, revision.NoEncontrados, revision.Salteados });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/productos/aumentar/proveedor/{id:int}/lista/aplicar", async (int id, ArchivoExcelPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeEditarProducto(sesion.Rol ?? "")) return Results.Forbid();
+    if (!await db.Proveedores.AnyAsync(p => p.Id == id && p.Activo)) return Results.NotFound();
+    try
+    {
+        var filas = ExcelProveedor.LeerLista(DecodificarBase64(pedido.Archivo));
+        var datos = await CargarListaProveedor(db, sesion, id, filas);
+        var revision = ServicioListaProveedor.Aplicar(
+            filas, datos.Productos, datos.Grupos, datos.Vinculos, id,
+            datos.Config.FactorGanancia, datos.Config.Iva, sesion.NombreUsuario ?? "sistema");
+        await db.SaveChangesAsync();
+        return Results.Ok(new { actualizados = revision.Encontrados.Count, revision.NoEncontrados, revision.Salteados });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapPost("/productos/{id:int}/stock", async (int id, StockPedido pedido, AppDbContext db, SesionActual sesion) =>
@@ -1048,9 +1260,48 @@ app.MapGet("/categorias", async (AppDbContext db, SesionActual sesion) =>
     {
         c.Id,
         c.Nombre,
+        c.IdPadre,
         cantidadProductos = conteo.GetValueOrDefault(c.Id),
-        cantidadGrupos = grupos.Count(g => g.IdCategoria == c.Id)
+        cantidadGrupos = grupos.Count(g => g.IdCategoria == c.Id),
+        cantidadHijos = categorias.Count(h => h.IdPadre == c.Id)
     }));
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/categorias/plantillas", (SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeAdministrarCategorias(sesion.Rol ?? "")) return Results.Forbid();
+    return Results.Ok(ServicioPlantillasCategoria.Todas.Select(p => new
+    {
+        p.Clave,
+        p.Titulo,
+        p.Descripcion,
+        raices = p.Raices.Select(r => new { r.Nombre, hijos = r.Hijos.Select(h => h.Nombre) })
+    }));
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapPost("/categorias/plantilla", async (PlantillaCategoriaPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeAdministrarCategorias(sesion.Rol ?? "")) return Results.Forbid();
+    var plantilla = ServicioPlantillasCategoria.PorClave(pedido.Clave);
+    if (plantilla == null) return Results.BadRequest("Elegí un tipo de local de la lista.");
+    try
+    {
+        var delLocal = await db.Categorias.ToListAsync();
+        var raices = ServicioPlantillasCategoria.AplicarRaices(sesion.IdLocal.Value, plantilla, delLocal);
+        db.Categorias.AddRange(raices);
+        await db.SaveChangesAsync();
+        delLocal = await db.Categorias.ToListAsync();
+        var hijos = ServicioPlantillasCategoria.AplicarHijos(sesion.IdLocal.Value, plantilla, delLocal);
+        db.Categorias.AddRange(hijos);
+        await db.SaveChangesAsync();
+        return Results.Ok(new { creadas = raices.Count + hijos.Count, plantilla.Clave, plantilla.Titulo });
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapPost("/categorias", async (CategoriaPedido pedido, AppDbContext db, SesionActual sesion) =>
@@ -1059,10 +1310,11 @@ app.MapPost("/categorias", async (CategoriaPedido pedido, AppDbContext db, Sesio
     if (!Permisos.PuedeAdministrarCategorias(sesion.Rol ?? "")) return Results.Forbid();
     try
     {
-        var categoria = ServicioCategorias.Nueva(sesion.IdLocal.Value, pedido.Nombre, await db.Categorias.ToListAsync());
+        var existentes = await db.Categorias.ToListAsync();
+        var categoria = ServicioCategorias.Nueva(sesion.IdLocal.Value, pedido.Nombre, existentes, pedido.IdPadre);
         db.Categorias.Add(categoria);
         await db.SaveChangesAsync();
-        return Results.Created($"/categorias/{categoria.Id}", new { categoria.Id, categoria.Nombre, cantidadProductos = 0, cantidadGrupos = 0 });
+        return Results.Created($"/categorias/{categoria.Id}", new { categoria.Id, categoria.Nombre, categoria.IdPadre, cantidadProductos = 0, cantidadGrupos = 0, cantidadHijos = 0 });
     }
     catch (ErrorNegocio ex)
     {
@@ -1095,9 +1347,14 @@ app.MapDelete("/categorias/{id:int}", async (int id, AppDbContext db, SesionActu
     if (!Permisos.PuedeAdministrarCategorias(sesion.Rol ?? "")) return Results.Forbid();
     var categoria = await db.Categorias.FirstOrDefaultAsync(c => c.Id == id);
     if (categoria == null) return Results.NotFound();
-    var productos = await db.Productos.Where(p => p.IdCategoria == id).ToListAsync();
-    var grupos = await db.GrupoProductos.Where(g => g.IdCategoria == id).ToListAsync();
+    var hijas = await db.Categorias.Where(c => c.IdPadre == id).ToListAsync();
+    var ids = hijas.Select(h => h.Id).Append(id).ToList();
+    var productos = await db.Productos.Where(p => p.IdCategoria != null && ids.Contains(p.IdCategoria.Value)).ToListAsync();
+    var grupos = await db.GrupoProductos.Where(g => g.IdCategoria != null && ids.Contains(g.IdCategoria.Value)).ToListAsync();
+    foreach (var hija in hijas)
+        ServicioCategorias.Eliminar(hija, productos, grupos, sesion.NombreUsuario ?? "sistema");
     ServicioCategorias.Eliminar(categoria, productos, grupos, sesion.NombreUsuario ?? "sistema");
+    db.Categorias.RemoveRange(hijas);
     db.Categorias.Remove(categoria);
     await db.SaveChangesAsync();
     return Results.NoContent();
@@ -1285,9 +1542,12 @@ app.MapGet("/configuracion/tienda", async (AppDbContext db, SesionActual sesion)
         estado = local.EstadoTienda,
         vista = ServicioTienda.Vista(local, ahoraTienda, gestionVencida),
         motivoCierre = ServicioTienda.MotivoCierre(local, ahoraTienda, gestionVencida),
+        avisoCierre = ServicioTienda.AvisoDueno(ServicioTienda.MotivoCierre(local, ahoraTienda, gestionVencida)),
         local.Direccion,
         local.Horario,
         whatsApp = local.WhatsApp.Length == 0 ? "" : ServicioAdmin.MostrarTelefono(local.WhatsApp),
+        correo = local.Correo,
+        instagram = local.Instagram,
         local.HaceEnvios,
         local.EnvioGratisSiempre,
         local.PrecioEnvioKm,
@@ -1299,8 +1559,10 @@ app.MapGet("/configuracion/tienda", async (AppDbContext db, SesionActual sesion)
         publicados,
         conImagen,
         mercadoPago = await PagosPedidoTienda.AceptaMercadoPago(db, local.IdLocal),
-        gestion = local.ExentoGestion ? 0 : ServicioGestionTienda.ImportePorPedido,
+        gestion = ServicioGestionTienda.ImporteVigente(local),
         local.GestionACargoComprador,
+        filtroCategorias = ServicioTienda.NormalizarFiltroCategorias(local.FiltroCategoriasTienda),
+        terminosTiendaVigentes = ServicioTerminosTienda.Vigente(local),
         cbu = local.CbuTienda,
         aliasCbu = local.AliasCbuTienda,
         titular = local.TitularTienda,
@@ -1319,12 +1581,14 @@ app.MapPut("/configuracion/tienda", async (TiendaPedido pedido, AppDbContext db,
         var alias = ServicioTienda.NormalizarAlias(pedido.Alias);
         var tomado = alias != null && await LocalesTienda.AliasTomado(db, alias, local.IdLocal);
         ServicioTienda.AsignarAlias(local, alias, tomado);
-        ServicioTienda.AsignarDatos(local, pedido.Direccion, pedido.Horario, pedido.WhatsApp, pedido.HaceEnvios);
+        ServicioTienda.AsignarDatos(local, pedido.Direccion, pedido.Horario, pedido.WhatsApp, pedido.Correo, pedido.Instagram, pedido.HaceEnvios);
         ServicioEnvioTienda.Asignar(local, pedido.EnvioGratisSiempre, pedido.PrecioEnvioKm, pedido.EnvioMinimo, pedido.RadioEnvioKm, pedido.EnvioGratisDesde);
         ServicioTienda.AsignarUbicacion(local, pedido.Latitud, pedido.Longitud);
+        ServicioTerminosTienda.ExigirAlPublicar(local, pedido.Estado, pedido.AceptaTerminosTienda, DateTimeOffset.UtcNow);
         ServicioTienda.CambiarEstado(local, pedido.Estado);
         ServicioPaletaTienda.Asignar(local, pedido.ColorMarca, pedido.ColorFondo, pedido.ColorFicha);
         local.GestionACargoComprador = pedido.GestionACargoComprador;
+        local.FiltroCategoriasTienda = ServicioTienda.NormalizarFiltroCategorias(pedido.FiltroCategorias);
         ServicioTransferenciaTienda.AsignarDatos(local, pedido.Cbu, pedido.AliasCbu, pedido.Titular, pedido.PlazoTransferenciaHoras);
         await db.SaveChangesAsync();
         var ahoraGuardada = DateTimeOffset.UtcNow;
@@ -1387,6 +1651,28 @@ app.MapPut("/productos/publicados", async (PublicarProductosPedido pedido, AppDb
     return Results.Ok(new { actualizados = productos.Count });
 }).RequireAuthorization().RequireRateLimiting("api");
 
+app.MapPut("/productos/categoria", async (AsignarCategoriaProductosPedido pedido, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeEditarProducto(sesion.Rol ?? "")) return Results.Forbid();
+    var ids = pedido.Ids.Distinct().ToList();
+    if (ids.Count == 0) return Results.BadRequest("Elegí al menos un producto.");
+    if (ids.Count > ServicioCatalogoTienda.MaximoPorVez)
+        return Results.BadRequest($"Máximo {ServicioCatalogoTienda.MaximoPorVez} productos por vez.");
+    var productos = await db.Productos.Where(p => ids.Contains(p.Id)).ToListAsync();
+    try
+    {
+        var categoria = await CategoriaElegida(db, pedido.IdCategoria);
+        ServicioCategorias.AsignarAVarios(productos, categoria, sesion.NombreUsuario ?? "sistema");
+    }
+    catch (ErrorNegocio ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+    await db.SaveChangesAsync();
+    return Results.Ok(new { actualizados = productos.Count });
+}).RequireAuthorization().RequireRateLimiting("api");
+
 app.MapPut("/productos/publicados/lista", async ([AsParameters] FiltroProductos filtro, PublicarListaPedido pedido, AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
@@ -1408,10 +1694,14 @@ app.MapGet("/tienda/{alias}", async (string alias, AppDbContext db, AlcanceDatos
     var catalogo = vista == ServicioTienda.VistaCatalogo;
     var mapa = catalogo && ServicioTienda.MuestraMapa(local);
     sesion.IdLocal = local.IdLocal;
-    var categorias = catalogo
-        ? await ServicioCatalogoTienda.CategoriasConPublicados(
-            db.Productos.AsNoTracking(), db.GrupoProductos.AsNoTracking(), db.Categorias.AsNoTracking(), local.IdLocal).Take(maxPagina).ToListAsync()
-        : new List<CategoriaTienda>();
+    List<CategoriaTienda> categorias = [];
+    if (catalogo)
+    {
+        var cats = await db.Categorias.AsNoTracking().Where(c => c.IdLocal == local.IdLocal).Take(maxPagina).ToListAsync();
+        var gruposCat = await db.GrupoProductos.AsNoTracking().ToListAsync();
+        var publicados = await ServicioCatalogoTienda.Publicados(db.Productos.AsNoTracking(), db.GrupoProductos.AsNoTracking(), local.IdLocal, null, null).ToListAsync();
+        categorias = ServicioCatalogoTienda.CategoriasConPublicados(cats, publicados, gruposCat);
+    }
     return Results.Ok(new
     {
         alias = local.AliasTienda,
@@ -1426,14 +1716,34 @@ app.MapGet("/tienda/{alias}", async (string alias, AppDbContext db, AlcanceDatos
         horario = local.Horario,
         direccion = catalogo ? local.Direccion : "",
         whatsApp = catalogo ? local.WhatsApp : "",
+        correo = catalogo ? local.Correo : "",
+        instagram = catalogo ? local.Instagram : "",
         haceEnvios = catalogo && ServicioEnvioTienda.Ofrece(local),
         latitud = mapa ? local.Latitud : null,
         longitud = mapa ? local.Longitud : null,
+        filtroCategorias = ServicioTienda.NormalizarFiltroCategorias(local.FiltroCategoriasTienda),
         categorias
     });
 }).RequireRateLimiting("tienda");
 
-app.MapGet("/tienda/{alias}/productos", async (string alias, string? q, string? categorias, AppDbContext db, AlcanceDatos alcance, SesionActual sesion, int pagina = 1) =>
+app.MapGet("/tienda/{alias}/productos/{id:int}", async (string alias, int id, AppDbContext db, AlcanceDatos alcance, SesionActual sesion) =>
+{
+    var local = await LocalesTienda.PorAlias(db, alcance, sesion, alias);
+    var ahoraFicha = DateTimeOffset.UtcNow;
+    if (local == null || ServicioTienda.Vista(local, ahoraFicha, await ConsultaGestionTienda.Vencida(db, local.IdLocal, ahoraFicha)) != ServicioTienda.VistaCatalogo)
+        return Results.NotFound();
+    sesion.IdLocal = local.IdLocal;
+    var producto = await ServicioCatalogoTienda.Publicados(db.Productos.AsNoTracking(), db.GrupoProductos.AsNoTracking(), local.IdLocal, null, null)
+        .FirstOrDefaultAsync(p => p.Id == id);
+    if (producto == null) return Results.NotFound();
+    var grupo = await db.GrupoProductos.AsNoTracking().FirstOrDefaultAsync(g => g.IdGrupoProducto == producto.IdGrupoProducto);
+    var imagenes = await db.ImagenesProducto.AsNoTracking().Where(i => i.IdProducto == id).ToListAsync();
+    var hoyFicha = DiaArgentina.Hoy(ahoraFicha);
+    var ofertas = await OfertasVigentes.DeTienda(db, local.IdLocal, hoyFicha).Where(o => o.IdProducto == id).ToListAsync();
+    return Results.Ok(ServicioCatalogoTienda.AProductoTienda(producto, grupo, imagenes, await ReservasTienda.DelLocal(db, local.IdLocal), ofertas, hoyFicha));
+}).RequireRateLimiting("tienda");
+
+app.MapGet("/tienda/{alias}/productos", async (string alias, string? q, string? categorias, AppDbContext db, AlcanceDatos alcance, SesionActual sesion, string? orden = null, string? sentido = null, int pagina = 1, int tamano = 0) =>
 {
     var local = await LocalesTienda.PorAlias(db, alcance, sesion, alias);
     var ahoraCatalogo = DateTimeOffset.UtcNow;
@@ -1441,9 +1751,16 @@ app.MapGet("/tienda/{alias}/productos", async (string alias, string? q, string? 
         return Results.NotFound();
     sesion.IdLocal = local.IdLocal;
     pagina = Math.Max(1, pagina);
-    const int tamano = ServicioCatalogoTienda.TamanoPagina;
+    tamano = ServicioCatalogoTienda.NormalizarTamano(tamano);
     var idsCategoria = IdsDeLista(categorias, ServicioCatalogoTienda.MaximoCategoriasFiltro);
-    var consulta = ServicioCatalogoTienda.Publicados(db.Productos.AsNoTracking(), db.GrupoProductos.AsNoTracking(), local.IdLocal, q, idsCategoria);
+    if (idsCategoria.Count > 0)
+    {
+        var arbol = await db.Categorias.AsNoTracking().Where(c => c.IdLocal == local.IdLocal).ToListAsync();
+        idsCategoria = ServicioCategorias.ExpandirConHijos(idsCategoria, arbol);
+    }
+    var hoyCatalogo = DiaArgentina.Hoy(ahoraCatalogo);
+    var ofertasTienda = OfertasVigentes.DeTienda(db, local.IdLocal, hoyCatalogo);
+    var consulta = ServicioCatalogoTienda.Publicados(db.Productos.AsNoTracking(), db.GrupoProductos.AsNoTracking(), local.IdLocal, q, idsCategoria, orden, sentido, ofertasTienda);
     var total = await consulta.CountAsync();
     var items = await consulta.Skip((pagina - 1) * tamano).Take(tamano).ToListAsync();
     var ids = items.Select(p => p.Id).ToList();
@@ -1451,24 +1768,25 @@ app.MapGet("/tienda/{alias}/productos", async (string alias, string? q, string? 
     var grupos = await db.GrupoProductos.AsNoTracking().Where(g => idsGrupo.Contains(g.IdGrupoProducto)).ToDictionaryAsync(g => g.IdGrupoProducto);
     var imagenes = await db.ImagenesProducto.AsNoTracking().Where(i => ids.Contains(i.IdProducto)).ToListAsync();
     var reservado = await ReservasTienda.DelLocal(db, local.IdLocal);
+    var ofertasPagina = await ofertasTienda.Where(o => ids.Contains(o.IdProducto)).ToListAsync();
     return Results.Ok(new
     {
         total, pagina, tamano,
-        items = items.Select(p => ServicioCatalogoTienda.AProductoTienda(p, grupos.GetValueOrDefault(p.IdGrupoProducto), imagenes, reservado))
+        items = items.Select(p => ServicioCatalogoTienda.AProductoTienda(p, grupos.GetValueOrDefault(p.IdGrupoProducto), imagenes, reservado, ofertasPagina, hoyCatalogo))
     });
 }).RequireRateLimiting("tienda");
 
-app.MapGet("/tienda/{alias}/imagenes/{idImagen:int}", async (string alias, int idImagen, HttpContext http, AppDbContext db, AlcanceDatos alcance, SesionActual sesion, AlmacenImagenes almacen) =>
+app.MapGet("/tienda/{alias}/imagenes/{idImagen:int}", async (string alias, int idImagen, HttpContext http, AppDbContext db, AlcanceDatos alcance, SesionActual sesion, AlmacenImagenes almacen, ClienteOpenFoodFacts fuente, CancellationToken cancelar) =>
 {
     var local = await LocalesTienda.PorAlias(db, alcance, sesion, alias);
     if (local == null) return Results.NotFound();
     sesion.IdLocal = local.IdLocal;
     var ahoraImagen = DateTimeOffset.UtcNow;
-    var imagen = await db.ImagenesProducto.AsNoTracking().FirstOrDefaultAsync(i => i.Id == idImagen);
-    var producto = imagen == null ? null : await db.Productos.AsNoTracking().FirstOrDefaultAsync(p => p.Id == imagen.IdProducto);
+    var imagen = await db.ImagenesProducto.AsNoTracking().FirstOrDefaultAsync(i => i.Id == idImagen, cancelar);
+    var producto = imagen == null ? null : await db.Productos.AsNoTracking().FirstOrDefaultAsync(p => p.Id == imagen.IdProducto, cancelar);
     if (imagen == null || producto == null || !ServicioImagenesTienda.Disponible(imagen, producto, local, ahoraImagen, await ConsultaGestionTienda.Vencida(db, local.IdLocal, ahoraImagen)))
         return Results.NotFound();
-    var ruta = almacen.Ruta(imagen);
+    var ruta = almacen.Ruta(imagen) ?? await EndpointsImagenes.ReponerOpenFoodFacts(producto, imagen, fuente, almacen, cancelar);
     if (ruta == null) return Results.NotFound();
     http.Response.Headers.CacheControl = "public, max-age=86400";
     return Results.File(ruta, imagen.TipoContenido);
@@ -1477,8 +1795,10 @@ app.MapGet("/tienda/{alias}/imagenes/{idImagen:int}", async (string alias, int i
 app.MapImagenesProducto();
 app.MapLogoTienda();
 app.MapPedidosTienda();
+app.MapOpenGraphTienda();
 app.MapPanelPedidos();
 app.MapAvisos();
+app.MapFiscal();
 
 app.MapGet("/usuarios", async (AppDbContext db, SesionActual sesion) =>
 {
@@ -1768,6 +2088,7 @@ app.MapGet("/admin/locales", async (AppDbContext db, SesionActual sesion) =>
                 abono.Estado,
                 abono.Vence,
                 l.ExentoGestion,
+                l.ImporteGestion,
                 empleados = ServicioAdmin.Empleados(pares, l.IdLocal)
             };
         })
@@ -1866,6 +2187,12 @@ app.MapPut("/admin/ventas/telefono", async (TelefonoVentasPedido pedido, AppDbCo
         return Results.BadRequest(ex.Message);
     }
 }).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapGet("/sitemap.xml", (HttpContext http) =>
+    Results.Text(ServicioSitemap.Sitemap(http.Request.Host.Value), "application/xml")).RequireRateLimiting("api");
+
+app.MapGet("/robots.txt", (HttpContext http) =>
+    Results.Text(ServicioSitemap.Robots(http.Request.Host.Value), "text/plain")).RequireRateLimiting("api");
 
 app.MapGet("/ventas/contacto", async (AppDbContext db, IDataProtectionProvider proteccion) =>
 {
@@ -2129,7 +2456,7 @@ app.MapGet("/medios-pago", async (AppDbContext db, SesionActual sesion) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     var medios = await db.MetodosPago.OrderBy(m => m.Descripcion).ToListAsync();
-    return Results.Ok(medios.Select(m => new { m.Id, m.Descripcion, m.Activo, m.Integracion }));
+    return Results.Ok(medios.Select(VistaMedio));
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapPost("/medios-pago", async (MetodoPagoPedido pedido, AppDbContext db, SesionActual sesion) =>
@@ -2141,12 +2468,23 @@ app.MapPost("/medios-pago", async (MetodoPagoPedido pedido, AppDbContext db, Ses
     if (await db.MetodosPago.AnyAsync(m => m.Descripcion.ToLower() == descripcion.ToLower()))
         return Results.Conflict("Ya existe ese medio de pago.");
     string integracion;
-    try { integracion = IntegracionPago.Normalizar(pedido.Integracion); }
+    int descuento;
+    try
+    {
+        integracion = IntegracionPago.Normalizar(pedido.Integracion);
+        descuento = ServicioDescuentoMedio.Exigir(pedido.DescuentoPorcentaje);
+    }
     catch (ErrorNegocio ex) { return Results.BadRequest(ex.Message); }
-    var medio = new MetodoPago { IdLocal = sesion.IdLocal.Value, Descripcion = descripcion, Integracion = integracion };
+    var medio = new MetodoPago
+    {
+        IdLocal = sesion.IdLocal.Value,
+        Descripcion = descripcion,
+        Integracion = integracion,
+        DescuentoPorcentaje = descuento
+    };
     db.MetodosPago.Add(medio);
     await db.SaveChangesAsync();
-    return Results.Created($"/medios-pago/{medio.Id}", new { medio.Id, medio.Descripcion, medio.Activo, medio.Integracion });
+    return Results.Created($"/medios-pago/{medio.Id}", VistaMedio(medio));
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapPut("/medios-pago/{id:int}", async (int id, MetodoPagoPedido pedido, AppDbContext db, SesionActual sesion) =>
@@ -2160,12 +2498,18 @@ app.MapPut("/medios-pago/{id:int}", async (int id, MetodoPagoPedido pedido, AppD
     if (await db.MetodosPago.AnyAsync(m => m.Id != id && m.Descripcion.ToLower() == descripcion.ToLower()))
         return Results.Conflict("Ya existe ese medio de pago.");
     string integracion;
-    try { integracion = IntegracionPago.Normalizar(pedido.Integracion); }
+    int descuento;
+    try
+    {
+        integracion = IntegracionPago.Normalizar(pedido.Integracion);
+        descuento = ServicioDescuentoMedio.Exigir(pedido.DescuentoPorcentaje);
+    }
     catch (ErrorNegocio ex) { return Results.BadRequest(ex.Message); }
     medio.Descripcion = descripcion;
     medio.Integracion = integracion;
+    medio.DescuentoPorcentaje = descuento;
     await db.SaveChangesAsync();
-    return Results.Ok(new { medio.Id, medio.Descripcion, medio.Activo, medio.Integracion });
+    return Results.Ok(VistaMedio(medio));
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapDelete("/medios-pago/{id:int}", async (int id, AppDbContext db, SesionActual sesion) =>
@@ -2187,7 +2531,7 @@ app.MapPost("/medios-pago/{id:int}/activar", async (int id, AppDbContext db, Ses
     if (medio == null) return Results.NotFound();
     medio.Activo = true;
     await db.SaveChangesAsync();
-    return Results.Ok(new { medio.Id, medio.Descripcion, medio.Activo, medio.Integracion });
+    return Results.Ok(VistaMedio(medio));
 }).RequireAuthorization().RequireRateLimiting("api");
 
 app.MapGet("/proveedores", async (AppDbContext db, SesionActual sesion) =>
@@ -2527,6 +2871,9 @@ app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual 
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     if (sesion.NroCaja == null) return Results.BadRequest("Elegí una caja.");
+    var yaRecibida = await VentaYaRecibida(db, sesion.IdLocal.Value, pedido.IdVentaCliente);
+    if (yaRecibida != null)
+        return Results.Ok(new { yaRecibida.IdInformeVenta, yaRecibida.Total, yaRecibida = true });
     var localVenta = await db.Locales.FirstAsync(l => l.IdLocal == sesion.IdLocal);
     if (!ServicioAbono.Estado(localVenta, DateTimeOffset.UtcNow).PuedeOperarCaja)
         return Results.Json("El local está vencido. Pagá el abono para seguir cobrando.", statusCode: StatusCodes.Status402PaymentRequired);
@@ -2555,6 +2902,7 @@ app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual 
             DescuentoPorcentaje = pedido.DescuentoPorcentaje,
             CobrarAlCosto = pedido.CobrarAlCosto,
             StockRigido = rigido,
+            DesdeSinConexion = pedido.DesdeSinConexion,
             Reservado = await ReservasTienda.DelLocal(db, sesion.IdLocal.Value),
             MetodoPago = pedido.MetodoPago,
             Ofertas = ofertas,
@@ -2563,27 +2911,28 @@ app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual 
             SinOfertas = pedido.SinOfertas
         });
 
+        var (pagosSolicitados, medios) = await CerrarTotal(db, resultado, pedido.Pagos, pedido.MetodoPago);
+        var ahora = DateTimeOffset.UtcNow;
         var venta = new InformeVenta
         {
             IdLocal = sesion.IdLocal.Value,
             IdUsuario = sesion.IdUsuario,
-            Fecha = DateTimeOffset.UtcNow,
+            IdVentaCliente = pedido.IdVentaCliente == Guid.Empty ? null : pedido.IdVentaCliente,
+            Fecha = pedido.DesdeSinConexion ? ServicioVentaSinConexion.FechaVenta(pedido.FechaCobro, ahora) : ahora,
+            StockEnConflicto = resultado.StockEnConflicto,
+            NotaRevision = pedido.DesdeSinConexion
+                ? ServicioVentaSinConexion.NotaRevision(resultado.StockEnConflicto, pedido.TotalVisto, resultado.Total)
+                : null,
             Total = resultado.Total,
             Subtotal = resultado.Subtotal,
             MetodoPago = resultado.MetodoPago,
             Descuento = resultado.Descuento,
+            DescuentoMedio = resultado.DescuentoMedio,
+            DescuentoMedioPorcentaje = resultado.DescuentoMedioPorcentaje,
             PrecioCosto = resultado.PrecioCosto,
             DetalleAdjunto = true,
             NroCaja = sesion.NroCaja.Value
         };
-        var pagosSolicitados = pedido.Pagos.Count > 0
-            ? pedido.Pagos.Select(p => new PagoSolicitado(p.IdMetodoPago, p.Importe)).ToList()
-            : await MetodoUnico(db, pedido.MetodoPago, resultado.Total);
-        ServicioPagos.Validar(resultado.Total, pagosSolicitados);
-        var idsMedios = pagosSolicitados.Select(p => p.IdMetodoPago).Distinct().ToList();
-        var medios = await db.MetodosPago.Where(m => idsMedios.Contains(m.Id) && m.Activo).ToDictionaryAsync(m => m.Id);
-        if (medios.Count != idsMedios.Count)
-            throw new ErrorNegocio("El medio de pago no existe o está inactivo.");
         venta.MetodoPago = string.Join(", ", pagosSolicitados.Select(p => medios[p.IdMetodoPago].Descripcion).Distinct());
         venta.MultipleMetodoDePago = pagosSolicitados.Select(p => p.IdMetodoPago).Distinct().Count() > 1;
         venta.Detalles.AddRange(resultado.Lineas.Select(l => InformeVentaDetalle.Desde(l, sesion.IdLocal.Value)));
@@ -2602,7 +2951,14 @@ app.MapPost("/ventas", async (VentaPedido pedido, AppDbContext db, SesionActual 
         db.InformeVenta.Add(venta);
         await db.SaveChangesAsync();
         await tx.CommitAsync();
-        return Results.Created($"/ventas/{venta.IdInformeVenta}", new { venta.IdInformeVenta, venta.Total });
+        return Results.Created($"/ventas/{venta.IdInformeVenta}", new { venta.IdInformeVenta, venta.Total, venta.StockEnConflicto });
+    }
+    catch (DbUpdateException) when (pedido.IdVentaCliente != null)
+    {
+        db.ChangeTracker.Clear();
+        var carrera = await VentaYaRecibida(db, sesion.IdLocal.Value, pedido.IdVentaCliente);
+        if (carrera == null) throw;
+        return Results.Ok(new { carrera.IdInformeVenta, carrera.Total, yaRecibida = true });
     }
     catch (PedidoYaCobrado ex)
     {
@@ -2713,6 +3069,7 @@ app.MapGet("/ofertas", async (AppDbContext db, SesionActual sesion, int pagina =
         x.o.AnulaConDescuentoCaja,
         x.o.AnulaConAlCosto,
         x.o.PermiteNoAplicarEnCaja,
+        x.o.EnTienda,
         descripcion = ServicioOfertas.Descripcion(x.o),
         vigente = x.o.FechaDesde <= hoy && hoy <= x.o.FechaHasta
     });
@@ -3157,9 +3514,7 @@ app.MapPost("/ventas/mercadopago", async (VentaPedido pedido, AppDbContext db, S
             StockRigido = rigido,
             Reservado = await ReservasTienda.DelLocal(db, sesion.IdLocal.Value)
         });
-        var pagos = pedido.Pagos.Count > 0
-            ? pedido.Pagos.Select(p => new PagoSolicitado(p.IdMetodoPago, p.Importe)).ToList()
-            : await MetodoUnico(db, pedido.MetodoPago, resultado.Total);
+        var (pagos, _) = await CerrarTotal(db, resultado, pedido.Pagos, pedido.MetodoPago);
         if (pedido.IdPedidoEspera is int idEspera)
             ServicioPedidosEspera.ExigirBorrado(await db.PedidosEspera.DelPuesto(sesion.NroCaja.Value)
                 .CountAsync(p => p.Id == idEspera));
@@ -3179,6 +3534,7 @@ app.MapPost("/ventas/mercadopago", async (VentaPedido pedido, AppDbContext db, S
                 }).ToList(),
                 Pagos = pagos,
                 DescuentoPorcentaje = pedido.DescuentoPorcentaje,
+                DescuentoMedioPorcentaje = resultado.DescuentoMedioPorcentaje,
                 CobrarAlCosto = pedido.CobrarAlCosto,
                 IdPedidoEspera = pedido.IdPedidoEspera,
                 SinOfertas = pedido.SinOfertas
@@ -3235,7 +3591,7 @@ app.MapPost("/ventas/mercadopago/{id:int}/cancelar", async (int id, AppDbContext
     }
 }).RequireAuthorization().RequireRateLimiting("api");
 
-app.MapGet("/ventas", async (AppDbContext db, SesionActual sesion, DateOnly? desde, DateOnly? hasta, string? medio, int? nroCaja, int? idCierre, int pagina = 1, int tamano = 50) =>
+app.MapGet("/ventas", async (AppDbContext db, SesionActual sesion, DateOnly? desde, DateOnly? hasta, string? medio, int? nroCaja, int? idCierre, bool? soloRevisar, int pagina = 1, int tamano = 50) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     tamano = Math.Clamp(tamano, 1, maxPagina);
@@ -3243,7 +3599,7 @@ app.MapGet("/ventas", async (AppDbContext db, SesionActual sesion, DateOnly? des
     IQueryable<InformeVenta> q = db.InformeVenta;
     if (idCierre is > 0)
         q = q.Where(v => v.IdCierre == idCierre);
-    else
+    else if (soloRevisar != true) // revisar abarca todos los días
     {
         var diaDesde = desde ?? DiaArgentina.Hoy();
         var diaHasta = hasta ?? diaDesde;
@@ -3257,11 +3613,13 @@ app.MapGet("/ventas", async (AppDbContext db, SesionActual sesion, DateOnly? des
         q = q.Where(v => v.IdUsuario == sesion.IdUsuario);
     if (!string.IsNullOrWhiteSpace(medio))
         q = q.Where(v => v.MetodoPago == medio || db.PagosVenta.Any(p => p.IdInformeVenta == v.IdInformeVenta && p.DescripcionMetodoPago == medio));
+    if (soloRevisar == true)
+        q = q.Where(v => v.StockEnConflicto || v.NotaRevision != null);
     q = q.OrderByDescending(v => v.Fecha);
     var total = await q.CountAsync();
     var suma = await q.SumAsync(v => (decimal?)v.Total) ?? 0;
     var items = await q.Skip((pagina - 1) * tamano).Take(tamano)
-        .Select(v => new { v.IdInformeVenta, v.Fecha, v.Total, v.MetodoPago, v.Descuento, v.PrecioCosto, v.NroCaja, v.IdCierre })
+        .Select(v => new { v.IdInformeVenta, v.Fecha, v.Total, v.MetodoPago, v.Descuento, v.PrecioCosto, v.NroCaja, v.EsTiendaOnline, v.IdCierre, v.StockEnConflicto, v.NotaRevision })
         .ToListAsync();
     var verCostoListado = Permisos.PuedeVerCostoEnInforme(sesion.Rol ?? "");
     var visibles = items.Select(v => new
@@ -3273,7 +3631,10 @@ app.MapGet("/ventas", async (AppDbContext db, SesionActual sesion, DateOnly? des
         v.Descuento,
         PrecioCosto = verCostoListado ? v.PrecioCosto : null,
         v.NroCaja,
-        v.IdCierre
+        v.EsTiendaOnline,
+        v.IdCierre,
+        v.StockEnConflicto,
+        v.NotaRevision
     });
     return Results.Ok(new { total, suma, pagina, tamano, items = visibles });
 }).RequireAuthorization().RequireRateLimiting("api");
@@ -3285,9 +3646,16 @@ app.MapGet("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual sesi
     if (venta == null) return Results.NotFound();
     if (sesion.Rol == Roles.Empleado && venta.IdUsuario != sesion.IdUsuario) return Results.NotFound();
     var verCosto = Permisos.PuedeVerCostoEnInforme(sesion.Rol ?? "");
+    var facturaVenta = await OperacionesFiscales.FacturaDeVenta(db, id);
+    var configFiscal = facturaVenta == null ? null : await db.ConfiguracionesFiscales.AsNoTracking().FirstOrDefaultAsync();
     return Results.Ok(new
     {
         venta.IdInformeVenta,
+        factura = facturaVenta is var (f, _) ? new
+        {
+            f.Tipo, f.Estado, f.PuntoVenta, f.Numero, f.Cae, f.VencimientoCae,
+            qr = configFiscal == null ? null : QrArca.Url(configFiscal, f)
+        } : null,
         venta.Fecha,
         venta.Total,
         venta.Subtotal,
@@ -3295,7 +3663,10 @@ app.MapGet("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual sesi
         venta.Descuento,
         PrecioCosto = verCosto ? venta.PrecioCosto : null,
         venta.NroCaja,
+        venta.EsTiendaOnline,
         venta.IdCierre,
+        venta.StockEnConflicto,
+        venta.NotaRevision,
         pagos = venta.Pagos.Select(p => new { p.IdMetodoPago, p.DescripcionMetodoPago, p.Importe }),
         items = venta.Detalles.Select(d => new
         {
@@ -3313,7 +3684,18 @@ app.MapGet("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual sesi
     });
 }).RequireAuthorization().RequireRateLimiting("api");
 
-app.MapDelete("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual sesion) =>
+app.MapPut("/ventas/{id:int}/revisada", async (int id, AppDbContext db, SesionActual sesion) =>
+{
+    if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
+    if (!Permisos.PuedeRevisarVentas(sesion.Rol ?? "")) return Results.Forbid();
+    var venta = await db.InformeVenta.FirstOrDefaultAsync(v => v.IdInformeVenta == id);
+    if (venta == null) return Results.NotFound();
+    venta.MarcarRevisada();
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization().RequireRateLimiting("api");
+
+app.MapDelete("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual sesion, IClienteArca arca, CancellationToken ct) =>
 {
     if (sesion.IdLocal == null) return Results.BadRequest("Elegí un local.");
     if (!Permisos.PuedeAnularVenta(sesion.Rol ?? "")) return Results.Forbid();
@@ -3322,7 +3704,10 @@ app.MapDelete("/ventas/{id:int}", async (int id, AppDbContext db, SesionActual s
     var productos = await db.Productos.ToListAsync();
     try
     {
-        ServicioAnularVenta.Anular(venta, productos, sesion.NombreUsuario ?? "sistema");
+        var facturada = await OperacionesFiscales.FacturaDeVenta(db, id, ct);
+        ServicioAnularVenta.Anular(venta, productos, sesion.NombreUsuario ?? "sistema", facturada != null, sesion.Rol ?? "");
+        if (facturada is var (factura, fila))
+            await OperacionesFiscales.EmitirNotaCredito(db, arca, factura, fila, ct);
         var pagoCuenta = await db.PagosCuenta.FirstOrDefaultAsync(p => p.IdInformeVenta == id);
         if (pagoCuenta != null)
         {
@@ -4004,6 +4389,20 @@ static async Task<ConfiguracionLocalPedido> ConfiguracionDelLocal(AppDbContext d
     return await LeerConfiguracionLocal(db, local);
 }
 
+static async Task<(List<Producto> Productos, List<GrupoProductos> Grupos, List<ProductoProveedor> Vinculos, ConfiguracionLocalPedido Config)>
+    CargarListaProveedor(AppDbContext db, SesionActual sesion, int idProveedor, List<FilaLista> filas)
+{
+    var codigos = filas.Select(f => f.Codigo.Trim()).Where(c => c.Length > 0).Distinct().ToList();
+    var productos = await db.Productos.Where(p => codigos.Contains(p.Codigo)).ToListAsync();
+    var idsGrupo = productos.Select(p => p.IdGrupoProducto).Where(g => g > 0).Distinct().ToList();
+    var miembros = await db.Productos.Where(p => idsGrupo.Contains(p.IdGrupoProducto)).ToListAsync();
+    var todos = productos.Union(miembros).ToList();
+    var grupos = await db.GrupoProductos.Where(g => idsGrupo.Contains(g.IdGrupoProducto)).ToListAsync();
+    var ids = todos.Select(p => p.Id).ToList();
+    var vinculos = await db.ProductosProveedor.Where(v => v.IdProveedor == idProveedor && ids.Contains(v.IdProducto)).ToListAsync();
+    return (todos, grupos, vinculos, await ConfiguracionDelLocal(db, sesion));
+}
+
 static async Task<List<Producto>> ProductosPorCodigo(AppDbContext db, IEnumerable<FilaCatalogo> filas)
 {
     var codigos = filas.Select(f => f.Codigo.Trim()).Where(c => c.Length > 0).Distinct().ToList();
@@ -4013,7 +4412,11 @@ static async Task<List<Producto>> ProductosPorCodigo(AppDbContext db, IEnumerabl
 static async Task<string> TelefonoVentas(AppDbContext db) =>
     await LocalesTienda.AjustePublico(db, Ajuste.TelefonoVentas) ?? "";
 
-static async Task<bool> EnviarConfirmacion(IHttpClientFactory clientes, string apiKey, string desde, string para, string enlace)
+static Task<bool> EnviarConfirmacion(IHttpClientFactory clientes, string apiKey, string desde, string para, string enlace) =>
+    EnviarCorreo(clientes, apiKey, desde, para, "Confirmá tu cuenta de StockControl",
+        "Abrí este enlace para activar la cuenta. Vence en 48 horas.\n\n" + enlace + "\n");
+
+static async Task<bool> EnviarCorreo(IHttpClientFactory clientes, string apiKey, string desde, string para, string asunto, string texto)
 {
     var req = new HttpRequestMessage(HttpMethod.Post, "emails");
     req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + apiKey);
@@ -4021,8 +4424,8 @@ static async Task<bool> EnviarConfirmacion(IHttpClientFactory clientes, string a
     {
         from = desde,
         to = new[] { para },
-        subject = "Confirmá tu cuenta de StockControl",
-        text = "Abrí este enlace para activar la cuenta. Vence en 48 horas.\n\n" + enlace + "\n"
+        subject = asunto,
+        text = texto
     });
     using var resp = await clientes.CreateClient("resend").SendAsync(req);
     return resp.IsSuccessStatusCode;
@@ -4220,6 +4623,13 @@ static bool BoolConfig(string valor) => valor is "1" or "true" or "True";
 static int IntConfig(string valor, int defecto) =>
     int.TryParse(valor, NumberStyles.Integer, CultureInfo.InvariantCulture, out var resultado) && resultado >= 1 ? resultado : defecto;
 
+static async Task<InformeVenta?> VentaYaRecibida(AppDbContext db, int idLocal, Guid? idVentaCliente)
+{
+    if (idVentaCliente == null || idVentaCliente == Guid.Empty) return null;
+    var guardadas = await db.InformeVenta.AsNoTracking().Where(v => v.IdVentaCliente == idVentaCliente).ToListAsync();
+    return ServicioVentaSinConexion.Existente(guardadas, idLocal, idVentaCliente);
+}
+
 static async Task<bool> EsperaMercadoPago(AppDbContext db, VentaPedido pedido)
 {
     var ids = pedido.Pagos.Select(p => p.IdMetodoPago).Distinct().ToList();
@@ -4304,6 +4714,7 @@ static async Task<string?> GuardarOferta(AppDbContext db, Oferta oferta, OfertaP
     oferta.AnulaConDescuentoCaja = pedido.AnulaConDescuentoCaja;
     oferta.AnulaConAlCosto = pedido.AnulaConAlCosto;
     oferta.PermiteNoAplicarEnCaja = pedido.PermiteNoAplicarEnCaja;
+    oferta.EnTienda = pedido.EnTienda;
     var producto = await db.Productos.AsNoTracking().FirstOrDefaultAsync(p => p.Id == pedido.IdProducto);
     var otras = await db.Ofertas.AsNoTracking().Where(o => o.IdProducto == pedido.IdProducto).ToListAsync();
     try
@@ -4350,6 +4761,39 @@ static async Task<string?> GuardarCombo(AppDbContext db, OfertaCombo combo, Comb
     {
         return ex.Message;
     }
+}
+
+static object VistaMedio(MetodoPago medio) => new
+{
+    medio.Id,
+    medio.Descripcion,
+    medio.Activo,
+    medio.Integracion,
+    medio.DescuentoPorcentaje
+};
+
+static async Task<(List<PagoSolicitado> Pagos, Dictionary<int, MetodoPago> Medios)> CerrarTotal(
+    AppDbContext db,
+    ResultadoCobro resultado,
+    IReadOnlyList<PagoPedido> pagos,
+    string metodoPago)
+{
+    if (pagos.Count == 0)
+    {
+        var unico = await MetodoUnico(db, metodoPago, resultado.Total);
+        var medio = await db.MetodosPago.FirstAsync(m => m.Id == unico[0].IdMetodoPago);
+        ServicioDescuentoMedio.Aplicar(resultado, [(medio.Id, medio.DescuentoPorcentaje)]);
+        return ([new PagoSolicitado(medio.Id, resultado.Total)], new Dictionary<int, MetodoPago> { [medio.Id] = medio });
+    }
+
+    var solicitados = pagos.Select(p => new PagoSolicitado(p.IdMetodoPago, p.Importe)).ToList();
+    var ids = solicitados.Select(p => p.IdMetodoPago).Distinct().ToList();
+    var medios = await db.MetodosPago.Where(m => ids.Contains(m.Id) && m.Activo).ToDictionaryAsync(m => m.Id);
+    if (medios.Count != ids.Count)
+        throw new ErrorNegocio("El medio de pago no existe o está inactivo.");
+    ServicioDescuentoMedio.Aplicar(resultado, solicitados.Select(p => (p.IdMetodoPago, medios[p.IdMetodoPago].DescuentoPorcentaje)).ToList());
+    ServicioPagos.Validar(resultado.Total, solicitados);
+    return (solicitados, medios);
 }
 
 static async Task<List<PagoSolicitado>> MetodoUnico(AppDbContext db, string descripcion, decimal total)

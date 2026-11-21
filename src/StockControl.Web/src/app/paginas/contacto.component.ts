@@ -19,11 +19,11 @@ import { TemaComponent } from '../tema.component';
           <span>Contacto</span>
         </div>
         <h1>Contacto</h1>
-        <p>Esta pantalla es la misma para todos los locales.</p>
+        <p>Escribinos por la prueba, el abono o el uso de la caja.</p>
         <p class="meta">Usamos tu nombre, mail y mensaje solo para contestarte.</p>
         @if (url) {
           <p><a [href]="url">{{ telefono }}</a></p>
-        } @else {
+        } @else if (contactoCargado) {
           <p class="meta">Todavía no hay un teléfono de ventas.</p>
         }
         @if (email) {
@@ -60,6 +60,7 @@ export class ContactoComponent implements OnInit, OnDestroy {
   telefono = '';
   email = '';
   url: string | null = null;
+  contactoCargado = false;
   formularioActivo = true;
   nombre = '';
   correo = '';
@@ -81,6 +82,7 @@ export class ContactoComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    document.title = 'StockControl — contacto';
     this.api.contactoVentas().subscribe({
       next: (r) => {
         this.telefono = r.telefono;
@@ -88,7 +90,9 @@ export class ContactoComponent implements OnInit, OnDestroy {
         this.url = r.url;
         this.formularioActivo = r.formularioActivo;
         this.apertura = r.apertura ?? '';
-      }
+        this.contactoCargado = true;
+      },
+      error: () => (this.contactoCargado = true)
     });
     this.api.captchaRegistro().subscribe({
       next: (r) => {

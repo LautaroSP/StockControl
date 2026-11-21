@@ -132,10 +132,44 @@ public class ServicioTiendaTests
     {
         var local = Tienda();
 
-        ServicioTienda.AsignarDatos(local, "Av. Rivadavia 1234", "Lun a sáb 9 a 20", "011 15 1234-5678", true);
+        ServicioTienda.AsignarDatos(local, "Av. Rivadavia 1234", "Lun a sáb 9 a 20", "011 15 1234-5678", "Tienda@Mail.com", "@DonSabio", true);
 
         Assert.Equal("5491112345678", local.WhatsApp);
+        Assert.Equal("tienda@mail.com", local.Correo);
+        Assert.Equal("DonSabio", local.Instagram);
         Assert.True(local.HaceEnvios);
+    }
+
+    [Fact]
+    public void Correo_vacio_queda_sin_contacto_por_mail()
+    {
+        var local = Tienda();
+
+        ServicioTienda.AsignarDatos(local, "", "", "", "  ", "", false);
+
+        Assert.Equal("", local.Correo);
+    }
+
+    [Fact]
+    public void Correo_invalido_falla()
+    {
+        Assert.Throws<ErrorNegocio>(() =>
+            ServicioTienda.AsignarDatos(Tienda(), "", "", "", "sin-arroba", "", false));
+    }
+
+    [Fact]
+    public void Instagram_acepta_usuario_y_link()
+    {
+        Assert.Equal("donsabio", ServicioTienda.NormalizarInstagram("@donsabio"));
+        Assert.Equal("donsabio", ServicioTienda.NormalizarInstagram("https://www.instagram.com/donsabio/"));
+        Assert.Equal("", ServicioTienda.NormalizarInstagram("  "));
+        Assert.Equal("https://www.instagram.com/donsabio/", ServicioTienda.UrlInstagram("donsabio"));
+    }
+
+    [Fact]
+    public void Instagram_invalido_falla()
+    {
+        Assert.Throws<ErrorNegocio>(() => ServicioTienda.NormalizarInstagram("hola mundo"));
     }
 
     [Fact]

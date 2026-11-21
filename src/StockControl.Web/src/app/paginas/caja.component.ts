@@ -1,5 +1,6 @@
 import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 import { RouterLink } from '@angular/router';
 import { toDataURL } from 'qrcode';
 import {
@@ -13,8 +14,12 @@ import {
   OfertaVigenteDto,
   PedidoEsperaDto,
   ProductoDto,
-  TicketDto
+  TicketDto,
+  VentaPedidoDto
 } from '../servicios/api.service';
+import { CacheCajaService } from '../servicios/cache-caja.service';
+import { ColaVentasService } from '../servicios/cola-ventas.service';
+import { ConexionService } from '../servicios/conexion.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { cantidadCobrada, descuentoCombos, precioConOferta, precioUnitarioConOferta } from '../servicios/oferta-caja';
 import { CarritoCaja, LineaCarritoPendiente, SesionService } from '../servicios/sesion.service';
@@ -164,6 +169,9 @@ const FIJOS = 4;
         @if (descuentoDeCombos > 0) {
           <p class="meta">Combo aplicado: ahorrás {{ dinero(descuentoDeCombos) }}</p>
         }
+        @if (descuentoDeMedio; as medio) {
+          <p class="meta">{{ medio.descripcion }} {{ medio.porcentaje }} %: ahorrás {{ dinero(medio.importe) }}</p>
+        }
         <div class="total-box">
           <div>
             <div class="lbl">Ítems</div>
@@ -257,7 +265,7 @@ const FIJOS = 4;
         </div>
         @if (puedeFiar) {
           <div class="row">
-            <button class="btn grow" type="button" [disabled]="cobrando || activo.lineas.length === 0" (click)="abrirFiar()">Dejar a cuenta</button>
+            <button class="btn grow" type="button" [disabled]="cobrando || activo.lineas.length === 0 || sinConexion" [title]="sinConexion ? 'Sin conexión' : ''" (click)="abrirFiar()">Dejar a cuenta</button>
           </div>
         }
         @if (fiando) {
@@ -281,10 +289,10 @@ const FIJOS = 4;
           </div>
         }
         <div class="row">
-          <button class="btn grow" type="button" [disabled]="cobrando || activo.lineas.length === 0" (click)="guardarEnEspera()">
+          <button class="btn grow" type="button" [disabled]="cobrando || activo.lineas.length === 0 || sinConexion" [title]="sinConexion ? 'Sin conexión' : ''" (click)="guardarEnEspera()">
             Guardar en espera
           </button>
-          <button class="btn grow" type="button" [disabled]="cobrando" (click)="alternarEspera()">
+          <button class="btn grow" type="button" [disabled]="cobrando || sinConexion" [title]="sinConexion ? 'Sin conexión' : ''" (click)="alternarEspera()">
             Pedidos en espera ({{ pedidosEspera.length }})
           </button>
         </div>
@@ -346,6 +354,8 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   qrEspera = '';
   pedidosEspera: PedidoEsperaDto[] = [];
   verEspera = false;
+  private ultimaBajada = 0;
+  private bajandoCatalogo = false;
   private ofertas = new Map<number, OfertaVigenteDto>();
   private combos: ComboVigenteDto[] = [];
   puedeFiar = false;
@@ -378,8 +388,15 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     private readonly api: ApiService,
     readonly sesion: SesionService,
     private readonly dialogo: DialogoService,
-    private readonly vista: VistaClienteService
+    private readonly vista: VistaClienteService,
+    private readonly conexion: ConexionService,
+    private readonly cache: CacheCajaService,
+    private readonly cola: ColaVentasService
   ) {}
+
+  get sinConexion(): boolean {
+    return !this.conexion.enLinea();
+  }
 
   get activo(): CarritoCaja {
     return this.carritos[this.indiceActivo] ?? this.carritos[0];
@@ -389,8 +406,23 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.activo.lineas.reduce((n, l) => n + Number(l.cantidad), 0);
   }
 
-  get total(): number {
+  get totalSinMedio(): number {
     return Math.round((this.activo.lineas.reduce((n, l) => n + this.subtotalLinea(l), 0) - this.descuentoDeCombos) * 100) / 100;
+  }
+
+  get descuentoDeMedio(): { porcentaje: number; importe: number; descripcion: string } | null {
+    if (this.activo.pagos.length !== 1) return null;
+    const medio = this.mediosPago.find((m) => m.id === this.activo.pagos[0].idMetodoPago);
+    const porcentaje = medio?.descuentoPorcentaje || 0;
+    if (porcentaje <= 0) return null;
+    const importe = Math.round(this.totalSinMedio * porcentaje) / 100;
+    if (importe <= 0 || importe >= this.totalSinMedio) return null;
+    return { porcentaje, importe, descripcion: medio!.descripcion };
+  }
+
+  get total(): number {
+    const medio = this.descuentoDeMedio;
+    return medio ? Math.round((this.totalSinMedio - medio.importe) * 100) / 100 : this.totalSinMedio;
   }
 
   get descuentoDeCombos(): number {
@@ -511,6 +543,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   alVolver(): void {
     if (document.visibilityState === 'hidden') return;
     this.cargarOfertas();
+    this.guardarCatalogo();
     this.focoLector();
   }
 
@@ -572,17 +605,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     const pend = this.sesion.tomarCarritoPendiente();
     if (pend?.length) this.activo.lineas = pend.map((l) => ({ ...l }));
     this.api.cuentaMercadoPago().subscribe({ next: (r) => (this.mpVinculado = r.vinculada) });
-    this.api.mediosPago().subscribe({
-      next: (r) => {
-        this.mediosPago = r;
-        const id = r.find((m) => m.activo && this.medioVisible(m))?.id ?? r[0]?.id;
-        if (!id) return;
-        for (const c of this.carritos) {
-          if (c.pagos.length === 0) c.pagos = [{ idMetodoPago: id, importe: 0, resto: false }];
-        }
-      },
-      error: () => (this.error = 'No se pudieron cargar los medios de pago.')
-    });
+    this.cargarMedios();
     this.nombreTicket = this.sesion.nombreLocal();
     this.api.configuracionTicket().subscribe({
       next: (c) => {
@@ -600,6 +623,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cargarOfertas();
     this.api.permisosCuentas().subscribe({ next: (p) => (this.puedeFiar = p.puedeFiar) });
     this.cargar();
+    this.guardarCatalogo();
     this.vista.abrir(this.sesion.idLocal(), this.sesion.nroCaja());
     this.relojVista = setInterval(() => this.emitirVista(), 250);
   }
@@ -618,7 +642,8 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   medioVisible(medio: MetodoPagoDto): boolean {
-    return !medio.integracion || medio.integracion === 'manual' || this.mpVinculado;
+    const manual = !medio.integracion || medio.integracion === 'manual';
+    return manual || (this.mpVinculado && !this.sinConexion);
   }
 
   textoEspera(estado: string): string {
@@ -633,6 +658,10 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   cargar(): void {
+    if (this.sinConexion) {
+      void this.cargarDesdeCache();
+      return;
+    }
     const sector = this.filtroTipo === 'sector' ? true : this.filtroTipo === 'comun' ? false : undefined;
     this.api.productos(this.buscar, {
       sector,
@@ -647,8 +676,94 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
         this.umbralStockBajo = r.umbralStockBajo;
         this.error = '';
       },
-      error: () => (this.error = 'No se pudieron cargar los productos.')
+      error: (err) => {
+        if (this.conexion.esFalloDeRed(err)) this.conexion.marcarCaida();
+        void this.cargarDesdeCache();
+      }
     });
+  }
+
+  /** Sin conexión: lista y filtra el catálogo guardado en el navegador. */
+  private async cargarDesdeCache(): Promise<void> {
+    const todos = await this.cache.productos().catch(() => [] as ProductoDto[]);
+    if (todos.length === 0) {
+      this.error = 'Necesitás conexión la primera vez.';
+      return;
+    }
+    this.umbralStockBajo = await this.cache.umbralStockBajo();
+    const q = this.buscar.trim().toLowerCase();
+    const filtrados = todos.filter((p) => this.pasaFiltros(p, q));
+    this.productos = filtrados.slice(0, 100);
+    this.visibles = this.productos;
+    this.totalLista = filtrados.length;
+    this.error = '';
+  }
+
+  private pasaFiltros(p: ProductoDto, q: string): boolean {
+    if (q && !p.nombre.toLowerCase().includes(q) && !p.codigo.toLowerCase().includes(q)) return false;
+    if (this.filtroTipo === 'sector' && !p.productoSector) return false;
+    if (this.filtroTipo === 'comun' && p.productoSector) return false;
+    if (this.filtroGrupo === 'sin' && p.idGrupoProducto) return false;
+    if (this.filtroGrupo && this.filtroGrupo !== 'sin' && p.idGrupoProducto !== Number(this.filtroGrupo)) return false;
+    return !this.stockBajo || (!p.productoSector && p.cantidad <= this.umbralStockBajo);
+  }
+
+  /** Baja el catálogo al navegador para cobrar sin conexión. Si ya está fresco, no pide de nuevo. */
+  private guardarCatalogo(): void {
+    if (this.sinConexion || this.bajandoCatalogo) return;
+    void this.intentarBajarCatalogo();
+  }
+
+  private async intentarBajarCatalogo(): Promise<void> {
+    const fresca = await this.cache.ultimaCarga().catch(() => 0);
+    if (Date.now() - fresca < 10 * 60_000) return;
+    if (Date.now() - this.ultimaBajada < 60_000) return;
+    this.ultimaBajada = Date.now();
+    this.bajandoCatalogo = true;
+    try {
+      await this.bajarCatalogo();
+    } catch {
+      this.ultimaBajada = 0;
+    } finally {
+      this.bajandoCatalogo = false;
+    }
+  }
+
+  /** Página 1 y el resto en paralelo (lotes de 5) para no encadenar 20 requests. */
+  private async bajarCatalogo(): Promise<void> {
+    const primera = await firstValueFrom(this.api.productosPagina(1));
+    const todos = [...primera.items];
+    const paginas = Math.max(1, Math.ceil(primera.total / 100));
+    for (let desde = 2; desde <= paginas; desde += 5) {
+      const lote = Array.from({ length: Math.min(5, paginas - desde + 1) }, (_, i) => desde + i);
+      const rs = await Promise.all(lote.map((p) => firstValueFrom(this.api.productosPagina(p))));
+      for (const r of rs) todos.push(...r.items);
+    }
+    await this.cache.guardarCatalogo(todos, primera.umbralStockBajo);
+  }
+
+  private cargarMedios(): void {
+    this.api.mediosPago().subscribe({
+      next: (r) => {
+        void this.cache.guardarMedios(r).catch(() => undefined);
+        this.usarMedios(r);
+      },
+      error: async (err) => {
+        if (this.conexion.esFalloDeRed(err)) this.conexion.marcarCaida();
+        const guardados = await this.cache.mediosPago().catch(() => [] as MetodoPagoDto[]);
+        if (guardados.length > 0) this.usarMedios(guardados);
+        else this.error = 'No se pudieron cargar los medios de pago.';
+      }
+    });
+  }
+
+  private usarMedios(r: MetodoPagoDto[]): void {
+    this.mediosPago = r;
+    const id = r.find((m) => m.activo && this.medioVisible(m))?.id ?? r[0]?.id;
+    if (!id) return;
+    for (const c of this.carritos) {
+      if (c.pagos.length === 0) c.pagos = [{ idMetodoPago: id, importe: 0, resto: false }];
+    }
   }
 
   aplicarTipo(tipo: string): void {
@@ -677,6 +792,10 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
       void this.agregarProducto(local).finally(() => this.focoLector());
       return;
     }
+    if (this.sinConexion) {
+      void this.escanearDesdeCache(codigo);
+      return;
+    }
     this.api.productos('', { codigo }).subscribe({
       next: (r) => {
         const p = r.items[0];
@@ -686,11 +805,16 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
           this.focoLector();
         }
       },
-      error: () => {
-        this.error = `No hay producto ${codigo}`;
-        this.focoLector();
-      }
+      error: () => void this.escanearDesdeCache(codigo)
     });
+  }
+
+  private async escanearDesdeCache(codigo: string): Promise<void> {
+    const todos = await this.cache.productos().catch(() => [] as ProductoDto[]);
+    const p = todos.find((x) => x.codigo.toLowerCase() === codigo.toLowerCase());
+    if (p) await this.agregarProducto(p);
+    else this.error = `No hay producto ${codigo}`;
+    this.focoLector();
   }
 
   async agregarProducto(p: ProductoDto): Promise<void> {
@@ -790,6 +914,19 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
     const desc = this.activo.usarDesc ? Number(this.activo.descuento) || 0 : 0;
     const pagos = this.activo.pagos.map((p, i) => ({ idMetodoPago: p.idMetodoPago, importe: this.importePago(p, i) }));
     const imprimir = this.activo.imprimirTicket;
+    const pedido: VentaPedidoDto = {
+      items,
+      pagos,
+      descuentoPorcentaje: desc,
+      cobrarAlCosto: this.sesion.esDueno() && this.activo.alCosto,
+      idPedidoEspera: idEspera,
+      sinOfertas: !!this.activo.sinOfertas,
+      idVentaCliente: crypto.randomUUID()
+    };
+    if (this.sinConexion) {
+      void this.cobrarSinConexion(pedido);
+      return;
+    }
     if (pagos.some((p) => this.esMercadoPago(p.idMetodoPago))) {
       const importeQr = pagos.filter((p) => this.esQr(p.idMetodoPago)).reduce((s, p) => s + Number(p.importe), 0);
       if (importeQr > 0 && importeQr < 15) {
@@ -810,7 +947,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
       });
       return;
     }
-    this.api.cobrar(items, pagos, desc, this.sesion.esDueno() && this.activo.alCosto, idEspera, !!this.activo.sinOfertas).subscribe({
+    this.api.cobrar(pedido).subscribe({
       next: (r) => {
         this.toast = `Cobrado ${this.dinero(r.total)}`;
         this.avisarGracias();
@@ -825,12 +962,54 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       },
       error: (err) => {
+        if (this.conexion.esFalloDeRed(err) && !idEspera && !pagos.some((p) => this.esMercadoPago(p.idMetodoPago))) {
+          this.conexion.marcarCaida();
+          void this.cobrarSinConexion(pedido);
+          return;
+        }
         this.error = typeof err.error === 'string' ? err.error : 'No se pudo cobrar.';
         this.cobrando = false;
         if (err.status === 402) this.api.abonoActual().subscribe({ next: (a) => this.sesion.abono.set(a) });
         if (err.status === 409) this.refrescarEspera();
       }
     });
+  }
+
+  /** Guarda la venta en la cola del navegador con su id propio; se manda sola al volver la conexión. */
+  private async cobrarSinConexion(pedido: VentaPedidoDto): Promise<void> {
+    if (pedido.idPedidoEspera || pedido.pagos.some((p) => !this.esManual(p.idMetodoPago))) {
+      this.error = 'Sin conexión solo se cobra en efectivo o con un medio manual, y no con un pedido en espera.';
+      this.cobrando = false;
+      return;
+    }
+    const total = this.totalUltimoCobro;
+    try {
+      await this.cola.encolar({ ...pedido, desdeSinConexion: true, fechaCobro: new Date().toISOString(), totalVisto: total }, total);
+      await this.cache.descontarStock(pedido.items).catch(() => undefined);
+    } catch {
+      this.error = 'No se pudo guardar la venta en el navegador.';
+      this.cobrando = false;
+      return;
+    }
+    this.descontarStockLocal(pedido.items);
+    this.toast = `Cobrado ${this.dinero(total)} (sin conexión)`;
+    this.avisarGracias();
+    this.cerrarTrasCobro();
+    this.cobrando = false;
+    this.focoLector();
+    setTimeout(() => (this.toast = ''), 2500);
+  }
+
+  private descontarStockLocal(items: ItemVenta[]): void {
+    for (const item of items) {
+      const p = this.productos.find((x) => x.id === item.idProducto);
+      if (p && !p.productoSector) p.cantidad = Math.max(0, p.cantidad - item.cantidad);
+    }
+  }
+
+  private esManual(id: number): boolean {
+    const integracion = this.mediosPago.find((m) => m.id === id)?.integracion;
+    return !integracion || integracion === 'manual';
   }
 
   async guardarEnEspera(): Promise<void> {
@@ -976,8 +1155,23 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private cargarOfertas(): void {
-    this.api.ofertasVigentes().subscribe({ next: (r) => (this.ofertas = new Map(r.map((o) => [o.idProducto, o]))) });
-    this.api.combosVigentes().subscribe({ next: (r) => (this.combos = r) });
+    this.api.ofertasVigentes().subscribe({
+      next: (r) => {
+        this.ofertas = new Map(r.map((o) => [o.idProducto, o]));
+        void this.cache.guardarOfertas(r).catch(() => undefined);
+      },
+      error: async () => {
+        const guardadas = await this.cache.ofertas().catch(() => [] as OfertaVigenteDto[]);
+        this.ofertas = new Map(guardadas.map((o) => [o.idProducto, o]));
+      }
+    });
+    this.api.combosVigentes().subscribe({
+      next: (r) => {
+        this.combos = r;
+        void this.cache.guardarCombos(r).catch(() => undefined);
+      },
+      error: async () => (this.combos = await this.cache.combos().catch(() => [] as ComboVigenteDto[]))
+    });
   }
 
   private refrescarEspera(): void {
@@ -1248,7 +1442,7 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private estadoBase(tipo: EstadoVistaCliente['tipo']): EstadoVistaCliente {
-    return { tipo, lineas: [], descuentoPorcentaje: 0, ahorroCombos: 0, total: 0, ultimaLinea: -1, marcaUltima: 0, qrDataUrl: '', medio: '' };
+    return { tipo, lineas: [], descuentoPorcentaje: 0, ahorroCombos: 0, descuentoMedio: '', total: 0, ultimaLinea: -1, marcaUltima: 0, qrDataUrl: '', medio: '' };
   }
 
   private estadoCarrito(ahora: number): EstadoVistaCliente {
@@ -1270,11 +1464,17 @@ export class CajaComponent implements OnInit, AfterViewInit, OnDestroy {
       lineas,
       descuentoPorcentaje: a.alCosto ? 0 : this.descuentoCaja(),
       ahorroCombos: this.descuentoDeCombos,
+      descuentoMedio: this.textoDescuentoMedio(),
       total: this.total,
       ultimaLinea: ultima < 0 ? -1 : lineas.length - 1 - ultima,
       marcaUltima: this.ultimaVista.marca,
       qrDataUrl: conQr ? this.qrVista : ''
     };
+  }
+
+  private textoDescuentoMedio(): string {
+    const medio = this.descuentoDeMedio;
+    return medio ? `${medio.descripcion} ${medio.porcentaje} %` : '';
   }
 
   private textoOfertaVista(l: LineaCarritoPendiente): string {

@@ -1,4 +1,4 @@
-namespace StockControl.Dominio;
+﻿namespace StockControl.Dominio;
 
 public static class ServicioCobro
 {
@@ -26,7 +26,8 @@ public static class ServicioCobro
             }
 
             var linea = ArmarLinea(item, producto, pedido);
-            DescontarStock(producto, item.Cantidad, pedido.StockRigido, pedido.Reservado);
+            if (DescontarStock(producto, item.Cantidad, pedido))
+                resultado.StockEnConflicto = true;
             resultado.Lineas.Add(linea);
         }
 
@@ -80,16 +81,19 @@ public static class ServicioCobro
 
     private static decimal Redondear(decimal valor) => Math.Round(valor, 2, MidpointRounding.AwayFromZero);
 
-    private static void DescontarStock(Producto? producto, decimal cantidad, bool stockRigido, IReadOnlyDictionary<int, decimal> reservado)
+    /// <summary>Devuelve true si el stock rígido no alcanzaba y la venta entró igual (solo sin conexión).</summary>
+    private static bool DescontarStock(Producto? producto, decimal cantidad, PedidoCobro pedido)
     {
         if (producto == null || producto.ProductoSector || producto.EsGenerico)
-            return;
+            return false;
 
-        if (stockRigido && ServicioPedidosTienda.Disponible(producto, reservado) - cantidad < 0)
+        var faltante = pedido.StockRigido && ServicioPedidosTienda.Disponible(producto, pedido.Reservado) - cantidad < 0;
+        if (faltante && !pedido.DesdeSinConexion)
             throw new ErrorNegocio($"El producto {producto.Nombre} no tiene stock suficiente.");
 
         producto.Cantidad -= cantidad;
         if (producto.Cantidad < 0)
             producto.Cantidad = 0;
+        return faltante;
     }
 }

@@ -68,7 +68,7 @@ import { SesionService } from '../servicios/sesion.service';
           }
           <button class="btn btn-primary wide" type="submit" [disabled]="cargando || (captchaActivo && !pedido.captcha)">Crear cuenta</button>
         </form>
-        <p class="meta" style="margin-top:16px">¿Ya tenés cuenta? <a routerLink="/login">Entrá</a></p>
+        <p class="meta" style="margin-top:16px">¿Ya tenés cuenta? <a routerLink="/login">Entrá</a> · <a routerLink="/">Inicio</a></p>
       </div>
     </div>
   `,
@@ -103,6 +103,7 @@ export class RegistroComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    document.title = 'StockControl — crear cuenta';
     this.api.captchaRegistro().subscribe({
       next: (r) => {
         if (!r.siteKey) return;

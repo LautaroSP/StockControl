@@ -34,6 +34,8 @@ public class PedidoCobro
     public int DescuentoPorcentaje { get; init; }
     public bool CobrarAlCosto { get; init; }
     public bool StockRigido { get; init; }
+    /// <summary>Venta cobrada sin conexión: con stock rígido entra igual y queda marcada.</summary>
+    public bool DesdeSinConexion { get; init; }
     /// <summary>Unidades apartadas por pedidos de la tienda: con stock rígido no se venden en caja.</summary>
     public IReadOnlyDictionary<int, decimal> Reservado { get; init; } = new Dictionary<int, decimal>();
     public string MetodoPago { get; init; } = "Efectivo";
@@ -50,5 +52,9 @@ public class ResultadoCobro
     public decimal Total { get; set; }
     public string MetodoPago { get; set; } = "";
     public decimal Descuento { get; set; }
+    public decimal DescuentoMedio { get; set; }
+    public int DescuentoMedioPorcentaje { get; set; }
     public string PrecioCosto { get; set; } = "NO";
+    /// <summary>El stock rígido habría rechazado esta venta (solo se marca si vino sin conexión).</summary>
+    public bool StockEnConflicto { get; set; }
 }

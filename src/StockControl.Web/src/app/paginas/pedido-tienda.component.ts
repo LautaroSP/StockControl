@@ -7,6 +7,7 @@ import { TemaService } from '../servicios/tema.service';
 import { colorSiClaro, tintaDe } from '../servicios/paleta';
 import { NoEncontradaComponent } from './no-encontrada.component';
 import { PieTiendaComponent } from '../pie-tienda.component';
+import { IconoComponent } from '../icono.component';
 
 /** El público tiene tope de 60 consultas por minuto por IP. */
 const CONSULTA_PAGO_MS = 5000;
@@ -24,7 +25,7 @@ const ESTADOS: Record<PedidoTiendaDto['estado'], string> = {
 @Component({
   selector: 'sc-pedido-tienda',
   standalone: true,
-  imports: [RouterLink, TemaComponent, NoEncontradaComponent, PieTiendaComponent],
+  imports: [RouterLink, TemaComponent, NoEncontradaComponent, PieTiendaComponent, IconoComponent],
   template: `
     @if (noEncontrado) {
       <sc-no-encontrada />
@@ -45,7 +46,11 @@ const ESTADOS: Record<PedidoTiendaDto['estado'], string> = {
             @for (l of p.lineas; track $index) {
               <li>
                 <span class="carrito-nombre">{{ l.cantidad }} × {{ l.nombre }}</span>
-                <span class="carrito-importe">{{ precio(l.subTotal) }}</span>
+                <span class="carrito-importe">
+                  @if (l.ahorro > 0) { <s class="precio-tachado">{{ precio(l.precioLista * l.cantidad) }}</s> }
+                  {{ precio(l.subTotal) }}
+                </span>
+                @if (l.ahorro > 0) { <span class="ahorro-oferta">{{ l.oferta }} · ahorraste {{ precio(l.ahorro) }}</span> }
               </li>
             }
             <li class="carrito-total"><span>Subtotal</span><span>{{ precio(p.subtotal) }}</span></li>
@@ -56,7 +61,18 @@ const ESTADOS: Record<PedidoTiendaDto['estado'], string> = {
               </li>
             }
             @if (p.gestion > 0) {
-              <li class="carrito-total"><span>Gestión</span><span>{{ precio(p.gestion) }}</span></li>
+              <li class="carrito-total">
+                <span>
+                  Gestión
+                  <span class="ayuda-wrap">
+                    <button type="button" class="ayuda" [attr.aria-expanded]="ayudaGestion" aria-describedby="ayuda-gestion-pedido" (click)="ayudaGestion = !ayudaGestion">?</button>
+                    <span id="ayuda-gestion-pedido" class="ayuda-texto" [class.visible]="ayudaGestion" role="tooltip">
+                      Cobro por el servicio de la plataforma de pedidos online (StockControl). No es un cargo del local.
+                    </span>
+                  </span>
+                </span>
+                <span>{{ precio(p.gestion) }}</span>
+              </li>
             }
             <li class="carrito-total"><strong>Total</strong><strong>{{ precio(p.total) }}</strong></li>
           </ul>
@@ -106,6 +122,7 @@ const ESTADOS: Record<PedidoTiendaDto['estado'], string> = {
             }
             @if (p.local.whatsApp) {
               <a class="btn btn-primary" [href]="whatsApp(p)" target="_blank" rel="noopener noreferrer">
+                <sc-icono nombre="whatsapp" />
                 {{ p.transferencia ? 'Mandar el comprobante por WhatsApp' : 'Avisar al local por WhatsApp' }}
               </a>
             }
@@ -120,6 +137,19 @@ const ESTADOS: Record<PedidoTiendaDto['estado'], string> = {
     @if (!pedido && error) { <p class="error pad">{{ error }}</p> }
   `,
   styles: `
+    .ayuda-wrap { position: relative; display: inline-flex; vertical-align: middle; margin-left: 4px; }
+    .ayuda {
+      width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line);
+      background: var(--panel); color: var(--ink); font-weight: 700; line-height: 1; padding: 0; cursor: pointer; font-size: 12px;
+    }
+    .ayuda-texto {
+      display: none; position: absolute; z-index: 2; left: 0; bottom: calc(100% + 6px); width: min(260px, 70vw);
+      padding: 8px 10px; background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+      border-radius: 8px; font-size: 13px; font-weight: 400; line-height: 1.35;
+    }
+    .ayuda-wrap:hover .ayuda-texto,
+    .ayuda-wrap:focus-within .ayuda-texto,
+    .ayuda-texto.visible { display: block; }
     .pedido-transferencia { margin: 12px 0; }
     .pedido-transferencia p { margin: 6px 0; }
   `
@@ -128,6 +158,7 @@ export class PedidoTiendaComponent implements OnInit, OnDestroy {
   pedido: PedidoTiendaDto | null = null;
   noEncontrado = false;
   cancelando = false;
+  ayudaGestion = false;
   copiado = '';
   error = '';
   alias = '';

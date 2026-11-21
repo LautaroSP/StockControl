@@ -331,6 +331,27 @@ Muestra los cierres. Por defecto, los de **hoy**. Tildá **Mostrar todo** para v
 
 También se puede ordenar haciendo clic en los encabezados.
 
+### 11.2 bis Factura electrónica (ARCA)
+
+Solo **dueño y socio**; el empleado no ve esta opción. Para locales **monotributistas** (Factura C a consumidor final).
+
+1. **Configuración › Facturación:** cargá tu CUIT y el punto de venta (tipo «Web Services»), y tildá «Facturar con ARCA». En la misma pantalla están los pasos para **delegar el servicio** de facturación electrónica a StockControl desde tu clave fiscal en ARCA. No tenés que generar ningún certificado.
+2. **Cajas cerradas:** al abrir una caja, «Factura electrónica» muestra cuántas ventas están facturadas. Elegí **una factura por venta** o **una factura por la caja** (total de las ventas sin facturar). Las ventas ya facturadas no se repiten.
+3. Si el total de la caja supera el tope de ARCA para consumidor final, la factura global no sale: facturá por venta.
+4. Si ARCA no responde, el comprobante queda **Pendiente**: usá «Reintentar» en Facturación; no se duplica el número.
+5. **Anular una venta facturada** (incluso de una caja cerrada, solo dueño o socio) emite la **nota de crédito C**. Si ARCA no está disponible, la nota queda pendiente.
+
+La factura se emite con la fecha de hoy: ARCA acepta fechas hasta 5 días antes o después del comprobante cuando se venden productos.
+### 11.2 ter Si se corta internet
+
+La caja sigue cobrando con los productos y precios que el navegador ya tenía guardados. Para eso la caja tiene que haberse abierto antes con conexión.
+
+- Arriba aparece el aviso **«Sin conexión · N ventas por mandar»**.
+- Solo se cobra en **efectivo y medios manuales**. Mercado Pago, «Dejar a cuenta» y los pedidos en espera quedan deshabilitados.
+- Cada venta queda guardada en el navegador y se manda sola cuando vuelve internet. No se duplica aunque se reenvíe.
+- Si el stock no alcanzaba, la venta entra igual y queda marcada **«Revisar stock»** en Informes. El dueño o socio la marca como revisada.
+- **No se puede cerrar la caja** mientras haya ventas sin mandar. Conectá y esperá a que el aviso desaparezca.
+- Si una venta es rechazada, el aviso muestra **«N ventas para revisar»** con el motivo, y podés reintentar o descartar.
 ### 11.3 Resumen mensual
 
 1. Elegí el mes.

@@ -29,7 +29,10 @@ public class ServicioCatalogoTiendaTests
             .Select(p => p.Id).ToList();
 
     private static List<string> Categorias(IEnumerable<Producto> productos, IEnumerable<Categoria> categorias, IEnumerable<GrupoProductos>? grupos = null) =>
-        ServicioCatalogoTienda.CategoriasConPublicados(productos.AsQueryable(), (grupos ?? []).AsQueryable(), categorias.AsQueryable(), 1)
+        ServicioCatalogoTienda.CategoriasConPublicados(
+                categorias.Where(c => c.IdLocal == 1),
+                productos.Where(p => p.Publicado && p.IdLocal == 1),
+                grupos ?? [])
             .Select(c => c.Nombre).ToList();
 
     [Fact]
@@ -225,5 +228,14 @@ public class ServicioCatalogoTiendaTests
         Assert.DoesNotContain("Costo", propiedades);
         Assert.DoesNotContain("Cantidad", propiedades);
         Assert.DoesNotContain("IdLocal", propiedades);
+    }
+
+    [Fact]
+    public void El_tamano_de_pagina_acepta_columnas_por_cuatro_filas()
+    {
+        Assert.Equal(ServicioCatalogoTienda.TamanoPagina, ServicioCatalogoTienda.NormalizarTamano(0));
+        Assert.Equal(28, ServicioCatalogoTienda.NormalizarTamano(28));
+        Assert.Equal(ServicioCatalogoTienda.TamanoMinimo, ServicioCatalogoTienda.NormalizarTamano(2));
+        Assert.Equal(ServicioCatalogoTienda.TamanoMaximo, ServicioCatalogoTienda.NormalizarTamano(99));
     }
 }

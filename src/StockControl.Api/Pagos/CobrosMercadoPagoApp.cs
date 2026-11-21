@@ -280,6 +280,7 @@ public static class CobrosMercadoPagoApp
             Reservado = await ReservasTienda.DelLocal(db, cobro.IdLocal),
             MetodoPago = "Mercado Pago"
         });
+        ServicioDescuentoMedio.AplicarGuardado(resultado, pedido.DescuentoMedioPorcentaje);
         var venta = await RegistrarVenta.Guardar(db, cobro.IdLocal, cobro.IdUsuario, cobro.NroCaja, resultado, pedido.Pagos);
         if (pedido.IdPedidoEspera is int idEspera)
             await db.PedidosEspera.IgnoreQueryFilters()

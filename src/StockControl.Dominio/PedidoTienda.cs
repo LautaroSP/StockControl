@@ -50,6 +50,11 @@ public class LineaPedidoTienda
     public string Codigo { get; set; } = "";
     public string Nombre { get; set; } = "";
     public decimal Cantidad { get; set; }
+    /// <summary>Precio por unidad cobrada, ya con la oferta.</summary>
     public decimal PrecioUnitario { get; set; }
     public decimal SubTotal { get; set; }
+    /// <summary>Precio de lista al confirmar. 0 en una línea armada sin él: vale PrecioUnitario.</summary>
+    public decimal PrecioLista { get; set; }
+    public string? Oferta { get; set; }
+    public decimal Ahorro { get; set; }
 }

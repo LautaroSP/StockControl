@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ApiService, ConfiguracionTiendaDto, ImagenTiendaDto, LugarEncontradoDto, ProductoTiendaDto, VistaTienda } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { IconoComponent } from '../icono.component';
@@ -35,7 +36,7 @@ const PLAZOS_TRANSFERENCIA: { horas: number | null; texto: string }[] = [
 @Component({
   selector: 'sc-config-tienda',
   standalone: true,
-  imports: [FormsModule, IconoComponent, MapaComponent],
+  imports: [FormsModule, IconoComponent, MapaComponent, RouterLink],
   template: `
     <div class="topbar">
       <h1>Configuración de la tienda</h1>
@@ -43,6 +44,36 @@ const PLAZOS_TRANSFERENCIA: { horas: number | null; texto: string }[] = [
     <section class="panel config-form">
       <h2><sc-icono nombre="tienda" /> Tienda online</h2>
       <p class="hint">Catálogo público del local, sin login.</p>
+
+      @if (gestion > 0) {
+        <div class="bloque-gestion">
+          <h2 class="gestion-titulo">Gestión por pedido: {{ precio(gestion) }}</h2>
+          <p class="gestion-texto">Es un cargo de StockControl por cada pedido concretado de la tienda. No es el abono mensual de la caja.</p>
+          <fieldset class="gestion-opciones">
+            <legend>¿Quién la paga frente al comprador?</legend>
+            <label class="check gestion-check">
+              <input type="radio" name="quienGestion" [checked]="form.gestionACargoComprador" (change)="form.gestionACargoComprador = true" />
+              <span><strong>El comprador.</strong> Se muestra en el carrito y se suma al total que paga.</span>
+            </label>
+            <label class="check gestion-check">
+              <input type="radio" name="quienGestion" [checked]="!form.gestionACargoComprador" (change)="form.gestionACargoComprador = false" />
+              <span><strong>El local.</strong> El comprador no la ve; igual la debés a StockControl.</span>
+            </label>
+          </fieldset>
+          <p class="gestion-texto">Si el pedido es menor que {{ precio(gestion) }}, la gestión es el importe del pedido. Un pedido cancelado no paga gestión. Con Mercado Pago se separa sola; con transferencia o efectivo queda deuda y se paga en Abono.</p>
+          <p class="gestion-aviso">Si no la pagás a tiempo (vencimiento del abono + 7 días), se cierra la tienda online. La caja del mostrador sigue. La deuda no se borra.</p>
+          <label class="check gestion-check">
+            <input type="checkbox" [(ngModel)]="aceptaTerminosTienda" [disabled]="terminosTiendaVigentes" />
+            @if (terminosTiendaVigentes) {
+              Ya aceptaste los <a routerLink="/terminos-tienda-online" target="_blank">términos de la tienda online</a>.
+            } @else {
+              Acepto los <a routerLink="/terminos-tienda-online" target="_blank">términos de la tienda online</a> (gestión, plazo e incumplimiento). Obligatorio para activar.
+            }
+          </label>
+        </div>
+      } @else {
+        <p class="meta">Este local no paga gestión por los pedidos online.</p>
+      }
 
       <div class="row">
         <label class="field grow">Estado
@@ -57,6 +88,13 @@ const PLAZOS_TRANSFERENCIA: { horas: number | null; texto: string }[] = [
         </label>
       </div>
       <p class="hint">Letras sin acento, números y guiones. Es único en todo el sistema.</p>
+      <label class="field">Filtro de categorías en la tienda
+        <select class="wide" [(ngModel)]="form.filtroCategorias">
+          <option value="chips">Chips (recomendado si hay pocas)</option>
+          <option value="menu">Menú lateral (categorías y subcategorías)</option>
+        </select>
+      </label>
+      <p class="hint">Las categorías se arman en Categorías (plantillas de almacén, refrigeración, etc.).</p>
       @if (link()) {
         <div class="row">
           <a [href]="link()" target="_blank" rel="noopener">{{ link() }}</a>
@@ -70,6 +108,8 @@ const PLAZOS_TRANSFERENCIA: { horas: number | null; texto: string }[] = [
       <label class="field">Dirección <input class="wide" type="text" maxlength="200" [(ngModel)]="form.direccion" /></label>
       <label class="field">Horario <input class="wide" type="text" maxlength="200" placeholder="Lunes a sábado de 9 a 20" [(ngModel)]="form.horario" /></label>
       <label class="field">WhatsApp <input class="wide" type="tel" maxlength="30" placeholder="011 15 1234-5678" [(ngModel)]="form.whatsApp" /></label>
+      <label class="field">Mail de contacto <input class="wide" type="email" maxlength="200" placeholder="Opcional" [(ngModel)]="form.correo" /></label>
+      <label class="field">Instagram <input class="wide" type="text" maxlength="120" placeholder="@usuario o link (opcional)" [(ngModel)]="form.instagram" /></label>
       <label class="check"><input type="checkbox" [(ngModel)]="form.haceEnvios" /> Hace envíos (si no, solo retiro en el local)</label>
       @if (form.haceEnvios) {
         <label class="check"><input type="checkbox" [(ngModel)]="form.envioGratisSiempre" /> Envío gratis siempre</label>
@@ -210,20 +250,6 @@ const PLAZOS_TRANSFERENCIA: { horas: number | null; texto: string }[] = [
       </div>
       <p class="hint">Si no confirmás a tiempo, el pedido se cancela solo y se libera el stock.</p>
 
-      @if (gestion > 0) {
-        <label class="check">
-          <input type="checkbox" [(ngModel)]="form.gestionACargoComprador" />
-          Incluir gasto de gestión {{ precio(gestion) }} en ticket
-          <span class="ayuda-wrap">
-            <button type="button" class="ayuda" [attr.aria-expanded]="ayudaGestion" aria-describedby="ayuda-gestion" (click)="ayudaGestion = !ayudaGestion">?</button>
-            <span id="ayuda-gestion" class="ayuda-texto" [class.visible]="ayudaGestion" role="tooltip">Es un gasto por la gestión del pedido. Si lo tildás, se le suma al comprador. Si no, lo abonás vos como dueño del local.</span>
-          </span>
-        </label>
-        <p class="hint">Si el pedido es menor que {{ precio(gestion) }}, la gestión es el importe del pedido. Un pedido cancelado no paga gestión.
-          Con Mercado Pago la separa Mercado Pago. Con transferencia o efectivo queda como deuda del local: se paga aparte del abono.</p>
-      } @else {
-        <p class="meta">Este local no paga gestión por los pedidos online.</p>
-      }
       <div class="row" style="margin-top:16px">
         <button class="btn btn-primary" type="button" [disabled]="guardando" (click)="guardar()">Guardar tienda</button>
       </div>
@@ -234,19 +260,21 @@ const PLAZOS_TRANSFERENCIA: { horas: number | null; texto: string }[] = [
   styles: `
     .lista-lugares { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; }
     .lista-lugares .btn { text-align: left; width: 100%; }
-    .ayuda-wrap { position: relative; display: inline-flex; }
-    .ayuda {
-      width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line);
-      background: var(--panel); color: var(--ink); font-weight: 700; line-height: 1; padding: 0; cursor: pointer;
+    .bloque-gestion {
+      margin: 12px 0 20px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 10px;
+      background: color-mix(in srgb, var(--panel) 92%, var(--ink) 8%);
+      display: grid; gap: 10px;
     }
-    .ayuda-texto {
-      display: none; position: absolute; z-index: 2; left: 0; top: calc(100% + 6px); width: min(280px, 70vw);
-      padding: 8px 10px; background: var(--panel); color: var(--ink); border: 1px solid var(--line);
-      border-radius: 8px; font-size: 13px; font-weight: 400; line-height: 1.35;
+    .gestion-titulo { margin: 0; font-size: 1.25rem; line-height: 1.25; }
+    .gestion-texto { margin: 0; font-size: 15px; line-height: 1.45; color: var(--ink); }
+    .gestion-aviso {
+      margin: 0; padding: 10px 12px; border-radius: 8px; font-size: 15px; line-height: 1.4;
+      background: color-mix(in srgb, #b33a2b 12%, var(--panel)); border: 1px solid color-mix(in srgb, #b33a2b 35%, var(--line));
     }
-    .ayuda-wrap:hover .ayuda-texto,
-    .ayuda-wrap:focus-within .ayuda-texto,
-    .ayuda-texto.visible { display: block; }
+    .gestion-opciones { margin: 0; padding: 0; border: 0; display: grid; gap: 10px; }
+    .gestion-opciones legend { font-weight: 700; font-size: 1.05rem; margin-bottom: 4px; padding: 0; }
+    .gestion-check { align-items: flex-start; gap: 10px; font-size: 15px; line-height: 1.4; }
+    .gestion-check input { margin-top: 3px; }
     .paleta-ayuda { font-size: 12px; margin-top: 0; }
     .paleta { display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap; margin: 8px 0 12px; }
     .paleta-controles { display: grid; gap: 10px; }
@@ -287,10 +315,10 @@ const PLAZOS_TRANSFERENCIA: { horas: number | null; texto: string }[] = [
 })
 export class ConfigTiendaComponent implements OnInit {
   form: ConfiguracionTiendaDto = {
-    alias: '', estado: 'inactiva', direccion: '', horario: '', whatsApp: '', haceEnvios: false,
+    alias: '', estado: 'inactiva', direccion: '', horario: '', whatsApp: '', correo: '', instagram: '', haceEnvios: false,
     envioGratisSiempre: false, precioEnvioKm: null, envioMinimo: null, radioEnvioKm: null, envioGratisDesde: null,
     latitud: null, longitud: null,
-    gestionACargoComprador: false, cbu: '', aliasCbu: '', titular: '', plazoTransferenciaHoras: 24,
+    gestionACargoComprador: false, filtroCategorias: 'chips', cbu: '', aliasCbu: '', titular: '', plazoTransferenciaHoras: 24,
     colorMarca: '', colorFondo: '', colorFicha: ''
   };
   readonly centroPorDefecto = CENTRO_POR_DEFECTO;
@@ -307,13 +335,14 @@ export class ConfigTiendaComponent implements OnInit {
   muestra: ProductoTiendaDto | null = null;
   mercadoPago = false;
   gestion = 0;
+  terminosTiendaVigentes = false;
+  aceptaTerminosTienda = false;
   busqueda = '';
   lugares: LugarEncontradoDto[] = [];
   buscando = false;
   guardando = false;
   error = '';
   mensaje = '';
-  ayudaGestion = false;
 
   constructor(
     private readonly api: ApiService,
@@ -323,7 +352,7 @@ export class ConfigTiendaComponent implements OnInit {
   ngOnInit(): void {
     this.api.configuracionTienda().subscribe({
       next: (r) => {
-        const { vista, publicados, conImagen, mercadoPago, gestion, logo, ...form } = r;
+        const { vista, publicados, conImagen, mercadoPago, gestion, terminosTiendaVigentes, logo, ...form } = r;
         this.logo = logo;
         this.form = { ...form, colorMarca: form.colorMarca ?? '', colorFondo: form.colorFondo ?? '', colorFicha: form.colorFicha ?? '' };
         this.aliasGuardado = form.alias;
@@ -331,6 +360,8 @@ export class ConfigTiendaComponent implements OnInit {
         this.publicados = publicados;
         this.mercadoPago = mercadoPago;
         this.gestion = gestion;
+        this.terminosTiendaVigentes = terminosTiendaVigentes;
+        this.aceptaTerminosTienda = terminosTiendaVigentes;
         this.cargarMuestra(form.alias);
       },
       error: (e) => (this.error = this.mensajeError(e, 'No se pudo cargar la tienda.'))
@@ -489,13 +520,25 @@ export class ConfigTiendaComponent implements OnInit {
       && !await this.dialogo.confirmar(`El link /tienda/${this.aliasGuardado} va a dejar de funcionar. ¿Cambiar el alias?`)) {
       return;
     }
+    if (this.form.estado === 'activa' && !this.terminosTiendaVigentes && !this.aceptaTerminosTienda) {
+      this.error = 'Tenés que aceptar los términos de la tienda online.';
+      return;
+    }
     this.guardando = true;
-    this.api.guardarConfiguracionTienda({ ...this.form, alias }).subscribe({
+    this.api.guardarConfiguracionTienda({
+      ...this.form,
+      alias,
+      aceptaTerminosTienda: this.aceptaTerminosTienda
+    }).subscribe({
       next: (r) => {
         this.guardando = false;
         this.form = { ...this.form, alias: r.alias, estado: r.estado };
         this.aliasGuardado = r.alias;
         this.vista = r.vista;
+        if (r.estado === 'activa') {
+          this.terminosTiendaVigentes = true;
+          this.aceptaTerminosTienda = true;
+        }
         this.error = '';
         this.mensaje = 'Tienda guardada.';
       },

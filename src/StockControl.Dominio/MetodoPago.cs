@@ -8,4 +8,6 @@ public class MetodoPago
     public bool Activo { get; set; } = true;
     /// <summary>manual, qr_impreso, qr_pantalla o point.</summary>
     public string Integracion { get; set; } = IntegracionPago.Manual;
+    /// <summary>0 = sin descuento. De 1 a 99, porcentaje del total si este medio paga la venta sola.</summary>
+    public int DescuentoPorcentaje { get; set; }
 }

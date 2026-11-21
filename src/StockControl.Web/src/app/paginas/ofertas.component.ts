@@ -112,6 +112,14 @@ import { DialogoService } from '../servicios/dialogo.service';
           </label>
         </div>
 
+        <h3>En la tienda</h3>
+        <div class="oferta-opciones">
+          <label class="check">
+            <input type="checkbox" [(ngModel)]="form.enTienda" />
+            También en la tienda (la tienda online aplica esta oferta y muestra el ahorro)
+          </label>
+        </div>
+
         <div class="oferta-acciones">
           <button class="btn btn-primary" type="button" [disabled]="!producto || guardando" (click)="guardar()">Guardar</button>
           <button class="btn" type="button" (click)="cerrar()">Cancelar</button>
@@ -216,7 +224,8 @@ export class OfertasComponent implements OnInit {
       sinFin: false,
       anulaConDescuentoCaja: false,
       anulaConAlCosto: true,
-      permiteNoAplicarEnCaja: false
+      permiteNoAplicarEnCaja: false,
+      enTienda: false
     };
     this.error = '';
   }
@@ -236,7 +245,8 @@ export class OfertasComponent implements OnInit {
       sinFin: o.sinFin,
       anulaConDescuentoCaja: o.anulaConDescuentoCaja,
       anulaConAlCosto: o.anulaConAlCosto,
-      permiteNoAplicarEnCaja: o.permiteNoAplicarEnCaja
+      permiteNoAplicarEnCaja: o.permiteNoAplicarEnCaja,
+      enTienda: o.enTienda
     };
     this.error = '';
   }
@@ -290,7 +300,8 @@ export class OfertasComponent implements OnInit {
     const textos = [
       o.anulaConDescuentoCaja ? 'el descuento de caja la saca' : '',
       o.anulaConAlCosto ? 'al costo la saca' : '',
-      o.permiteNoAplicarEnCaja ? 'se puede no aplicar en caja' : ''
+      o.permiteNoAplicarEnCaja ? 'se puede no aplicar en caja' : '',
+      o.enTienda ? 'también en la tienda' : ''
     ].filter(Boolean);
     return textos.join(' · ');
   }

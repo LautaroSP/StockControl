@@ -148,9 +148,9 @@ public class ServicioEnvioTiendaTests
             new DatosEnvio(ServicioEnvioTienda.Envio, "Av. Rivadavia 1234", 0, 1, 2)).Pedido;
 
         Assert.Equal(1500, pedido.Subtotal);
-        Assert.Equal(1000, pedido.Gestion);
+        Assert.Equal(500, pedido.Gestion);
         Assert.Equal(200, pedido.Envio);
-        Assert.Equal(2700, pedido.Total);
+        Assert.Equal(2200, pedido.Total);
         Assert.Equal(ServicioEnvioTienda.Envio, pedido.Modalidad);
         Assert.Equal("Av. Rivadavia 1234", pedido.DireccionEnvio);
     }

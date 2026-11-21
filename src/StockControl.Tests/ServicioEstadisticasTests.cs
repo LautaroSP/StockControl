@@ -68,6 +68,34 @@ public class ServicioEstadisticasTests
     }
 
     [Fact]
+    public void Estadisticas_separa_mostrador_y_tienda_online()
+    {
+        var ventas = new List<InformeVenta>
+        {
+            CrearVenta(1, 1, 1000),
+            CrearVenta(2, 1, 2500),
+            new()
+            {
+                IdInformeVenta = 3,
+                IdLocal = 1,
+                Total = 1500,
+                Subtotal = 1500,
+                MetodoPago = "Efectivo",
+                NroCaja = 1,
+                EsTiendaOnline = true
+            }
+        };
+
+        var res = ServicioEstadisticas.Calcular(ventas, [], [], [], [CrearLocal(1, "Central")]);
+
+        Assert.Equal(5000, res.TotalVendido);
+        Assert.Equal(3500, res.TotalMostrador);
+        Assert.Equal(2, res.TicketsMostrador);
+        Assert.Equal(1500, res.TotalTiendaOnline);
+        Assert.Equal(1, res.TicketsTiendaOnline);
+    }
+
+    [Fact]
     public void Estadisticas_top_productos_ignora_genericos()
     {
         var p1 = CrearProducto(1, 1, "COCA", "Coca Cola", 10, 500);

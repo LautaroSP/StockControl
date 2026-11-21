@@ -109,6 +109,21 @@ public class ServicioCategoriasTests
     }
 
     [Fact]
+    public void Asignar_categoria_a_varios_productos()
+    {
+        var bebidas = Categoria(3, "Bebidas");
+        var productos = new[] { Producto(1), Producto(2, categoria: 9), Producto(3) };
+
+        ServicioCategorias.AsignarAVarios(productos, bebidas, "dueno");
+
+        Assert.All(productos, p =>
+        {
+            Assert.Equal(3, p.IdCategoria);
+            Assert.Equal("dueno", p.UsuarioModificacion);
+        });
+    }
+
+    [Fact]
     public void No_se_asigna_al_producto_una_categoria_de_otro_local()
     {
         var producto = Producto(1, local: 1);

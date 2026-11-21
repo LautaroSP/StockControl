@@ -4,8 +4,16 @@ public static class ServicioCategorias
 {
     public const int LargoMaximoNombre = 40;
 
-    public static Categoria Nueva(int idLocal, string? nombre, IEnumerable<Categoria> delLocal) =>
-        new() { IdLocal = idLocal, Nombre = NombreValido(nombre, delLocal, null) };
+    public static Categoria Nueva(int idLocal, string? nombre, IEnumerable<Categoria> delLocal, int? idPadre = null, Categoria? padre = null)
+    {
+        ValidarPadre(idLocal, idPadre, padre, delLocal);
+        return new()
+        {
+            IdLocal = idLocal,
+            Nombre = NombreValido(nombre, delLocal, null),
+            IdPadre = idPadre is > 0 ? idPadre : null
+        };
+    }
 
     public static void Renombrar(Categoria categoria, string? nombre, IEnumerable<Categoria> delLocal) =>
         categoria.Nombre = NombreValido(nombre, delLocal, categoria.Id);
@@ -25,6 +33,12 @@ public static class ServicioCategorias
         producto.IdCategoria = categoria?.Id;
         producto.FechaModificacion = DateTimeOffset.UtcNow;
         producto.UsuarioModificacion = usuarioModificacion;
+    }
+
+    public static void AsignarAVarios(IEnumerable<Producto> productos, Categoria? categoria, string usuarioModificacion = "")
+    {
+        foreach (var producto in productos)
+            Asignar(producto, categoria, usuarioModificacion);
     }
 
     public static void AsignarAGrupo(GrupoProductos grupo, Categoria? categoria)
@@ -47,6 +61,39 @@ public static class ServicioCategorias
             .OfType<int>()
             .GroupBy(id => id)
             .ToDictionary(g => g.Key, g => g.Count());
+    }
+
+    /// <summary>Al filtrar por un padre, incluye también sus hijos.</summary>
+    public static List<int> ExpandirConHijos(IReadOnlyCollection<int> ids, IEnumerable<Categoria> todas)
+    {
+        if (ids.Count == 0) return [];
+        var set = ids.ToHashSet();
+        foreach (var hija in todas.Where(c => c.IdPadre is int p && set.Contains(p)))
+            set.Add(hija.Id);
+        return set.ToList();
+    }
+
+    /// <summary>Suma a cada padre la cantidad de sus hijos (para el menú lateral).</summary>
+    public static Dictionary<int, int> ContarConPadres(Dictionary<int, int> propios, IEnumerable<Categoria> categorias)
+    {
+        var total = new Dictionary<int, int>(propios);
+        foreach (var hija in categorias.Where(c => c.IdPadre is > 0))
+        {
+            var n = propios.GetValueOrDefault(hija.Id);
+            if (n == 0) continue;
+            total[hija.IdPadre!.Value] = total.GetValueOrDefault(hija.IdPadre.Value) + n;
+        }
+        return total;
+    }
+
+    static void ValidarPadre(int idLocal, int? idPadre, Categoria? padre, IEnumerable<Categoria> delLocal)
+    {
+        if (idPadre is not > 0) return;
+        padre ??= delLocal.FirstOrDefault(c => c.Id == idPadre);
+        if (padre == null || padre.IdLocal != idLocal)
+            throw new ErrorNegocio("La categoría padre no es de este local.");
+        if (padre.IdPadre != null)
+            throw new ErrorNegocio("Solo un nivel de subcategoría.");
     }
 
     static string NombreValido(string? nombre, IEnumerable<Categoria> delLocal, int? idPropia)

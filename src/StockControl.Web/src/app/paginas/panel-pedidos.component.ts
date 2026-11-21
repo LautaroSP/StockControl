@@ -7,6 +7,7 @@ import { AvisosService } from '../servicios/avisos.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
 import { PreferenciasAvisosComponent } from './preferencias-avisos.component';
+import { IconoComponent } from '../icono.component';
 
 const ESTADOS: Record<EstadoPedidoTienda, { texto: string; clase: string }> = {
   nuevo: { texto: 'Nuevo', clase: 'badge badge-aviso' },
@@ -19,7 +20,7 @@ const ESTADOS: Record<EstadoPedidoTienda, { texto: string; clase: string }> = {
 @Component({
   selector: 'sc-panel-pedidos',
   standalone: true,
-  imports: [FormsModule, PreferenciasAvisosComponent],
+  imports: [FormsModule, PreferenciasAvisosComponent, IconoComponent],
   template: `
     <div class="topbar">
       <h1>Pedidos de la tienda</h1>
@@ -116,7 +117,7 @@ const ESTADOS: Record<EstadoPedidoTienda, { texto: string; clase: string }> = {
             <button class="btn" type="button" [disabled]="trabajando" (click)="avanzar(d, 'preparando')">Preparando</button>
           }
           @if (d.siguientes.includes('listo')) {
-            <button class="btn" type="button" [disabled]="trabajando" (click)="avanzar(d, 'listo')">{{ d.modalidad === 'envio' ? 'Listo para enviar' : 'Listo para retirar' }}</button>
+            <button class="btn" type="button" [disabled]="trabajando" (click)="marcarListo(d)">{{ d.modalidad === 'envio' ? 'Listo para enviar' : 'Listo para retirar' }}</button>
           }
           @if (d.siguientes.includes('entregado')) {
             @if (d.estadoPago === 'pagado' && !esTransferencia(d)) {
@@ -141,7 +142,9 @@ const ESTADOS: Record<EstadoPedidoTienda, { texto: string; clase: string }> = {
               <button class="btn btn-danger" type="button" [disabled]="trabajando" (click)="cancelar(d)">Cancelar</button>
             }
           }
-          <a class="btn" [href]="whatsApp(d)" target="_blank" rel="noopener noreferrer">Escribir al comprador</a>
+          @if (d.telefono) {
+            <a class="btn" [href]="whatsApp(d)" target="_blank" rel="noopener noreferrer"><sc-icono nombre="whatsapp" /> Escribir al comprador</a>
+          }
         </div>
       </section>
     }
@@ -277,6 +280,27 @@ export class PanelPedidosComponent implements OnInit {
     this.ejecutar(this.api.avanzarPedidoPanel(d.id, estado), `Pedido N° ${d.numero}: ${this.estado(estado).texto.toLowerCase()}.`);
   }
 
+  /** Marca listo y, si hay WhatsApp, ofrece avisar al comprador con wa.me. */
+  async marcarListo(d: PedidoPanelDto): Promise<void> {
+    const etiqueta = d.modalidad === 'envio' ? 'listo para enviar' : 'listo para retirar';
+    if (!d.telefono) {
+      this.ejecutar(this.api.avanzarPedidoPanel(d.id, 'listo'), `Pedido N° ${d.numero}: ${etiqueta}. El comprador no dejó WhatsApp.`);
+      return;
+    }
+    const eleccion = await this.dialogo.elegir(
+      `¿Marcar el pedido N° ${d.numero} como ${etiqueta}? Podés avisar a ${d.nombre} (${d.telefonoVisible}) por WhatsApp.`,
+      'Listo y avisar',
+      'Solo marcar listo',
+      'Volver'
+    );
+    if (eleccion === null) return;
+    this.ejecutar(
+      this.api.avanzarPedidoPanel(d.id, 'listo'),
+      `Pedido N° ${d.numero}: ${etiqueta}.`,
+      eleccion === 'aceptar' ? (actualizado) => window.open(this.whatsApp(actualizado), '_blank', 'noopener,noreferrer') : undefined
+    );
+  }
+
   entregar(d: PedidoPanelDto): void {
     this.ejecutar(this.api.entregarPedidoPanel(d.id, this.idMedio), `Pedido N° ${d.numero} entregado. La venta entró en la caja.`);
   }
@@ -318,7 +342,7 @@ export class PanelPedidosComponent implements OnInit {
     return `$ ${Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
-  private ejecutar(accion: ReturnType<ApiService['pedidoPanel']>, ok: string): void {
+  private ejecutar(accion: ReturnType<ApiService['pedidoPanel']>, ok: string, despues?: (d: PedidoPanelDto) => void): void {
     this.trabajando = true;
     this.error = '';
     this.mensaje = '';
@@ -328,6 +352,7 @@ export class PanelPedidosComponent implements OnInit {
         this.detalle = d;
         this.mensaje = ok;
         this.cargar(this.pagina);
+        despues?.(d);
       },
       error: (e) => {
         this.trabajando = false;

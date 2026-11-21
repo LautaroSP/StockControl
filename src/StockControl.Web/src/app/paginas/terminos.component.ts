@@ -23,6 +23,7 @@ import { TemaComponent } from '../tema.component';
         <p>El servicio puede tener mantenimiento. No hay garantía de que esté disponible todo el tiempo.</p>
         <p>Los productos, las ventas y los clientes son del local. El dueño responde por sus empleados y por lo que cargan. Al darse de baja puede pedir una copia de esos datos al mail legal. Se borran cuando el local ya no está activo, salvo lo que haga falta guardar mientras haya un reclamo abierto.</p>
         <p>Mercado Pago es un tercero. El dinero del mostrador y de la tienda entra en la cuenta de Mercado Pago del local, no en la de StockControl. El ticket no es factura. La factura la emite el local, si corresponde.</p>
+        <p>La tienda online tiene términos propios: hay un cargo de gestión por pedido a cargo del local. El detalle, el plazo y qué pasa si no se paga están en <a routerLink="/terminos-tienda-online">términos de la tienda online</a>. Hay que aceptarlos para activar la tienda.</p>
         <p>No está permitido copiar el sitio ni el sistema, ni republicarlos para armar otro. Ver la página no autoriza a hacer una copia. StockControl puede suspender la cuenta por un uso que perjudique el servicio o a otros locales.</p>
         <p>Los reclamos del servicio se rigen por la ley argentina. La jurisdicción es la Provincia de Buenos Aires.</p>
         <p class="meta"><a routerLink="/privacidad">Política de privacidad</a> · <a routerLink="/arrepentimiento">Arrepentimiento</a></p>

@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using StockControl.Dominio;
 
 namespace StockControl.Api.Datos;
@@ -55,6 +55,11 @@ public class AppDbContext : DbContext
     public DbSet<Aviso> Avisos => Set<Aviso>();
     public DbSet<PreferenciaAviso> PreferenciasAviso => Set<PreferenciaAviso>();
     public DbSet<SuscripcionPush> SuscripcionesPush => Set<SuscripcionPush>();
+    public DbSet<AumentoHistorial> AumentosHistorial => Set<AumentoHistorial>();
+    public DbSet<AumentoHistorialItem> AumentosHistorialItems => Set<AumentoHistorialItem>();
+    public DbSet<ConfiguracionFiscal> ConfiguracionesFiscales => Set<ConfiguracionFiscal>();
+    public DbSet<ComprobanteFiscal> ComprobantesFiscales => Set<ComprobanteFiscal>();
+    public DbSet<ComprobanteFiscalVenta> ComprobantesFiscalesVentas => Set<ComprobanteFiscalVenta>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -79,6 +84,8 @@ public class AppDbContext : DbContext
             e.Property(x => x.Direccion).HasMaxLength(ServicioTienda.LargoMaximoDato).HasDefaultValue("");
             e.Property(x => x.Horario).HasMaxLength(ServicioTienda.LargoMaximoDato).HasDefaultValue("");
             e.Property(x => x.WhatsApp).HasMaxLength(20).HasDefaultValue("");
+            e.Property(x => x.Correo).HasMaxLength(ServicioTienda.LargoMaximoCorreo).HasDefaultValue("");
+            e.Property(x => x.Instagram).HasMaxLength(ServicioTienda.LargoMaximoInstagram).HasDefaultValue("");
             e.Property(x => x.Latitud).HasPrecision(9, 6);
             e.Property(x => x.Longitud).HasPrecision(9, 6);
             e.Property(x => x.PrecioEnvioKm).HasPrecision(14, 2);
@@ -87,6 +94,9 @@ public class AppDbContext : DbContext
             e.Property(x => x.EnvioGratisDesde).HasPrecision(14, 2);
             e.Property(x => x.EnvioGratisSiempre).HasDefaultValue(false);
             e.Property(x => x.Renueva).HasDefaultValue(true);
+            e.Property(x => x.ImporteGestion).HasPrecision(14, 2).HasDefaultValue(ServicioGestionTienda.ImportePorDefecto);
+            e.Property(x => x.FiltroCategoriasTienda).HasMaxLength(20).HasDefaultValue(ServicioTienda.FiltroChips);
+            e.Property(x => x.VersionTerminosTienda).HasMaxLength(20).HasDefaultValue("");
             e.Property(x => x.CbuTienda).HasMaxLength(ServicioTransferenciaTienda.LargoCbu).HasDefaultValue("");
             e.Property(x => x.AliasCbuTienda).HasMaxLength(ServicioTransferenciaTienda.LargoMaximoAlias).HasDefaultValue("");
             e.Property(x => x.TitularTienda).HasMaxLength(ServicioTransferenciaTienda.LargoMaximoTitular).HasDefaultValue("");
@@ -105,6 +115,8 @@ public class AppDbContext : DbContext
             e.Property(x => x.EmailConfirmado).HasDefaultValue(true);
             e.Property(x => x.TokenConfirmacion).HasMaxLength(64);
             e.HasIndex(x => x.TokenConfirmacion).IsUnique().HasFilter("\"TokenConfirmacion\" IS NOT NULL");
+            e.Property(x => x.TokenRecuperacion).HasMaxLength(64);
+            e.HasIndex(x => x.TokenRecuperacion).IsUnique().HasFilter("\"TokenRecuperacion\" IS NOT NULL");
             e.Property(x => x.Rol).HasMaxLength(20);
             e.Property(x => x.Activo).HasDefaultValue(true);
             e.Property(x => x.IntentosFallidos).HasDefaultValue(0);
@@ -133,6 +145,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.PrecioPorKilo).HasPrecision(14, 2);
             e.Property(x => x.ValorGanancia).HasPrecision(14, 2);
             e.Property(x => x.UsuarioModificacion).HasMaxLength(80);
+            e.Property(x => x.Descripcion).HasMaxLength(500);
             e.HasIndex(x => new { x.IdLocal, x.Publicado });
             e.HasOne<Categoria>().WithMany().HasForeignKey(x => x.IdCategoria).OnDelete(DeleteBehavior.SetNull);
             e.Ignore(x => x.EsGenerico);
@@ -158,6 +171,8 @@ public class AppDbContext : DbContext
             e.Property(x => x.Id).UseIdentityByDefaultColumn();
             e.Property(x => x.Nombre).HasMaxLength(ServicioCategorias.LargoMaximoNombre);
             e.HasIndex(x => x.IdLocal);
+            e.HasIndex(x => x.IdPadre);
+            e.HasOne<Categoria>().WithMany().HasForeignKey(x => x.IdPadre).OnDelete(DeleteBehavior.Restrict);
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
 
@@ -193,7 +208,12 @@ public class AppDbContext : DbContext
             e.Property(x => x.Total).HasPrecision(14, 2);
             e.Property(x => x.Subtotal).HasPrecision(14, 2);
             e.Property(x => x.Descuento).HasPrecision(14, 2);
+            e.Property(x => x.DescuentoMedio).HasPrecision(14, 2);
             e.HasIndex(x => new { x.IdLocal, x.Fecha });
+            e.Property(x => x.NotaRevision).HasMaxLength(200);
+            e.Property(x => x.EsTiendaOnline).HasDefaultValue(false);
+            e.HasIndex(x => new { x.IdLocal, x.EsTiendaOnline, x.Fecha });
+            e.HasIndex(x => new { x.IdLocal, x.IdVentaCliente }).IsUnique().HasFilter("\"IdVentaCliente\" IS NOT NULL");
             e.HasMany(x => x.Detalles).WithOne().HasForeignKey(d => d.IdInformeVenta);
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
@@ -430,6 +450,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.PrecioUnidad).HasPrecision(14, 2);
             e.Ignore(x => x.SinFin);
             e.Property(x => x.AnulaConAlCosto).HasDefaultValue(true).HasSentinel(true);
+            e.Property(x => x.EnTienda).HasDefaultValue(false);
             e.HasIndex(x => new { x.IdLocal, x.IdProducto, x.FechaDesde });
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
@@ -454,6 +475,73 @@ public class AppDbContext : DbContext
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
 
+        model.Entity<AumentoHistorial>(e =>
+        {
+            e.ToTable("AumentosHistorial");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Usuario).HasMaxLength(120);
+            e.Property(x => x.TipoPrecio).HasMaxLength(20);
+            e.Property(x => x.TipoCosto).HasMaxLength(20);
+            e.Property(x => x.ValorPrecio).HasPrecision(14, 2);
+            e.Property(x => x.ValorCosto).HasPrecision(14, 2);
+            e.Property(x => x.UsuarioDeshizo).HasMaxLength(120);
+            e.HasIndex(x => new { x.IdLocal, x.Fecha });
+            e.HasMany(x => x.Items).WithOne().HasForeignKey(i => i.IdAumentoHistorial).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<AumentoHistorialItem>(e =>
+        {
+            e.ToTable("AumentosHistorialItems");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Nombre).HasMaxLength(200);
+            e.Property(x => x.PrecioAntes).HasPrecision(18, 2);
+            e.Property(x => x.PrecioDespues).HasPrecision(18, 2);
+            e.Property(x => x.CostoAntes).HasPrecision(18, 2);
+            e.Property(x => x.CostoDespues).HasPrecision(18, 2);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<ConfiguracionFiscal>(e =>
+        {
+            e.ToTable("ConfiguracionesFiscales");
+            e.HasKey(x => x.IdLocal);
+            e.Property(x => x.IdLocal).ValueGeneratedNever();
+            e.Property(x => x.Cuit).HasMaxLength(11);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<ComprobanteFiscal>(e =>
+        {
+            e.ToTable("ComprobantesFiscales");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Tipo).HasMaxLength(20);
+            e.Property(x => x.Estado).HasMaxLength(20);
+            e.Property(x => x.Alcance).HasMaxLength(20);
+            e.Property(x => x.Importe).HasPrecision(14, 2);
+            e.Property(x => x.Cae).HasMaxLength(20).HasDefaultValue("");
+            e.Property(x => x.VencimientoCae).HasColumnType("date");
+            e.Property(x => x.Observacion).HasMaxLength(500).HasDefaultValue("");
+            e.HasIndex(x => new { x.IdLocal, x.IdCierre });
+            e.HasIndex(x => new { x.IdLocal, x.Tipo, x.PuntoVenta, x.Numero })
+                .IsUnique()
+                .HasFilter("\"Numero\" > 0 AND \"Estado\" <> 'Rechazado'");
+            e.HasMany(x => x.Ventas).WithOne().HasForeignKey(v => v.IdComprobanteFiscal).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
+
+        model.Entity<ComprobanteFiscalVenta>(e =>
+        {
+            e.ToTable("ComprobantesFiscalesVentas");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Importe).HasPrecision(14, 2);
+            e.HasIndex(x => x.IdInformeVenta).IsUnique();
+            e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
+        });
         model.Entity<Cliente>(e =>
         {
             e.ToTable("Clientes");
@@ -593,6 +681,9 @@ public class AppDbContext : DbContext
             e.Property(x => x.Cantidad).HasPrecision(14, 3);
             e.Property(x => x.PrecioUnitario).HasPrecision(14, 2);
             e.Property(x => x.SubTotal).HasPrecision(14, 2);
+            e.Property(x => x.PrecioLista).HasPrecision(14, 2);
+            e.Property(x => x.Oferta).HasMaxLength(60);
+            e.Property(x => x.Ahorro).HasPrecision(14, 2).HasDefaultValue(0m);
             e.HasQueryFilter(x => _sesion.IdLocal != null && x.IdLocal == _sesion.IdLocal);
         });
 

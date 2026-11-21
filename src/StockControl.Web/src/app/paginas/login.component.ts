@@ -25,7 +25,7 @@ import { TemaComponent } from '../tema.component';
             <input class="wide" type="text" name="usuario" [(ngModel)]="usuario" autocomplete="username" />
           </label>
           <label class="field">
-            Clave
+            Contraseña
             <input class="wide" type="password" name="clave" [(ngModel)]="clave" autocomplete="current-password" />
           </label>
           @if (error) {
@@ -33,8 +33,9 @@ import { TemaComponent } from '../tema.component';
           }
           <button class="btn btn-primary wide" type="submit" [disabled]="cargando">Entrar</button>
         </form>
+        <p class="meta" style="margin-top:12px"><a routerLink="/recuperar">¿Olvidaste tu contraseña?</a></p>
         <p class="meta" style="margin-top:12px">¿No tenés cuenta? <a routerLink="/registro">Registrate</a></p>
-        <p class="meta"><a routerLink="/terminos">Términos</a> · <a routerLink="/privacidad">Privacidad</a></p>
+        <p class="meta"><a routerLink="/">Inicio</a> · <a routerLink="/terminos">Términos</a> · <a routerLink="/privacidad">Privacidad</a></p>
       </div>
     </div>
   `
@@ -50,6 +51,7 @@ export class LoginComponent {
     private readonly sesion: SesionService,
     private readonly router: Router
   ) {
+    document.title = 'StockControl — entrar';
     if (sesion.hayToken())
       router.navigateByUrl(sesion.rol() === 'admin' ? '/admin' : sesion.idLocal() ? '/caja' : '/locales');
   }
@@ -67,7 +69,7 @@ export class LoginComponent {
           ? 'No se pudo conectar con la API. ¿Está corriendo en el puerto 5263?'
           : typeof err.error === 'string'
             ? err.error
-            : 'Usuario o clave incorrectos.';
+            : 'Usuario o contraseña incorrectos.';
         this.cargando = false;
       }
     });

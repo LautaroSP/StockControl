@@ -36,120 +36,142 @@ import { PieTiendaComponent } from '../pie-tienda.component';
           @if (!cotizacion || cotizacion.lineas.length === 0) {
             <p class="meta">{{ cargando ? 'Cargando…' : 'El carrito está vacío.' }}</p>
           } @else {
-            <ul class="panel carrito-lineas">
-              @for (l of cotizacion.lineas; track l.idProducto) {
-                <li>
-                  <span class="carrito-nombre">{{ l.nombre }}</span>
-                  <span class="row tienda-cantidad">
-                    <button class="btn" type="button" [attr.aria-label]="'Restar ' + l.nombre" [disabled]="enviando" (click)="poner(l.idProducto, l.cantidad - 1)">−</button>
-                    <span>{{ l.cantidad }}</span>
-                    <button class="btn" type="button" [attr.aria-label]="'Sumar ' + l.nombre" [disabled]="enviando || l.cantidad >= maximo || l.maximo !== null" (click)="poner(l.idProducto, l.cantidad + 1)">+</button>
-                  </span>
-                  <span class="carrito-importe">{{ precio(l.subTotal) }}</span>
-                  <button class="btn btn-danger" type="button" [disabled]="enviando" (click)="poner(l.idProducto, 0)">Sacar</button>
-                  @if (l.maximo !== null) {
-                    <span class="error carrito-aviso">
-                      {{ l.maximo === 0 ? 'No queda stock.' : 'Quedan ' + l.maximo + '.' }}
-                      @if (l.maximo > 0) { <button class="btn" type="button" (click)="poner(l.idProducto, l.maximo)">Pedir {{ l.maximo }}</button> }
-                    </span>
-                  }
-                </li>
-              }
-              <li class="carrito-total"><span>Subtotal</span><span>{{ precio(cotizacion.total) }}</span></li>
-              @if (modalidad === 'envio' && cotizacion.envio.disponible) {
-                <li class="carrito-total">
-                  <span>Envío <span class="meta">{{ origen(cotizacion.envio.origen) }}</span></span>
-                  <span>{{ precio(cotizacion.envio.importe) }}</span>
-                </li>
-              }
-              @if (gestion > 0) {
-                <li class="carrito-total"><span>Gestión</span><span>{{ precio(gestion) }}</span></li>
-              }
-              <li class="carrito-total"><strong>Total</strong><strong>{{ precio(total) }}</strong></li>
-            </ul>
-
-            <form class="panel pad carrito-datos" (ngSubmit)="confirmar()">
-              <h2>Tus datos</h2>
-              <div class="field">
-                <label for="carrito-nombre">Nombre</label>
-                <input id="carrito-nombre" name="nombre" autocomplete="name" required maxlength="80" [(ngModel)]="nombre" />
-              </div>
-              <div class="field">
-                <label for="carrito-telefono">Teléfono (con código de área)</label>
-                <input id="carrito-telefono" name="telefono" type="tel" autocomplete="tel" required maxlength="30" [(ngModel)]="telefono" />
-              </div>
-              <div class="field">
-                <label for="carrito-email">Mail</label>
-                <input id="carrito-email" name="email" type="email" autocomplete="email" required maxlength="200" [(ngModel)]="email" />
-              </div>
-              <div class="carrito-cebo" aria-hidden="true">
-                <label for="carrito-sitio">Sitio web</label>
-                <input id="carrito-sitio" name="sitio" tabindex="-1" autocomplete="off" [(ngModel)]="sitio" />
-              </div>
-              @if (t.haceEnvios) {
-                <fieldset class="carrito-medios">
-                  <legend>¿Cómo lo recibís?</legend>
-                  <label class="check"><input type="radio" name="entrega" value="retiro" [ngModel]="modalidad" (ngModelChange)="elegirEntrega($event)" /> Retiro en el local</label>
-                  <label class="check"><input type="radio" name="entrega" value="envio" [ngModel]="modalidad" (ngModelChange)="elegirEntrega($event)" /> Envío</label>
-                </fieldset>
-              }
-              @if (modalidad === 'envio') {
+            <div class="carrito-checkout">
+              <form class="panel pad carrito-datos" (ngSubmit)="confirmar()">
+                <h2>Tus datos</h2>
                 <div class="field">
-                  <label for="carrito-direccion">Dirección de entrega</label>
-                  <input id="carrito-direccion" name="direccion" maxlength="200" [(ngModel)]="direccion" />
+                  <label for="carrito-nombre">Nombre</label>
+                  <input id="carrito-nombre" name="nombre" autocomplete="name" required maxlength="80" [(ngModel)]="nombre" />
                 </div>
-                <div class="row">
-                  <input class="grow" type="search" maxlength="200" placeholder="Calle, número y localidad" aria-label="Buscar dirección"
-                         name="busqueda" [(ngModel)]="busqueda" (keydown.enter)="$event.preventDefault(); buscar()" />
-                  <button class="btn" type="button" [disabled]="buscando" (click)="buscar()">{{ buscando ? 'Buscando...' : 'Buscar' }}</button>
+                <div class="field">
+                  <label for="carrito-telefono">Teléfono (con código de área)</label>
+                  <input id="carrito-telefono" name="telefono" type="tel" autocomplete="tel" required maxlength="30" [(ngModel)]="telefono" />
                 </div>
-                @if (lugares.length > 0) {
-                  <ul class="lista-lugares">
-                    @for (l of lugares; track $index) {
-                      <li><button class="btn" type="button" (click)="elegir(l)">{{ l.nombre }}</button></li>
+                <div class="field">
+                  <label for="carrito-email">Mail</label>
+                  <input id="carrito-email" name="email" type="email" autocomplete="email" required maxlength="200" [(ngModel)]="email" />
+                </div>
+                <div class="carrito-cebo" aria-hidden="true">
+                  <label for="carrito-sitio">Sitio web</label>
+                  <input id="carrito-sitio" name="sitio" tabindex="-1" autocomplete="off" [(ngModel)]="sitio" />
+                </div>
+                @if (t.haceEnvios) {
+                  <fieldset class="carrito-medios">
+                    <legend>¿Cómo lo recibís?</legend>
+                    <label class="check"><input type="radio" name="entrega" value="retiro" [ngModel]="modalidad" (ngModelChange)="elegirEntrega($event)" /> Retiro en el local</label>
+                    <label class="check"><input type="radio" name="entrega" value="envio" [ngModel]="modalidad" (ngModelChange)="elegirEntrega($event)" /> Envío</label>
+                  </fieldset>
+                }
+                @if (modalidad === 'envio') {
+                  <div class="field">
+                    <label for="carrito-direccion">Dirección de entrega</label>
+                    <input id="carrito-direccion" name="direccion" maxlength="200" [(ngModel)]="direccion" />
+                  </div>
+                  <div class="row">
+                    <input class="grow" type="search" maxlength="200" placeholder="Calle, número y localidad" aria-label="Buscar dirección"
+                           name="busqueda" [(ngModel)]="busqueda" (keydown.enter)="$event.preventDefault(); buscar()" />
+                    <button class="btn" type="button" [disabled]="buscando" (click)="buscar()">{{ buscando ? 'Buscando...' : 'Buscar' }}</button>
+                  </div>
+                  @if (lugares.length > 0) {
+                    <ul class="lista-lugares">
+                      @for (l of lugares; track $index) {
+                        <li><button class="btn" type="button" (click)="elegir(l)">{{ l.nombre }}</button></li>
+                      }
+                    </ul>
+                  }
+                  @if (punto) {
+                    <sc-mapa [latitud]="punto.latitud" [longitud]="punto.longitud" [editable]="true" etiqueta="Dirección de entrega" (movido)="marcar($event)" />
+                    <p class="hint">Mové el marcador para ajustar. El envío se vuelve a calcular al soltarlo.</p>
+                  } @else if (t.latitud !== null && t.longitud !== null) {
+                    <button class="btn" type="button" (click)="marcar({ latitud: t.latitud, longitud: t.longitud })">Marcar en el mapa</button>
+                  }
+                  @if (!cotizacion.envio.disponible && punto) {
+                    <p class="error">{{ cotizacion.envio.motivo }}</p>
+                  }
+                  @if (cotizacion.envio.disponible && cotizacion.envio.distanciaKm !== null) {
+                    <p class="meta">{{ cotizacion.envio.distanciaKm }} km {{ origen(cotizacion.envio.origen) }}.</p>
+                  }
+                } @else {
+                  <p><strong>Retiro en el local.</strong>
+                    @if (t.direccion) { {{ t.direccion }}. }
+                    @if (t.horario) { Horario: {{ t.horario }}. }
+                  </p>
+                }
+                @if (cotizacion.mercadoPago || cotizacion.transferencia) {
+                  <fieldset class="carrito-medios">
+                    <legend>¿Cómo pagás?</legend>
+                    @if (cotizacion.mercadoPago) {
+                      <label class="check"><input type="radio" name="medio" value="mercadopago" [(ngModel)]="medioPago" /> Ahora con Mercado Pago</label>
                     }
-                  </ul>
+                    @if (cotizacion.transferencia) {
+                      <label class="check"><input type="radio" name="medio" value="transferencia" [(ngModel)]="medioPago" /> Transferencia bancaria</label>
+                    }
+                    <label class="check"><input type="radio" name="medio" value="coordinar" [(ngModel)]="medioPago" /> {{ modalidad === 'envio' ? 'Al recibir, a coordinar con el local' : 'Al retirar, a coordinar con el local' }}</label>
+                  </fieldset>
                 }
-                @if (punto) {
-                  <sc-mapa [latitud]="punto.latitud" [longitud]="punto.longitud" [editable]="true" etiqueta="Dirección de entrega" (movido)="marcar($event)" />
-                  <p class="hint">Mové el marcador para ajustar. El envío se vuelve a calcular al soltarlo.</p>
-                } @else if (t.latitud !== null && t.longitud !== null) {
-                  <button class="btn" type="button" (click)="marcar({ latitud: t.latitud, longitud: t.longitud })">Marcar en el mapa</button>
+                @switch (medioPago) {
+                  @case ('mercadopago') { <p class="meta">Te llevamos a Mercado Pago. Tenés 30 minutos para pagar; si no, el pedido se cancela solo.</p> }
+                  @case ('transferencia') { <p class="meta">Al confirmar ves el CBU o alias del local. El local confirma cuando le llega la transferencia.</p> }
+                  @default { <p class="meta">{{ modalidad === 'envio' ? 'El pago se coordina con el local y se paga al recibir.' : 'El pago se coordina con el local y se paga al retirar.' }}</p> }
                 }
-                @if (!cotizacion.envio.disponible && punto) {
-                  <p class="error">{{ cotizacion.envio.motivo }}</p>
-                }
-                @if (cotizacion.envio.disponible && cotizacion.envio.distanciaKm !== null) {
-                  <p class="meta">{{ cotizacion.envio.distanciaKm }} km {{ origen(cotizacion.envio.origen) }}.</p>
-                }
-              } @else {
-                <p><strong>Retiro en el local.</strong>
-                  @if (t.direccion) { {{ t.direccion }}. }
-                  @if (t.horario) { Horario: {{ t.horario }}. }
-                </p>
-              }
-              @if (cotizacion.mercadoPago || cotizacion.transferencia) {
-                <fieldset class="carrito-medios">
-                  <legend>¿Cómo pagás?</legend>
-                  @if (cotizacion.mercadoPago) {
-                    <label class="check"><input type="radio" name="medio" value="mercadopago" [(ngModel)]="medioPago" /> Ahora con Mercado Pago</label>
+                @if (error) { <p class="error">{{ error }}</p> }
+                <button class="btn btn-charge" type="submit" [disabled]="enviando || !puedeConfirmar">
+                  {{ enviando ? 'Enviando…' : medioPago === 'mercadopago' ? 'Pagar ' + precio(total) : 'Confirmar pedido' }}
+                </button>
+              </form>
+
+              <aside class="panel carrito-resumen" aria-label="Resumen del pedido">
+                <h2>Tu pedido</h2>
+                <ul class="carrito-lineas carrito-lineas-compactas">
+                  @for (l of cotizacion.lineas; track l.idProducto) {
+                    <li>
+                      <span class="carrito-nombre">{{ l.nombre }}</span>
+                      <span class="row tienda-cantidad">
+                        <button class="btn" type="button" [attr.aria-label]="'Restar ' + l.nombre" [disabled]="enviando" (click)="poner(l.idProducto, l.cantidad - 1)">−</button>
+                        <span>{{ l.cantidad }}</span>
+                        <button class="btn" type="button" [attr.aria-label]="'Sumar ' + l.nombre" [disabled]="enviando || l.cantidad >= maximo || l.maximo !== null" (click)="poner(l.idProducto, l.cantidad + 1)">+</button>
+                      </span>
+                      <span class="carrito-importe">
+                        @if (l.ahorro > 0) { <s class="precio-tachado">{{ precio(l.precioLista * l.cantidad) }}</s> }
+                        {{ precio(l.subTotal) }}
+                      </span>
+                      @if (l.ahorro > 0) { <span class="ahorro-oferta">{{ l.oferta }} · ahorrás {{ precio(l.ahorro) }}</span> }
+                      <button class="btn btn-danger" type="button" [disabled]="enviando" (click)="poner(l.idProducto, 0)">Sacar</button>
+                      @if (l.maximo !== null) {
+                        <span class="error carrito-aviso">
+                          {{ l.maximo === 0 ? 'No queda stock.' : 'Quedan ' + l.maximo + '.' }}
+                          @if (l.maximo > 0) { <button class="btn" type="button" (click)="poner(l.idProducto, l.maximo)">Pedir {{ l.maximo }}</button> }
+                        </span>
+                      }
+                    </li>
                   }
-                  @if (cotizacion.transferencia) {
-                    <label class="check"><input type="radio" name="medio" value="transferencia" [(ngModel)]="medioPago" /> Transferencia bancaria</label>
+                </ul>
+                <ul class="carrito-lineas carrito-totales">
+                  <li class="carrito-total"><span>Subtotal</span><span>{{ precio(cotizacion.total) }}</span></li>
+                  @if (modalidad === 'envio' && cotizacion.envio.disponible) {
+                    <li class="carrito-total">
+                      <span>Envío <span class="meta">{{ origen(cotizacion.envio.origen) }}</span></span>
+                      <span>{{ precio(cotizacion.envio.importe) }}</span>
+                    </li>
                   }
-                  <label class="check"><input type="radio" name="medio" value="coordinar" [(ngModel)]="medioPago" /> {{ modalidad === 'envio' ? 'Al recibir, a coordinar con el local' : 'Al retirar, a coordinar con el local' }}</label>
-                </fieldset>
-              }
-              @switch (medioPago) {
-                @case ('mercadopago') { <p class="meta">Te llevamos a Mercado Pago. Tenés 30 minutos para pagar; si no, el pedido se cancela solo.</p> }
-                @case ('transferencia') { <p class="meta">Al confirmar ves el CBU o alias del local. El local confirma cuando le llega la transferencia.</p> }
-                @default { <p class="meta">{{ modalidad === 'envio' ? 'El pago se coordina con el local y se paga al recibir.' : 'El pago se coordina con el local y se paga al retirar.' }}</p> }
-              }
-              @if (error) { <p class="error">{{ error }}</p> }
-              <button class="btn btn-charge" type="submit" [disabled]="enviando || !puedeConfirmar">
-                {{ enviando ? 'Enviando…' : medioPago === 'mercadopago' ? 'Pagar ' + precio(total) : 'Confirmar pedido' }}
-              </button>
-            </form>
+                  @if (gestion > 0) {
+                    <li class="carrito-total">
+                      <span>
+                        Gestión
+                        <span class="ayuda-wrap">
+                          <button type="button" class="ayuda" [attr.aria-expanded]="ayudaGestion" aria-describedby="ayuda-gestion-carrito" (click)="ayudaGestion = !ayudaGestion">?</button>
+                          <span id="ayuda-gestion-carrito" class="ayuda-texto" [class.visible]="ayudaGestion" role="tooltip">
+                            Cobro por el servicio de la plataforma de pedidos online (StockControl). No es un cargo del local.
+                          </span>
+                        </span>
+                      </span>
+                      <span>{{ precio(gestion) }}</span>
+                    </li>
+                  }
+                  <li class="carrito-total"><strong>Total</strong><strong>{{ precio(total) }}</strong></li>
+                </ul>
+              </aside>
+            </div>
           }
         }
         <sc-pie-tienda [alias]="alias" [nombre]="t.nombre" [direccion]="t.direccion" [horario]="t.horario" />
@@ -159,6 +181,19 @@ import { PieTiendaComponent } from '../pie-tienda.component';
   styles: `
     .lista-lugares { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; }
     .lista-lugares .btn { text-align: left; width: 100%; }
+    .ayuda-wrap { position: relative; display: inline-flex; vertical-align: middle; margin-left: 4px; }
+    .ayuda {
+      width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line);
+      background: var(--panel); color: var(--ink); font-weight: 700; line-height: 1; padding: 0; cursor: pointer; font-size: 12px;
+    }
+    .ayuda-texto {
+      display: none; position: absolute; z-index: 2; left: 0; bottom: calc(100% + 6px); width: min(260px, 70vw);
+      padding: 8px 10px; background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+      border-radius: 8px; font-size: 13px; font-weight: 400; line-height: 1.35;
+    }
+    .ayuda-wrap:hover .ayuda-texto,
+    .ayuda-wrap:focus-within .ayuda-texto,
+    .ayuda-texto.visible { display: block; }
   `
 })
 export class CarritoTiendaComponent implements OnInit, OnDestroy {
@@ -168,6 +203,7 @@ export class CarritoTiendaComponent implements OnInit, OnDestroy {
   cargando = false;
   enviando = false;
   quitados = false;
+  ayudaGestion = false;
   error = '';
   nombre = '';
   telefono = '';
@@ -211,17 +247,11 @@ export class CarritoTiendaComponent implements OnInit, OnDestroy {
   }
 
   get gestion(): number {
-    return this.pagoPrevio?.gestion ?? 0;
+    return this.cotizacion?.comprador?.gestion ?? 0;
   }
 
   get total(): number {
-    return (this.pagoPrevio?.total ?? this.cotizacion?.total ?? 0) + this.envioImporte;
-  }
-
-  private get pagoPrevio(): { gestion: number; total: number } | null {
-    if (this.medioPago === 'mercadopago') return this.cotizacion?.mercadoPago ?? null;
-    if (this.medioPago === 'transferencia') return this.cotizacion?.transferencia ?? null;
-    return null;
+    return (this.cotizacion?.comprador?.total ?? this.cotizacion?.total ?? 0) + this.envioImporte;
   }
 
   ngOnInit(): void {
@@ -338,7 +368,9 @@ export class CarritoTiendaComponent implements OnInit, OnDestroy {
         this.quitados = c.noDisponibles.length > 0;
         c.noDisponibles.forEach((id) => this.carrito.sacar(this.alias, id));
         this.cotizacion = c;
-        if (!this.pagoPrevio) this.medioPago = 'coordinar';
+        if (!c.mercadoPago && !c.transferencia) this.medioPago = 'coordinar';
+        else if (this.medioPago === 'mercadopago' && !c.mercadoPago) this.medioPago = c.transferencia ? 'transferencia' : 'coordinar';
+        else if (this.medioPago === 'transferencia' && !c.transferencia) this.medioPago = c.mercadoPago ? 'mercadopago' : 'coordinar';
       },
       error: (e) => {
         this.cargando = false;

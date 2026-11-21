@@ -33,6 +33,38 @@ public class ExcelProveedorTests
     }
 
     [Fact]
+    public void Plantilla_de_lista_se_lee_con_codigo_y_costo_e_ignora_otras_columnas()
+    {
+        using var libro = new XLWorkbook(new MemoryStream(ExcelProveedor.PlantillaLista()));
+        var hoja = libro.Worksheet(1);
+        hoja.Cell(2, 1).Value = 7790001234567;
+        hoja.Cell(2, 2).Value = 1500.5;
+        hoja.Cell(2, 3).Value = "ignorada";
+        hoja.Cell(3, 1).Value = "B2";
+        hoja.Cell(3, 2).Value = "1.200,50";
+        using var salida = new MemoryStream();
+        libro.SaveAs(salida);
+
+        var filas = ExcelProveedor.LeerLista(salida.ToArray());
+
+        Assert.Equal(2, filas.Count);
+        Assert.Equal("7790001234567", filas[0].Codigo);
+        Assert.Equal(1500.5m, filas[0].Costo);
+        Assert.Equal(1200.50m, filas[1].Costo);
+    }
+
+    [Fact]
+    public void Lista_sin_las_columnas_codigo_y_costo_da_error()
+    {
+        using var libro = new XLWorkbook();
+        libro.AddWorksheet("Otra").Cell(1, 1).Value = "Producto";
+        using var salida = new MemoryStream();
+        libro.SaveAs(salida);
+
+        Assert.Throws<ErrorNegocio>(() => ExcelProveedor.LeerLista(salida.ToArray()));
+    }
+
+    [Fact]
     public void Excel_sin_las_columnas_de_la_plantilla_da_error()
     {
         using var libro = new XLWorkbook();

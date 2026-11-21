@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { ApiService } from '../servicios/api.service';
 import { montarCaptcha } from '../servicios/turnstile';
 import { TemaService } from '../servicios/tema.service';
+import { TemaComponent } from '../tema.component';
 
 const PANTALLAS = [
   'El carrito',
@@ -16,7 +17,7 @@ const PANTALLAS = [
 @Component({
   selector: 'sc-landing',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, TemaComponent],
   template: `
     <div class="landing">
       <nav class="landing-nav">
@@ -27,9 +28,12 @@ const PANTALLAS = [
         <div class="nav-public">
           <a class="enlace" href="#recorrido">La app</a>
           <a class="enlace" href="#precio">Precio</a>
+          <a class="enlace" href="#preguntas">Preguntas</a>
+          <a class="enlace" routerLink="/sobre-nosotros">Nosotros</a>
           <a class="enlace" href="#contacto">Contacto</a>
           <a class="btn btn-ghost" routerLink="/login">Entrar</a>
           <a class="btn btn-primary" routerLink="/registro">Registrate</a>
+          <sc-tema [fijo]="false" />
         </div>
       </nav>
 
@@ -159,6 +163,22 @@ const PANTALLAS = [
             <p>En el mostrador generás un QR para esa venta, cobrás con el Point o dejás un QR impreso en el puesto. Conectás la cuenta del local una vez. Ese dinero es de la venta, aparte del abono.</p>
           </article>
           <article class="panel feat">
+            <h3>Tienda online</h3>
+            <p>Cada local tiene su página con el catálogo. El comprador arma el carrito, elige retiro o envío y paga con Mercado Pago, transferencia o al recibir. Los pedidos te avisan en la app.</p>
+          </article>
+          <article class="panel feat">
+            <h3>Ofertas y combos</h3>
+            <p>Descuentos por fecha, llevás 3 y pagás 2, y combos de varios productos. La caja los aplica sola.</p>
+          </article>
+          <article class="panel feat">
+            <h3>Cuentas pendientes</h3>
+            <p>El cliente se lleva la mercadería y paga después. Ves cuánto debe cada uno y cobrás de a partes.</p>
+          </article>
+          <article class="panel feat">
+            <h3>Balanza</h3>
+            <p>Para lo que se vende por kilo: el peso por el precio por kilo entra al carrito.</p>
+          </article>
+          <article class="panel feat">
             <h3>Todos tus locales</h3>
             <p>Gestionás los locales que tengas desde un solo lugar. Creás cuentas de empleados o de socios.</p>
           </article>
@@ -187,7 +207,7 @@ const PANTALLAS = [
         <section class="bloque" id="precio">
           <div class="panel pad">
             <h2>La prueba y el abono</h2>
-            <p class="lead" style="margin-top:0">Tus primeros 7 días son gratis!</p>
+            <p class="lead" style="margin-top:0">¡Tus primeros 7 días son gratis!</p>
             <p>Si te gusta, te quedás por tan solo</p>
             <div class="price">$ 14.999 <small>/ mes por local</small></div>
             <div class="marca-mp">
@@ -200,6 +220,44 @@ const PANTALLAS = [
           </div>
         </section>
 
+        <section class="bloque" id="preguntas">
+          <h2>Preguntas frecuentes</h2>
+          <div class="faq">
+            <details class="panel">
+              <summary>¿Cuánto cuesta?</summary>
+              <p>$ 14.999 por mes por local. Los primeros 7 días son gratis.</p>
+            </details>
+            <details class="panel">
+              <summary>¿Cómo funciona la prueba?</summary>
+              <p>Te registrás y usás un local durante 7 días. Después pagás el mes o dejás el débito automático con Mercado Pago. Si el abono vence, ese local no puede cobrar hasta renovarlo.</p>
+            </details>
+            <details class="panel">
+              <summary>¿Los empleados se pagan aparte?</summary>
+              <p>No. Sumás los empleados que necesites sin costo. Cobran en la caja y no cambian precios, salvo que se lo habilites.</p>
+            </details>
+            <details class="panel">
+              <summary>¿Puedo tener más de un local?</summary>
+              <p>Sí. Los ves todos desde la misma cuenta. Cada local es un abono aparte, y la prueba es solo para el primero.</p>
+            </details>
+            <details class="panel">
+              <summary>¿Cómo cobro con Mercado Pago?</summary>
+              <p>Conectás la cuenta de Mercado Pago del local una vez. En la caja generás un QR para la venta, cobrás con el Point o usás un QR impreso. El dinero va a la cuenta del local.</p>
+            </details>
+            <details class="panel">
+              <summary>¿La tienda online tiene costo?</summary>
+              <p>Viene con el abono. Por cada pedido online hay un cargo de gestión, y el local elige si lo paga el comprador.</p>
+            </details>
+            <details class="panel">
+              <summary>¿Hay que instalar algo?</summary>
+              <p>No. Se usa desde el navegador de la compu o del celular.</p>
+            </details>
+            <details class="panel">
+              <summary>¿Puedo dar de baja?</summary>
+              <p>Sí, cuando quieras. El mes pagado sigue hasta su vencimiento y no se renueva.</p>
+            </details>
+          </div>
+        </section>
+
         <section class="bloque" id="contacto">
           <div class="contacto-publico">
             <div>
@@ -207,7 +265,7 @@ const PANTALLAS = [
               <p class="lead" style="margin-top:0">Escribinos por la prueba, el abono o el uso de la caja. Usamos tu nombre, mail y mensaje solo para contestarte.</p>
               @if (url) {
                 <p><a [href]="url">{{ telefono }}</a></p>
-              } @else {
+              } @else if (contactoCargado) {
                 <p class="meta">Todavía no hay un teléfono de ventas.</p>
               }
               @if (email) {
@@ -246,9 +304,11 @@ const PANTALLAS = [
           <nav aria-label="Pie">
             <a routerLink="/registro">Registrate</a>
             <a routerLink="/login">Entrar</a>
+            <a routerLink="/sobre-nosotros">Sobre nosotros</a>
             <a href="#contacto">Contacto</a>
             <a routerLink="/terminos">Términos</a>
             <a routerLink="/privacidad">Privacidad</a>
+            <a routerLink="/arrepentimiento">Botón de arrepentimiento</a>
           </nav>
         </div>
       </footer>
@@ -261,6 +321,7 @@ export class LandingComponent implements OnInit, OnDestroy {
   telefono = '';
   email = '';
   url: string | null = null;
+  contactoCargado = false;
   formularioActivo = true;
   nombre = '';
   correo = '';
@@ -283,7 +344,8 @@ export class LandingComponent implements OnInit, OnDestroy {
     private readonly tema: TemaService,
     private readonly zona: NgZone
   ) {
-    document.documentElement.setAttribute('data-tema', 'oscuro');
+    if (tema.elegido()) tema.aplicar();
+    else tema.mostrar('oscuro');
   }
 
   get titulo(): string {
@@ -299,7 +361,9 @@ export class LandingComponent implements OnInit, OnDestroy {
         this.url = r.url;
         this.formularioActivo = r.formularioActivo;
         this.apertura = r.apertura ?? '';
-      }
+        this.contactoCargado = true;
+      },
+      error: () => (this.contactoCargado = true)
     });
     this.api.captchaRegistro().subscribe({
       next: (r) => {
@@ -310,7 +374,7 @@ export class LandingComponent implements OnInit, OnDestroy {
         });
       }
     });
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+    if (!this.tema.elegido() && !window.matchMedia('(prefers-reduced-motion: reduce)').matches)
       this.reloj = setInterval(() => this.alternarTema(), 8000);
   }
 
@@ -380,10 +444,14 @@ export class LandingComponent implements OnInit, OnDestroy {
   }
 
   private alternarTema(): void {
+    if (this.tema.elegido()) {
+      if (this.reloj) clearInterval(this.reloj);
+      this.reloj = null;
+      return;
+    }
     const html = document.documentElement;
     html.classList.add('tema-suave');
-    const oscuro = html.getAttribute('data-tema') === 'oscuro';
-    html.setAttribute('data-tema', oscuro ? 'claro' : 'oscuro');
+    this.tema.mostrar(this.tema.tema() === 'oscuro' ? 'claro' : 'oscuro');
     window.setTimeout(() => html.classList.remove('tema-suave'), 1100);
   }
 }

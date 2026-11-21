@@ -12,11 +12,12 @@ import {
 } from '../servicios/api.service';
 import { descargar } from '../servicios/descargar';
 import { RecibirOrdenComponent } from './recibir-orden.component';
+import { IconoComponent } from '../icono.component';
 
 @Component({
   selector: 'sc-proveedor',
   standalone: true,
-  imports: [FormsModule, RouterLink, RecibirOrdenComponent],
+  imports: [FormsModule, RouterLink, RecibirOrdenComponent, IconoComponent],
   template: `
     <div class="topbar">
       <h1>{{ proveedor?.nombre ?? 'Proveedor' }}</h1>
@@ -31,7 +32,7 @@ import { RecibirOrdenComponent } from './recibir-orden.component';
     @if (urlPendiente) {
       <p class="error">
         El navegador bloqueó la ventana de WhatsApp.
-        <a [href]="urlPendiente" target="_blank" rel="noopener">Abrir WhatsApp</a>
+        <a [href]="urlPendiente" target="_blank" rel="noopener"><sc-icono nombre="whatsapp" /> Abrir WhatsApp</a>
       </p>
     }
     @if (proveedor) {
@@ -43,7 +44,7 @@ import { RecibirOrdenComponent } from './recibir-orden.component';
         </p>
         <div class="row">
           @if (proveedor.urlContacto) {
-            <a class="btn" [href]="proveedor.urlContacto" target="_blank" rel="noopener">Contactar</a>
+            <a class="btn" [href]="proveedor.urlContacto" target="_blank" rel="noopener"><sc-icono nombre="whatsapp" /> Contactar</a>
           }
           @if (proveedor.activo) {
             <a class="btn" [routerLink]="['/proveedores', proveedor.id, 'catalogo']">Cargar productos (Excel)</a>

@@ -27,9 +27,9 @@ public static class EndpointsGestionTienda
         try
         {
             ServicioAdmin.ValidarClaveSecreta(pedido.Clave, config["Admin:Clave"]);
-            local.ExentoGestion = pedido.Exento;
+            ServicioGestionTienda.Configurar(local, pedido.Importe, pedido.Exento);
             await db.SaveChangesAsync();
-            return Results.NoContent();
+            return Results.Ok(new { local.IdLocal, local.ExentoGestion, local.ImporteGestion });
         }
         catch (ErrorNegocio ex)
         {
@@ -138,7 +138,7 @@ public static class EndpointsGestionTienda
         return Results.Ok(new
         {
             mes = inicio.ToString("yyyy-MM", CultureInfo.InvariantCulture),
-            importe = ServicioGestionTienda.ImportePorPedido,
+            importe = ServicioGestionTienda.ImportePorDefecto,
             total = items.Sum(i => i.gestion),
             totalPendiente = items.Sum(i => i.pendiente),
             totalSaldada = items.Sum(i => i.saldada),

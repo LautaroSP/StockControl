@@ -33,6 +33,10 @@ public class ProductoPedido
     /// <summary>null no la toca; 0 la saca (hereda la del grupo).</summary>
     [Range(0, int.MaxValue)]
     public int? IdCategoria { get; set; }
+
+    /// <summary>null no la toca; vacío la borra.</summary>
+    [MaxLength(500)]
+    public string? Descripcion { get; set; }
 }
 
 public class GrupoPedido
@@ -54,6 +58,15 @@ public class CategoriaPedido
 {
     [Required, MaxLength(40)]
     public string Nombre { get; set; } = "";
+
+    /// <summary>Null o 0 = raíz. Solo un nivel de hijos.</summary>
+    public int? IdPadre { get; set; }
+}
+
+public class PlantillaCategoriaPedido
+{
+    [Required, MaxLength(40)]
+    public string Clave { get; set; } = "";
 }
 
 public class MiembrosGrupoPedido
@@ -84,6 +97,19 @@ public class VentaPedido
     public int? IdPedidoEspera { get; set; }
 
     public bool SinOfertas { get; set; }
+
+    /// <summary>Guid generado en la caja. Reenviar la misma venta no la duplica.</summary>
+    public Guid? IdVentaCliente { get; set; }
+
+    /// <summary>Momento del cobro en la caja (venta sin conexión).</summary>
+    public DateTimeOffset? FechaCobro { get; set; }
+
+    /// <summary>Se cobró sin conexión: con stock rígido entra igual y se marca.</summary>
+    public bool DesdeSinConexion { get; set; }
+
+    /// <summary>Total que vio el cajero; si difiere del del servidor, queda anotado.</summary>
+    [Range(0, 999999999)]
+    public decimal? TotalVisto { get; set; }
 }
 
 public class PedidoEsperaPedido
@@ -162,6 +188,8 @@ public class OfertaPedido
     public bool AnulaConAlCosto { get; set; } = true;
 
     public bool PermiteNoAplicarEnCaja { get; set; }
+
+    public bool EnTienda { get; set; }
 }
 
 public class ComboPedido
@@ -195,6 +223,28 @@ public class PrecioProductoPedido
 {
     [Range(0, 999999999)]
     public decimal Precio { get; set; }
+}
+
+public class AumentoPedido
+{
+    public int? IdCategoria { get; set; }
+
+    public int? IdProveedor { get; set; }
+
+    public List<int> Ids { get; set; } = new();
+
+    [MaxLength(20)]
+    public string TipoPrecio { get; set; } = TipoAumento.Ninguno;
+
+    public decimal ValorPrecio { get; set; }
+
+    [MaxLength(20)]
+    public string TipoCosto { get; set; } = TipoAumento.Ninguno;
+
+    public decimal ValorCosto { get; set; }
+
+    [Range(0, 100)]
+    public int RedondeoPrecio { get; set; }
 }
 
 public class UsuarioPedido
@@ -316,6 +366,10 @@ public class GestionAdminPedido
 {
     public string Clave { get; set; } = "";
     public bool Exento { get; set; }
+
+    /// <summary>Pesos enteros por pedido. Se guarda aunque el local esté exento.</summary>
+    [Range(0, 100_000)]
+    public decimal Importe { get; set; } = ServicioGestionTienda.ImportePorDefecto;
 }
 
 public class CambioClaveAdminPedido
@@ -378,6 +432,9 @@ public class MetodoPagoPedido
 
     [MaxLength(20)]
     public string Integracion { get; set; } = IntegracionPago.Manual;
+
+    [Range(0, 99)]
+    public int DescuentoPorcentaje { get; set; }
 }
 
 public class LectorMercadoPagoPedido
@@ -529,6 +586,22 @@ public class ConfirmarCorreoPedido
     public string Token { get; set; } = "";
 }
 
+public class RecuperarClavePedido
+{
+    /// <summary>Mail o nombre de usuario.</summary>
+    [Required, MaxLength(200)]
+    public string Identificador { get; set; } = "";
+}
+
+public class NuevaClavePedido
+{
+    [Required, MaxLength(128)]
+    public string Token { get; set; } = "";
+
+    [Required, MaxLength(200)]
+    public string Clave { get; set; } = "";
+}
+
 public class RegistroCuentaPedido : RegistroPedido
 {
     [Required, MaxLength(200)]
@@ -576,6 +649,14 @@ public class TiendaPedido
     [MaxLength(30)]
     public string? WhatsApp { get; set; }
 
+    /// <summary>Opcional. Vacío no se muestra en la tienda.</summary>
+    [MaxLength(ServicioTienda.LargoMaximoCorreo)]
+    public string? Correo { get; set; }
+
+    /// <summary>Opcional. Usuario o link de Instagram.</summary>
+    [MaxLength(ServicioTienda.LargoMaximoInstagram)]
+    public string? Instagram { get; set; }
+
     public bool HaceEnvios { get; set; }
 
     public bool EnvioGratisSiempre { get; set; }
@@ -595,6 +676,13 @@ public class TiendaPedido
     public decimal? Longitud { get; set; }
 
     public bool GestionACargoComprador { get; set; }
+
+    /// <summary>chips o menu.</summary>
+    [MaxLength(20)]
+    public string? FiltroCategorias { get; set; }
+
+    /// <summary>Obligatorio al pasar la tienda a activa si todavía no aceptó los términos vigentes.</summary>
+    public bool AceptaTerminosTienda { get; set; }
 
     [MaxLength(30)]
     public string? Cbu { get; set; }
@@ -616,6 +704,15 @@ public class PublicarProductosPedido
     public List<int> Ids { get; set; } = new();
 
     public bool Publicado { get; set; }
+}
+
+/// <summary>0 en IdCategoria = sin categoría propia.</summary>
+public class AsignarCategoriaProductosPedido
+{
+    [Required, MinLength(1), MaxLength(ServicioCatalogoTienda.MaximoPorVez)]
+    public List<int> Ids { get; set; } = new();
+
+    public int IdCategoria { get; set; }
 }
 
 /// <summary>Filtros de la lista de Productos, por query string.</summary>

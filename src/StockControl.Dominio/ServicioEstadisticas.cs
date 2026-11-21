@@ -61,6 +61,11 @@ public class ResumenEstadisticas
     public decimal TotalVendido { get; set; }
     public int CantidadTickets { get; set; }
     public decimal TicketPromedio { get; set; }
+    /// <summary>Mostrador: ventas que no vienen de la tienda online.</summary>
+    public decimal TotalMostrador { get; set; }
+    public int TicketsMostrador { get; set; }
+    public decimal TotalTiendaOnline { get; set; }
+    public int TicketsTiendaOnline { get; set; }
     public decimal MargenEstimado { get; set; }
     public decimal PorcentajeMargen { get; set; }
     public decimal GananciaDelDia { get; set; }
@@ -100,12 +105,16 @@ public static class ServicioEstadisticas
 
         var resumen = new ResumenEstadisticas();
 
-        // 1. Totales generales del período
+        // 1. Totales generales del período (mostrador vs tienda online)
         resumen.TotalVendido = listaVentas.Sum(v => v.Total);
         resumen.CantidadTickets = listaVentas.Count;
         resumen.TicketPromedio = resumen.CantidadTickets > 0
             ? Math.Round(resumen.TotalVendido / resumen.CantidadTickets, 2, MidpointRounding.AwayFromZero)
             : 0;
+        resumen.TotalTiendaOnline = listaVentas.Where(v => v.EsTiendaOnline).Sum(v => v.Total);
+        resumen.TicketsTiendaOnline = listaVentas.Count(v => v.EsTiendaOnline);
+        resumen.TotalMostrador = resumen.TotalVendido - resumen.TotalTiendaOnline;
+        resumen.TicketsMostrador = resumen.CantidadTickets - resumen.TicketsTiendaOnline;
 
         // 2. Margen estimado. Sector y genérico sin costo usan el factor del local.
         var (margen, baseMargen) = SumarGanancia(listaVentas, listaProductos, factoresPorLocal);

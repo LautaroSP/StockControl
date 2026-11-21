@@ -22,6 +22,10 @@ public class Local
     public string Direccion { get; set; } = "";
     public string Horario { get; set; } = "";
     public string WhatsApp { get; set; } = "";
+    /// <summary>Mail de contacto de la tienda. Vacío: no se muestra.</summary>
+    public string Correo { get; set; } = "";
+    /// <summary>Usuario o link de Instagram. Vacío: no se muestra.</summary>
+    public string Instagram { get; set; } = "";
     public bool HaceEnvios { get; set; }
     public decimal? Latitud { get; set; }
     public decimal? Longitud { get; set; }
@@ -37,8 +41,15 @@ public class Local
     public bool Renueva { get; set; } = true;
     /// <summary>Lo marca el admin: los pedidos de la tienda no pagan gestión.</summary>
     public bool ExentoGestion { get; set; }
+    /// <summary>Pesos de gestión por pedido. Lo fija el admin; por defecto ServicioGestionTienda.ImportePorDefecto.</summary>
+    public decimal ImporteGestion { get; set; } = ServicioGestionTienda.ImportePorDefecto;
     /// <summary>Lo elige el dueño: la gestión se suma al total del comprador o sale de lo que cobra el local.</summary>
     public bool GestionACargoComprador { get; set; }
+    /// <summary>chips = pocas categorías; menu = lateral con subcategorías (estilo Mercado Libre).</summary>
+    public string FiltroCategoriasTienda { get; set; } = ServicioTienda.FiltroChips;
+    /// <summary>Versión de los términos de la tienda online aceptados por el dueño.</summary>
+    public string VersionTerminosTienda { get; set; } = "";
+    public DateTimeOffset? AceptoTerminosTiendaEn { get; set; }
     /// <summary>CBU o CVU para la transferencia del comprador. Con el alias alcanza uno de los dos.</summary>
     public string CbuTienda { get; set; } = "";
     public string AliasCbuTienda { get; set; } = "";

@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ApiService, CajaDetalleDto, CajaListaDto, GrupoUnificableDto, VentaDetalleDto, VentaListaDto } from '../servicios/api.service';
+import { ApiService, CajaDetalleDto, EstadoFiscalCajaDto, CajaListaDto, GrupoUnificableDto, VentaDetalleDto, VentaListaDto } from '../servicios/api.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { SesionService } from '../servicios/sesion.service';
 import { DetalleVentaComponent } from './detalle-venta.component';
@@ -104,6 +104,21 @@ import { DetalleVentaComponent } from './detalle-venta.component';
             }
           </tbody>
         </table>
+        @if (sesion.puedeConfigurarLocal() && estadoFiscal) {
+          <div class="toolbar" style="padding:12px">
+            <strong style="font-size:14px">Factura electrónica</strong>
+            <span class="meta">
+              {{ estadoFiscal.facturadas }} facturadas · {{ estadoFiscal.sinFacturar }} sin facturar ({{ dinero(estadoFiscal.totalSinFacturar) }})
+            </span>
+            @if (estadoFiscal.sinFacturar > 0) {
+              <button class="btn" type="button" [disabled]="facturando" (click)="facturar('venta')">Una factura por venta</button>
+              <button class="btn btn-primary" type="button" [disabled]="facturando" (click)="facturar('global')">Una factura por la caja</button>
+            }
+          </div>
+          @if (mensajeFiscal) {
+            <p class="meta" style="padding:0 12px 12px">{{ mensajeFiscal }}</p>
+          }
+        }
         <div class="toolbar" style="padding:12px">
           <strong style="font-size:14px">Ventas de esta caja</strong>
         </div>
@@ -124,7 +139,7 @@ import { DetalleVentaComponent } from './detalle-venta.component';
                 <tr>
                   <td>{{ hora(v.fecha) }}</td>
                   <td class="num">{{ dinero(v.total) }}</td>
-                  <td>{{ v.metodoPago }}</td>
+                  <td>{{ v.metodoPago }}@if (v.esTiendaOnline) { <span class="badge">Tienda online</span> }</td>
                   <td><button class="btn" type="button" (click)="verVenta(v.idInformeVenta)">Ver detalles</button></td>
                 </tr>
               }
@@ -138,7 +153,10 @@ import { DetalleVentaComponent } from './detalle-venta.component';
       <div class="modal-back show">
         <div class="modal" style="max-width:520px">
           <h2 style="margin:0 0 8px;font-size:18px">Venta {{ hora(venta.fecha) }}</h2>
-          <p class="meta">{{ venta.metodoPago }} · {{ dinero(venta.total) }}</p>
+          <p class="meta">
+            {{ venta.metodoPago }} · {{ dinero(venta.total) }}
+            @if (venta.esTiendaOnline) { · <span class="badge">Tienda online</span> }
+          </p>
           <sc-detalle-venta [venta]="venta" [verCosto]="sesion.esDueno()" />
           <div class="row" style="margin-top:12px">
             <button class="btn grow" type="button" (click)="venta = null">Cerrar</button>
@@ -163,6 +181,9 @@ export class CajasComponent implements OnInit {
   venta: VentaDetalleDto | null = null;
   error = '';
   cargando = false;
+  estadoFiscal: EstadoFiscalCajaDto | null = null;
+  mensajeFiscal = '';
+  facturando = false;
 
   constructor(private readonly api: ApiService, readonly sesion: SesionService, private readonly dialogo: DialogoService) {}
 
@@ -263,6 +284,7 @@ export class CajasComponent implements OnInit {
         this.detalle = d;
         this.venta = null;
         this.cargarVentas(idCierre);
+        this.cargarEstadoFiscal(idCierre);
       },
       error: () => (this.error = 'No se pudo abrir el detalle.')
     });
@@ -290,8 +312,41 @@ export class CajasComponent implements OnInit {
     return new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
   }
 
+  cargarEstadoFiscal(idCierre: number): void {
+    this.estadoFiscal = null;
+    this.mensajeFiscal = '';
+    if (!this.sesion.puedeConfigurarLocal()) return;
+    this.api.estadoFiscalCaja(idCierre).subscribe({
+      next: (e) => (this.estadoFiscal = e),
+      error: () => (this.estadoFiscal = null)
+    });
+  }
+
+  async facturar(modo: 'venta' | 'global'): Promise<void> {
+    const idCierre = this.detalle?.idCierre;
+    if (idCierre == null || this.facturando) return;
+    const texto = modo === 'global' ? 'una sola factura C por el total de las ventas sin facturar' : 'una factura C por cada venta sin facturar';
+    if (!await this.dialogo.confirmar(`¿Emitir ${texto}?`)) return;
+    this.facturando = true;
+    this.mensajeFiscal = '';
+    this.api.facturarCaja(idCierre, modo).subscribe({
+      next: (r) => {
+        const pendientes = r.comprobantes.filter((c) => c.estado === 'Pendiente').length;
+        const rechazados = r.comprobantes.filter((c) => c.estado === 'Rechazado').length;
+        this.mensajeFiscal = `${r.comprobantes.length} comprobantes · ${pendientes} pendientes · ${rechazados} rechazados · ${r.omitidas.length} ventas omitidas.`;
+        this.facturando = false;
+        this.cargarEstadoFiscal(idCierre);
+      },
+      error: (err) => {
+        this.mensajeFiscal = typeof err.error === 'string' ? err.error : 'No se pudo facturar.';
+        this.facturando = false;
+      }
+    });
+  }
+
   cerrarDetalle(): void {
     this.detalle = null;
+    this.estadoFiscal = null;
     this.ventas = [];
     this.venta = null;
   }

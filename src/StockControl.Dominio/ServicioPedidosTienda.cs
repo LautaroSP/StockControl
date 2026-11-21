@@ -9,7 +9,8 @@ public record DatosComprador(string? Nombre, string? Telefono, string? Email);
 public record ItemPedidoTienda(int IdProducto, int Cantidad);
 
 /// <summary>Maximo tiene valor solo con stock rígido y si se pidió más de lo disponible.</summary>
-public record LineaCotizada(int IdProducto, string Codigo, string Nombre, int Cantidad, decimal PrecioUnitario, decimal SubTotal, int? Maximo);
+public record LineaCotizada(int IdProducto, string Codigo, string Nombre, int Cantidad, decimal PrecioUnitario, decimal SubTotal, int? Maximo,
+    decimal PrecioLista = 0, string Oferta = "", decimal Ahorro = 0);
 
 public record CotizacionTienda(IReadOnlyList<LineaCotizada> Lineas, IReadOnlyList<int> NoDisponibles, decimal Total);
 
@@ -48,7 +49,9 @@ public static class ServicioPedidosTienda
         IReadOnlyList<ItemPedidoTienda> items,
         IReadOnlyCollection<Producto> productos,
         IReadOnlyDictionary<int, decimal> reservado,
-        bool stockRigido)
+        bool stockRigido,
+        IReadOnlyCollection<Oferta>? ofertas = null,
+        DateOnly hoy = default)
     {
         var lineas = new List<LineaCotizada>();
         var noDisponibles = new List<int>();
@@ -58,7 +61,7 @@ public static class ServicioPedidosTienda
             if (producto == null)
                 noDisponibles.Add(item.IdProducto);
             else
-                lineas.Add(Cotizar(producto, item.Cantidad, reservado, stockRigido));
+                lineas.Add(Cotizar(producto, item.Cantidad, reservado, stockRigido, ServicioOfertas.AplicableEnTienda(ofertas ?? [], producto.Id, hoy)));
         }
         return new CotizacionTienda(lineas, noDisponibles, lineas.Sum(l => l.SubTotal));
     }
@@ -75,7 +78,8 @@ public static class ServicioPedidosTienda
         bool stockRigido,
         string medioPago = ServicioPagoPedidoTienda.Coordinar,
         bool gestionVencida = false,
-        DatosEnvio? envio = null)
+        DatosEnvio? envio = null,
+        IReadOnlyCollection<Oferta>? ofertas = null)
     {
         ExigirAbierta(local, ahora, gestionVencida);
         var pedido = new PedidoTienda
@@ -87,7 +91,7 @@ public static class ServicioPedidosTienda
             Email = NormalizarEmail(datos.Email),
             Creado = ahora
         };
-        var cotizacion = Cotizar(local.IdLocal, items, productos, reservado, stockRigido);
+        var cotizacion = Cotizar(local.IdLocal, items, productos, reservado, stockRigido, ofertas, DiaArgentina.Hoy(ahora));
         ExigirCompleta(cotizacion);
         pedido.Lineas.AddRange(cotizacion.Lineas.Select(l => ALinea(local.IdLocal, l)));
         pedido.Subtotal = cotizacion.Total;
@@ -96,7 +100,9 @@ public static class ServicioPedidosTienda
             ConPagoPrevio(pedido, local, medioPago, ahora + ServicioPagoPedidoTienda.Plazo);
         else if (medioPago == ServicioPagoPedidoTienda.Transferencia)
             ConTransferencia(pedido, local, ahora);
-        else if (medioPago != ServicioPagoPedidoTienda.Coordinar)
+        else if (medioPago == ServicioPagoPedidoTienda.Coordinar)
+            ConCoordinar(pedido, local);
+        else
             throw new ErrorNegocio("El medio de pago no es válido.");
 
         var entrega = envio ?? new DatosEnvio(ServicioEnvioTienda.Retiro, null, null, null, null);
@@ -205,14 +211,17 @@ public static class ServicioPedidosTienda
         return lineas;
     }
 
-    private static LineaCotizada Cotizar(Producto producto, int cantidad, IReadOnlyDictionary<int, decimal> reservado, bool stockRigido)
+    private static LineaCotizada Cotizar(Producto producto, int cantidad, IReadOnlyDictionary<int, decimal> reservado, bool stockRigido, Oferta? oferta)
     {
         if (cantidad < 1 || cantidad > MaximoCantidad)
             throw new ErrorNegocio($"La cantidad de «{producto.Nombre}» tiene que estar entre 1 y {MaximoCantidad}.");
         var disponible = Math.Max(0, (int)Math.Floor(Disponible(producto, reservado)));
         int? maximo = stockRigido && cantidad > disponible ? disponible : null;
-        var subTotal = Math.Round(producto.Precio * cantidad, 2, MidpointRounding.AwayFromZero);
-        return new LineaCotizada(producto.Id, producto.Codigo, producto.Nombre, cantidad, producto.Precio, subTotal, maximo);
+        var unitario = ServicioOfertas.PrecioUnitarioConOferta(oferta, producto.Precio, cantidad);
+        var subTotal = Math.Round(unitario * ServicioOfertas.CantidadCobrada(oferta, cantidad), 2, MidpointRounding.AwayFromZero);
+        var ahorro = Math.Max(0, Math.Round(producto.Precio * cantidad, 2, MidpointRounding.AwayFromZero) - subTotal);
+        var nombreOferta = ahorro > 0 ? ServicioOfertas.Descripcion(oferta) : "";
+        return new LineaCotizada(producto.Id, producto.Codigo, producto.Nombre, cantidad, unitario, subTotal, maximo, producto.Precio, nombreOferta, ahorro);
     }
 
     private static void ConTransferencia(PedidoTienda pedido, Local local, DateTimeOffset ahora)
@@ -220,6 +229,16 @@ public static class ServicioPedidosTienda
         if (!ServicioTransferenciaTienda.Acepta(local))
             throw new ErrorNegocio("Este local no recibe transferencias.");
         ConPagoPrevio(pedido, local, ServicioPagoPedidoTienda.Transferencia, ServicioTransferenciaTienda.VencePago(local, ahora));
+    }
+
+    /// <summary>Pago al retirar: congela la gestión igual que MP/transferencia. Si no va a cargo del comprador, el local la debe al entregar.</summary>
+    private static void ConCoordinar(PedidoTienda pedido, Local local)
+    {
+        var desglose = ServicioGestionTienda.Desglose(local, pedido.Subtotal);
+        pedido.MedioPago = ServicioPagoPedidoTienda.Coordinar;
+        pedido.Gestion = desglose.Gestion;
+        pedido.GestionACargoComprador = desglose.ACargoComprador;
+        pedido.Total = desglose.Total;
     }
 
     private static void ConPagoPrevio(PedidoTienda pedido, Local local, string medio, DateTimeOffset? vencePago)
@@ -252,7 +271,10 @@ public static class ServicioPedidosTienda
         Nombre = linea.Nombre,
         Cantidad = linea.Cantidad,
         PrecioUnitario = linea.PrecioUnitario,
-        SubTotal = linea.SubTotal
+        SubTotal = linea.SubTotal,
+        PrecioLista = linea.PrecioLista,
+        Oferta = linea.Oferta.Length == 0 ? null : linea.Oferta,
+        Ahorro = linea.Ahorro
     };
 
     private static string NormalizarNombre(string? nombre)

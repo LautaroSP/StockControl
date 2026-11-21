@@ -33,9 +33,10 @@ public static class EndpointsPedidosTienda
         {
             var items = Items(carrito.Items);
             var cotizacion = ServicioPedidosTienda.Cotizar(
-                local.IdLocal, items, await Productos(db, items), await ReservasTienda.DelLocal(db, local.IdLocal), await StockRigido(db));
+                local.IdLocal, items, await Productos(db, items), await ReservasTienda.DelLocal(db, local.IdLocal), await StockRigido(db),
+                await OfertasTienda(db, local.IdLocal, ahora), DiaArgentina.Hoy(ahora));
             var desglose = ServicioGestionTienda.Desglose(local, cotizacion.Total);
-            var pagoPrevio = new { gestion = desglose.ACargoComprador ? desglose.Gestion : 0, total = desglose.Total };
+            var comprador = new { gestion = desglose.ACargoComprador ? desglose.Gestion : 0, total = desglose.Total };
             var km = await Kilometros(rutas, local, carrito.Latitud, carrito.Longitud, cancelar);
             var envio = ServicioEnvioTienda.Cotizar(local, cotizacion.Total, carrito.Latitud, carrito.Longitud, km);
             return Results.Ok(new
@@ -43,10 +44,12 @@ public static class EndpointsPedidosTienda
                 lineas = cotizacion.Lineas.Select(l => new
                 {
                     idProducto = l.IdProducto, nombre = l.Nombre, cantidad = l.Cantidad,
-                    precioUnitario = l.PrecioUnitario, subTotal = l.SubTotal, maximo = l.Maximo
+                    precioUnitario = l.PrecioUnitario, subTotal = l.SubTotal, maximo = l.Maximo,
+                    precioLista = l.PrecioLista, oferta = l.Oferta, ahorro = l.Ahorro
                 }),
                 noDisponibles = cotizacion.NoDisponibles,
                 total = cotizacion.Total,
+                comprador,
                 envio = new
                 {
                     ofrece = ServicioEnvioTienda.Ofrece(local),
@@ -56,8 +59,8 @@ public static class EndpointsPedidosTienda
                     origen = envio.Origen,
                     motivo = envio.Motivo
                 },
-                mercadoPago = await PagosPedidoTienda.AceptaMercadoPago(db, local.IdLocal) ? pagoPrevio : null,
-                transferencia = ServicioTransferenciaTienda.Acepta(local) ? pagoPrevio : null
+                mercadoPago = await PagosPedidoTienda.AceptaMercadoPago(db, local.IdLocal) ? comprador : null,
+                transferencia = ServicioTransferenciaTienda.Acepta(local) ? comprador : null
             });
         }
         catch (ErrorNegocio ex)
@@ -95,7 +98,8 @@ public static class EndpointsPedidosTienda
                 local, ahoraPedido, numero,
                 new DatosComprador(pedido.Nombre, pedido.Telefono, pedido.Email),
                 items, await Productos(db, items), await ReservasTienda.DelLocal(db, local.IdLocal), await StockRigido(db), medio, gestionVencida,
-                new DatosEnvio(pedido.Modalidad, pedido.DireccionEnvio, pedido.Latitud, pedido.Longitud, km));
+                new DatosEnvio(pedido.Modalidad, pedido.DireccionEnvio, pedido.Latitud, pedido.Longitud, km),
+                await OfertasTienda(db, local.IdLocal, ahoraPedido));
             db.PedidosTienda.Add(creado.Pedido);
             await db.SaveChangesAsync();
             MensajePush? push = null;
@@ -164,9 +168,10 @@ public static class EndpointsPedidosTienda
                 : null,
             lineas = pedido.Lineas.OrderBy(l => l.Id).Select(l => new
             {
-                nombre = l.Nombre, cantidad = l.Cantidad, precioUnitario = l.PrecioUnitario, subTotal = l.SubTotal
+                nombre = l.Nombre, cantidad = l.Cantidad, precioUnitario = l.PrecioUnitario, subTotal = l.SubTotal,
+                precioLista = l.PrecioLista > 0 ? l.PrecioLista : l.PrecioUnitario, oferta = l.Oferta, ahorro = l.Ahorro
             }),
-            local = new { nombre = local.Nombre, direccion = local.Direccion, horario = local.Horario, whatsApp = local.WhatsApp, colorMarca = local.ColorMarca, colorFondo = local.ColorFondo, colorFicha = local.ColorFicha, logo = local.LogoTienda, textoClaro = ServicioPaletaTienda.TextoClaro(local.ColorFondo), textoClaroFicha = ServicioPaletaTienda.TextoClaro(local.ColorFicha) }
+            local = new { nombre = local.Nombre, direccion = local.Direccion, horario = local.Horario, whatsApp = local.WhatsApp, correo = local.Correo, instagram = local.Instagram, colorMarca = local.ColorMarca, colorFondo = local.ColorFondo, colorFicha = local.ColorFicha, logo = local.LogoTienda, textoClaro = ServicioPaletaTienda.TextoClaro(local.ColorFondo), textoClaroFicha = ServicioPaletaTienda.TextoClaro(local.ColorFicha) }
         });
     }
 
@@ -248,6 +253,9 @@ public static class EndpointsPedidosTienda
         var ids = items.Select(i => i.IdProducto).Distinct().ToList();
         return db.Productos.AsNoTracking().Where(p => ids.Contains(p.Id)).ToListAsync();
     }
+
+    private static Task<List<Oferta>> OfertasTienda(AppDbContext db, int idLocal, DateTimeOffset ahora) =>
+        OfertasVigentes.DeTienda(db, idLocal, DiaArgentina.Hoy(ahora)).ToListAsync();
 
     private static async Task<bool> StockRigido(AppDbContext db) =>
         (await db.Configuracion.AsNoTracking().FirstOrDefaultAsync(c => c.Clave == "StockRigido"))?.Valor == "1";

@@ -3,8 +3,10 @@ import { Component, DestroyRef, OnDestroy, OnInit } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
+import { AvisoConexionComponent } from '../aviso-conexion.component';
 import { ApiService } from '../servicios/api.service';
 import { AvisosService } from '../servicios/avisos.service';
+import { ColaVentasService } from '../servicios/cola-ventas.service';
 import { DialogoService } from '../servicios/dialogo.service';
 import { PushService } from '../servicios/push.service';
 import { SesionService } from '../servicios/sesion.service';
@@ -20,7 +22,7 @@ const RUTAS_GRUPO: Record<Grupo, string[]> = {
   reportes: ['/informes', '/cajas', '/estadisticas'],
   tienda: ['/mi-tienda'],
   administracion: ['/proveedores', '/usuarios'],
-  configuracion: ['/configuracion', '/medios-pago', '/activar']
+  configuracion: ['/configuracion', '/medios-pago', '/facturacion', '/activar']
 };
 
 function leerGrupos(): Record<Grupo, boolean> {
@@ -35,7 +37,7 @@ function leerGrupos(): Record<Grupo, boolean> {
 @Component({
   selector: 'sc-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, DatePipe, IconoComponent, TemaComponent, CampanitaComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, DatePipe, IconoComponent, TemaComponent, CampanitaComponent, AvisoConexionComponent],
   template: `
     <div class="app">
       <aside class="sidebar" [class.abierto]="menuAbierto">
@@ -131,6 +133,9 @@ function leerGrupos(): Record<Grupo, boolean> {
                   <a routerLink="/medios-pago" routerLinkActive="active"><sc-icono nombre="medios" /> Medios de pago</a>
                 }
                 @if (sesion.puedeConfigurarLocal()) {
+                  <a routerLink="/facturacion" routerLinkActive="active"><sc-icono nombre="configuracion" /> Facturación</a>
+                }
+                @if (sesion.puedeConfigurarLocal()) {
                   <a routerLink="/activar" routerLinkActive="active"><sc-icono nombre="abono" /> Abono</a>
                 }
               </div>
@@ -147,6 +152,7 @@ function leerGrupos(): Record<Grupo, boolean> {
         </div>
       </aside>
       <main class="main">
+        <sc-aviso-conexion />
         @if (sesion.abono(); as abono) {
           @if (abono.enGracia) {
             <div class="aviso-abono aviso-abono-vencido">
@@ -188,20 +194,6 @@ function leerGrupos(): Record<Grupo, boolean> {
               }
             }
           }
-          @if (abono.gestionPendiente > 0) {
-            <div class="aviso-abono" [class.aviso-abono-vencido]="abono.gestionVencida">
-              @if (abono.gestionVencida) {
-                La tienda online está cerrada por la gestión impaga. La caja sigue funcionando.
-              } @else {
-                Tenés $ {{ pesos(abono.gestionPendiente) }} de gestión de la tienda.
-                Si no la pagás antes del {{ abono.gestionLimite | date: 'dd/MM' }} a las {{ abono.gestionLimite | date: 'HH:mm' }},
-                se cierra la tienda online. La caja sigue abierta.
-              }
-              @if (sesion.puedeConfigurarLocal()) {
-                <a class="btn btn-primary" routerLink="/activar">Abono</a>
-              }
-            </div>
-          }
         }
         <router-outlet />
       </main>
@@ -216,6 +208,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   constructor(
     readonly sesion: SesionService,
     readonly avisos: AvisosService,
+    private readonly cola: ColaVentasService,
     private readonly api: ApiService,
     private readonly push: PushService,
     private readonly router: Router,
@@ -227,6 +220,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.api.abonoActual().subscribe({ next: (a) => this.sesion.abono.set(a) });
     this.api.permisosCuentas().subscribe({ next: (p) => (this.puedeFiar = p.puedeFiar) });
     this.avisos.iniciar();
+    this.cola.iniciar();
     this.push.escucharClics();
     this.abrirGrupoDe(this.router.url);
     this.router.events
@@ -236,14 +230,11 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.avisos.detener();
+    this.cola.detener();
   }
 
   abierto(grupo: Grupo): boolean {
     return this.grupos[grupo];
-  }
-
-  pesos(n: number): string {
-    return Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 });
   }
 
   alternar(grupo: Grupo, e: Event): void {

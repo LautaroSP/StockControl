@@ -186,15 +186,15 @@ import { GestionTiendaAdminComponent } from './gestion-tienda-admin.component';
                 }
                 @if (l.exentoGestion) {
                   <span class="badge">Sin cargo de gestión</span>
+                } @else {
+                  <span class="badge">Gestión $ {{ pesos(l.importeGestion) }}</span>
                 }
               </div>
               <div class="row" style="margin-top:8px">
                 <button class="btn" type="button" (click)="abrirAccion('pago', l.idLocal)">Marcar pago</button>
                 <button class="btn" type="button" (click)="abrirAccion('anular', l.idLocal)">Anular pago</button>
                 <button class="btn" type="button" (click)="abrirVence(l)">Vencimiento</button>
-                <button class="btn" type="button" (click)="abrirAccion('gestion', l.idLocal)">
-                  {{ l.exentoGestion ? 'Cobrar gestión' : 'Eximir de gestión' }}
-                </button>
+                <button class="btn" type="button" (click)="abrirGestion(l)">Configurar gestión</button>
                 @if (l.activo) {
                   <button class="btn btn-danger" type="button" (click)="abrirAccion('baja', l.idLocal)">Desactivar</button>
                 } @else {
@@ -329,6 +329,16 @@ import { GestionTiendaAdminComponent } from './gestion-tienda-admin.component';
             <input class="wide" type="datetime-local" [(ngModel)]="vence" />
           </label>
         }
+        @if (tipo === 'gestion') {
+          <label class="field">
+            Importe por pedido ($)
+            <input class="wide" type="number" min="0" max="100000" step="1" [(ngModel)]="importeGestion" />
+          </label>
+          <label class="field" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" [(ngModel)]="exentoGestion" />
+            No cobrar gestión a este local
+          </label>
+        }
         <label class="field">
           Clave maestra
           <input class="wide" type="password" [(ngModel)]="claveAccion" autocomplete="off" />
@@ -358,6 +368,8 @@ export class AdminComponent implements OnInit {
   claveDueno = '';
   canal = 'transferencia';
   vence = '';
+  importeGestion = 500;
+  exentoGestion = false;
   creados: UsuarioCreadoDto[] = [];
   abierto = 0;
   creadosDe = 0;
@@ -416,6 +428,23 @@ export class AdminComponent implements OnInit {
     this.aviso = '';
   }
 
+  abrirGestion(local: LocalPlataformaDto): void {
+    if (this.accion === 'gestion' && this.accionId === local.idLocal) {
+      this.accion = '';
+      this.claveAccion = '';
+      return;
+    }
+    this.accion = 'gestion';
+    this.accionId = local.idLocal;
+    this.importeGestion = local.importeGestion ?? 500;
+    this.exentoGestion = local.exentoGestion;
+    this.claveAccion = '';
+    this.cambiaClave = 0;
+    this.pideClave = 0;
+    this.error = '';
+    this.aviso = '';
+  }
+
   confirmarAccion(): void {
     const tipo = this.accion;
     const id = this.accionId;
@@ -426,7 +455,7 @@ export class AdminComponent implements OnInit {
       : tipo === 'vence' ? this.api.cambiarVencimientoAdmin(id, this.vence, clave)
       : tipo === 'baja' ? this.api.desactivarLocal(id, clave)
       : tipo === 'activar' ? this.api.activarLocal(id, clave)
-      : tipo === 'gestion' ? this.api.eximirGestionAdmin(id, !this.locales.find((l) => l.idLocal === id)?.exentoGestion, clave)
+      : tipo === 'gestion' ? this.api.configurarGestionAdmin(id, this.importeGestion, this.exentoGestion, clave)
       : tipo === 'bloquear' ? this.api.bloquearUsuario(id, clave)
       : this.api.eliminarUsuario(id, clave);
     pedido.subscribe({

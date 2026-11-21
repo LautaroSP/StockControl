@@ -207,6 +207,17 @@ interface OpcionMes {
         </div>
       </div>
 
+      <div class="kpis" style="margin-bottom:16px">
+        <div class="panel kpi">
+          <div class="n">{{ dinero(resumen.totalMostrador) }}</div>
+          <div class="l">Mostrador · {{ resumen.ticketsMostrador }} {{ resumen.ticketsMostrador === 1 ? 'ticket' : 'tickets' }}</div>
+        </div>
+        <div class="panel kpi">
+          <div class="n">{{ dinero(resumen.totalTiendaOnline) }}</div>
+          <div class="l">Tienda online · {{ resumen.ticketsTiendaOnline }} {{ resumen.ticketsTiendaOnline === 1 ? 'ticket' : 'tickets' }}</div>
+        </div>
+      </div>
+
       <section class="panel pad" style="margin-bottom:16px">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
           <strong>Se debe ahora</strong>
@@ -463,6 +474,10 @@ export class EstadisticasComponent implements OnInit, AfterViewChecked, OnDestro
     totalVendido: 0,
     cantidadTickets: 0,
     ticketPromedio: 0,
+    totalMostrador: 0,
+    ticketsMostrador: 0,
+    totalTiendaOnline: 0,
+    ticketsTiendaOnline: 0,
     margenEstimado: 0,
     porcentajeMargen: 0,
     gananciaDelDia: 0,

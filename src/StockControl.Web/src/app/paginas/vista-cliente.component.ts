@@ -47,6 +47,7 @@ const RESALTADO_MS = 3000;
           <footer class="vc-pie">
             @if (e.descuentoPorcentaje > 0) { <p class="vc-oferta">Descuento {{ e.descuentoPorcentaje }} %</p> }
             @if (e.ahorroCombos > 0) { <p class="vc-oferta">Combo: ahorrás {{ dinero(e.ahorroCombos) }}</p> }
+            @if (e.descuentoMedio) { <p class="vc-oferta">{{ e.descuentoMedio }}</p> }
             <div class="vc-total-fila"><span>Total</span><strong class="vc-total">{{ dinero(e.total) }}</strong></div>
           </footer>
         }

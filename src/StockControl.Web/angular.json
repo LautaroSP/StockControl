@@ -38,6 +38,11 @@
                 }
               ],
               "outputHashing": "all",
+              "optimization": {
+                "styles": {
+                  "inlineCritical": false
+                }
+              },
               "budgets": [
                 {
                   "type": "initial",

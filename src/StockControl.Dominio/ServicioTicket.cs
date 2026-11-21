@@ -49,7 +49,8 @@ public static class ServicioTicket
         MediosDe(venta.Pagos, venta.MetodoPago, venta.Total),
         venta.Descuento,
         venta.Fecha,
-        venta.NroCaja);
+        venta.NroCaja,
+        DescuentoMedioDe(venta));
 
     public static Ticket DeCuenta(CuentaPendiente cuenta, string cliente) => Armar(
         cuenta.Lineas,
@@ -65,7 +66,8 @@ public static class ServicioTicket
         IReadOnlyList<MedioTicket> medios,
         decimal descuentoPorcentaje,
         DateTimeOffset fecha,
-        int? nroCaja)
+        int? nroCaja,
+        AhorroTicket? descuentoMedio = null)
     {
         var lista = lineas.ToList();
         if (lista.Count == 0)
@@ -76,11 +78,23 @@ public static class ServicioTicket
             Fecha = fecha,
             NroCaja = nroCaja,
             Lineas = lista.Select(ArmarLinea).ToList(),
-            Ahorros = [.. AhorrosDeCombos(lista), .. AhorroDeDescuento(lista, descuentoPorcentaje)],
+            Ahorros = [.. AhorrosDeCombos(lista), .. AhorroDeDescuento(lista, descuentoPorcentaje), .. AhorroMedio(descuentoMedio)],
             Total = total,
             Medios = medios,
             Items = lista.Sum(l => l.Cantidad)
         };
+    }
+
+    private static AhorroTicket? DescuentoMedioDe(InformeVenta venta)
+    {
+        if (venta.DescuentoMedio <= 0) return null;
+        var nombre = venta.Pagos.Count == 1 ? venta.Pagos[0].DescripcionMetodoPago : venta.MetodoPago;
+        return new AhorroTicket($"{nombre} {venta.DescuentoMedioPorcentaje} %", venta.DescuentoMedio);
+    }
+
+    private static IEnumerable<AhorroTicket> AhorroMedio(AhorroTicket? ahorro)
+    {
+        if (ahorro != null && ahorro.Importe > 0) yield return ahorro;
     }
 
     public static IReadOnlyList<MedioTicket> MediosDe(IEnumerable<PagoVenta> pagos, string metodoPago, decimal total)
